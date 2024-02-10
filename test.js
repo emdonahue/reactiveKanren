@@ -1,3 +1,16 @@
+function test(f, test_name) {
+    try {
+	f();
+    } catch (x) {
+	document.write('error in test: ' + (test_name || 'Unnamed'));
+	throw x;
+    }
+}
+
+function asserte(a, b) {
+    if (!equals(a, b)) throw Error(JSON.stringify(a) + ' != ' + JSON.stringify(b));
+}
+
 
 class LVar {
     constructor(id) {
@@ -50,6 +63,22 @@ let subst = [];
 let m = normalize({
     a: 1,
     b: 2,
-    c: [3, 4]
+    c: [3, 4],
+    d: {e: 5, f: 6}
 }, subst);
 console.log(subst);
+
+function render(spec) {
+    if (typeof spec == 'string' || typeof spec == 'number') return document.createTextNode(spec);
+    else if (Array.isArray(spec)) {
+	let parent = document.createElement(spec[0]);
+	for (let i=1; i<spec.length; i++) parent.appendChild(render(spec[i]));
+	return parent;
+    }
+    else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
+    //    		typeof child === 'number') head.appendChild(document.createTextNode(child));
+    //document.createDocumentFragment());}
+}
+
+
+console.log(render(['div', 'this is a test']));
