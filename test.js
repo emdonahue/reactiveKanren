@@ -35,10 +35,13 @@ class LVar {
 }
 
 class PropObserver {
-    constructor(node, attr, val) {
+    constructor(node, attr) {
 	this.node = node;
 	this.attr = attr;
-	this.val = val;
+    }
+
+    update(val) {
+	this.node[this.attr] = val;
     }
 }
 
@@ -91,26 +94,37 @@ function walk(substitution, lvar) {
 
 // RENDERING
 
-function render(spec, sub, observers) {
-    log('render', spec, sub, observers);
+function render(spec, sub, obs) {
+    log('render', spec, sub, obs);
     assert(sub);
-    if (typeof spec == 'string' || typeof spec == 'number') return document.createTextNode(spec);
+    if (typeof spec == 'string' || typeof spec == 'number') {
+	let node = document.createTextNode(spec);
+	//return [node, new PropObserver(node, 'textContent')];
+	return node;
+    }
     else if (Array.isArray(spec)) {
 	let parent = document.createElement(spec[0]);
 	for (let i=1; i<spec.length; i++) {
-	    log('child render', render(spec[i], sub, observers));
-	    parent.appendChild(render(spec[i], sub, observers));
+	    log('child render', render(spec[i], sub, obs));	    
+	    parent.appendChild(render(spec[i], sub, obs));
 	}
 	return parent;
     }
     else if (spec instanceof LVar) {
-	return render(walk(sub, spec), sub, observers);
-	
-	
+	let node = render(walk(sub, spec), sub, obs);
+	obs[spec.id] = (obs[spec.id] || []);
+	obs[spec.id].push(new PropObserver(node, 'textContent'));
+	return node;
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
     //    		typeof child === 'number') head.appendChild(document.createTextNode(child));
     //document.createDocumentFragment());}
+}
+
+// UPDATING
+
+function update(lv, val, obs) {
+    
 }
 
 
@@ -131,4 +145,11 @@ log("model",m);
 log("substitution",s);
 
 assert(walk(s, m).a instanceof LVar, walk(s, m).a);
-asserte(render(walk(s,m).a, s).textContent, '1');
+asserte(render(walk(s,m).a, s, []).textContent, '1');
+
+let o = [];
+let n = render(walk(s,m).a, s, o);
+asserte(n.textContent, '1');
+walk(o,walk(s,m).a)[0].update(2);
+asserte(n.textContent, '2');
+
