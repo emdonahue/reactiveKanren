@@ -1,6 +1,6 @@
 let logging = false;
 function log() {
-    if (logging) console.log(arguments);
+    if (logging) console.log.apply(console, arguments);
 }
 
 function test(f, test_name) {
@@ -77,7 +77,9 @@ function normalize(model, substitution) {
     else if (typeof model == 'object') {
 	let m = {};
 	for (const k in model) {
-	    m[k] = normalize(model[k], substitution);
+	    //log('k',k,'submodel',model[k], 'substitution',JSON.stringify(substitution));
+	    m[k] = new LVar(substitution.push(new LVar(substitution.push(normalize(model[k], substitution)) - 1)) - 1);
+	    //log('id',m[k],'substitution',JSON.stringify(substitution));
 	}
 	return new LVar(substitution.push(m) - 1);
     }
@@ -88,7 +90,7 @@ function normalize(model, substitution) {
 
 function walk(substitution, lvar) {
     if (!(lvar instanceof LVar)) return lvar;
-	return substitution[lvar.id];
+    return walk(substitution, substitution[lvar.id]);
 }
 
 
@@ -130,6 +132,8 @@ function update(lv, val, obs) {
 
 // TESTING
 
+//logging=true;
+
 let s = [];
 let m = normalize({
     a: 1,
@@ -153,3 +157,4 @@ asserte(n.textContent, '1');
 walk(o,walk(s,m).a)[0].update(2);
 asserte(n.textContent, '2');
 
+    console.log('Tests Complete');
