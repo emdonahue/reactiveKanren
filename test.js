@@ -99,12 +99,12 @@ function walk(substitution, lvar) {
 function render(spec, sub, obs) {
     log('render', spec, sub, obs);
     assert(sub);
-    if (typeof spec == 'string' || typeof spec == 'number') {
+    if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
 	//return [node, new PropObserver(node, 'textContent')];
 	return node;
     }
-    else if (Array.isArray(spec)) {
+    else if (Array.isArray(spec)) { // Build a DOM node
 	let parent = document.createElement(spec[0]);
 	for (let i=1; i<spec.length; i++) {
 	    log('child render', render(spec[i], sub, obs));	    
@@ -112,7 +112,7 @@ function render(spec, sub, obs) {
 	}
 	return parent;
     }
-    else if (spec instanceof LVar) {
+    else if (spec instanceof LVar) { // Build a watched Text node
 	let node = render(walk(sub, spec), sub, obs);
 	obs[spec.id] = (obs[spec.id] || []);
 	obs[spec.id].push(new PropObserver(node, 'textContent'));
@@ -125,14 +125,14 @@ function render(spec, sub, obs) {
 
 // UPDATING
 
-function update(lv, val, obs) {
+function update(lvar, val, sub, obs) {
     
 }
 
 
 // TESTING
 
-//logging=true;
+logging=false;
 
 let s = [];
 let m = normalize({
@@ -148,13 +148,28 @@ let m = normalize({
 log("model",m);
 log("substitution",s);
 
+
+//Model
 assert(walk(s, m).a instanceof LVar, walk(s, m).a);
+
+//Template
 asserte(render(walk(s,m).a, s, []).textContent, '1');
 
-let o = [];
-let n = render(walk(s,m).a, s, o);
+//DOM
+
+let o = []; // observers: convert substitution values into dom updates
+
+// Static
+asserte(render('lorem', s, o).textContent, 'lorem'); // Static text node
+asserte(render(['div', 'lorem'], s, o).innerHTML, 'lorem'); // Static dom node
+asserte(render(['div', ['div', 'lorem']], s, o).childNodes[0].innerHTML, 'lorem'); // Static nested dom node
+
+// Dynamic
+let model = walk(s,m);
+let n = render(model.a, s, o);
 asserte(n.textContent, '1');
-walk(o,walk(s,m).a)[0].update(2);
-asserte(n.textContent, '2');
+update(model.a, 2, s, o);
+//walk(o,model.a)[0].update(2);
+//asserte(n.textContent, '2');
 
     console.log('Tests Complete');
