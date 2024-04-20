@@ -126,7 +126,11 @@ function render(spec, sub, obs) {
 // UPDATING
 
 function update(lvar, val, sub, obs) {
-    
+    let s = [...sub];
+    s[lvar.id] = val;
+    let observers = obs[lvar.id];
+    if (observers) observers.forEach(function (o) { o.update(val) });
+    return s;
 }
 
 
@@ -169,7 +173,6 @@ let model = walk(s,m);
 let n = render(model.a, s, o);
 asserte(n.textContent, '1');
 update(model.a, 2, s, o);
-//walk(o,model.a)[0].update(2);
-//asserte(n.textContent, '2');
+asserte(n.textContent, '2');
 
     console.log('Tests Complete');
