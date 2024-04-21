@@ -119,14 +119,17 @@ function render(spec, sub, obs, model) {
 	//return [node, new PropObserver(node, 'textContent')];
 	return node;
     }
+    else if (spec instanceof Function) {
+        return render(spec(model), sub, obs, model);
+    }
     else if (Array.isArray(spec)) { // Build a DOM node
-        if (spec[0] instanceof List) {
+        if (spec[0] instanceof List) { // Build an iterable DOM list
             let parent = document.createDocumentFragment();
             for (const e of spec[0]) {
-                parent.appendChild(render(spec[1], sub, obs, model));
+                parent.appendChild(render(spec[1], sub, obs, e));
             }
             return parent;
-        }
+        } // Build a head node for the rest of the child specs
         else {
 	    let parent = document.createElement(spec[0]);
 	    for (let i=1; i<spec.length; i++) {
@@ -191,8 +194,6 @@ let o = []; // observers: convert substitution values into dom updates
 asserte(render('lorem', s, o, m).textContent, 'lorem'); // Static text node
 asserte(render(['div', 'lorem'], s, o, m).innerHTML, 'lorem'); // Static dom node
 asserte(render(['div', ['div', 'lorem']], s, o, m).childNodes[0].innerHTML, 'lorem'); // Static nested dom node
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o, m).childNodes[0].innerHTML, 'lorem');
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m).childNodes[0].innerHTML, 'lorem');
 
 // Dynamic
 let model = walk(s,m);
@@ -200,5 +201,10 @@ let n = render(model.a, s, o, m);
 asserte(n.textContent, '1');
 update(model.a, 2, s, o);
 asserte(n.textContent, '2');
+
+// Lists
+asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o, m).childNodes[0].innerHTML, 'lorem');
+asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return 'lorem' }]], s, o, m).childNodes[0].innerHTML, 'lorem');
+asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m).childNodes[0].innerHTML, 'ipsum');
 
 console.log('Tests Complete');
