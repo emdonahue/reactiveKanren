@@ -35,7 +35,8 @@ class LVar {
 }
 
 class PropObserver {
-    constructor(node, attr) {
+    constructor(lvar, node, attr) {
+        this.lvar = lvar;
 	this.node = node;
 	this.attr = attr;
     }
@@ -141,8 +142,7 @@ function render(spec, sub, obs, model) {
     }
     else if (spec instanceof LVar) { // Build a watched Text node
 	let node = render(walk(sub, spec), sub, obs, model);
-	obs[spec.id] = (obs[spec.id] || []);
-	obs[spec.id].push(new PropObserver(node, 'textContent'));
+	obs.push(new PropObserver(spec, node, 'textContent'));
 	return node;
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
@@ -152,7 +152,13 @@ function render(spec, sub, obs, model) {
 
 // UPDATING
 
-function update(lvar, val, sub, obs) {
+function update(sub, obs) {
+    for (o of obs) {
+        o.update(walk(sub, o.lvar));
+    }
+}
+
+function update2(lvar, val, sub, obs) {
     let s = [...sub];
     s[lvar.id] = val;
     let observers = obs[lvar.id];
@@ -199,7 +205,7 @@ asserte(render(['div', ['div', 'lorem']], s, o, m).childNodes[0].innerHTML, 'lor
 let model = walk(s,m);
 let n = render(model.a, s, o, m);
 asserte(n.textContent, '1');
-update(model.a, 2, s, o);
+update({2:2}, o);
 asserte(n.textContent, '2');
 
 // Lists
