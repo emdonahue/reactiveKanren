@@ -118,7 +118,7 @@ function render(spec, sub, obs, model) {
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
 	//return [node, new PropObserver(node, 'textContent')];
-	return node;
+	return [node, sub, obs];
     }
     else if (spec instanceof Function) {
         return render(spec(model), sub, obs, model);
@@ -127,23 +127,25 @@ function render(spec, sub, obs, model) {
         if (spec[0] instanceof List) { // Build an iterable DOM list
             let parent = document.createDocumentFragment();
             for (const e of spec[0]) {
-                parent.appendChild(render(spec[1], sub, obs, e));
+                var [node, sub, obs] = render(spec[1], sub, obs, e);
+                parent.appendChild(node);
             }
-            return parent;
+            return [parent, sub, obs];
         } // Build a head node for the rest of the child specs
         else {
 	    let parent = document.createElement(spec[0]);
 	    for (let i=1; i<spec.length; i++) {
 	        log('child render', render(spec[i], sub, obs, model));
-	        parent.appendChild(render(spec[i], sub, obs, model));
+                var [node, sub, obs] = render(spec[i], sub, obs, model);
+                parent.appendChild(node);
 	    }
-	    return parent;
+	    return [parent, sub, obs];
         }
     }
     else if (spec instanceof LVar) { // Build a watched Text node
-	let node = render(walk(sub, spec), sub, obs, model);
+	var [node, sub, obs] = render(walk(sub, spec), sub, obs, model);
 	obs.push(new PropObserver(spec, node, 'textContent'));
-	return node;
+	return [node, sub, obs];
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
     //    		typeof child === 'number') head.appendChild(document.createTextNode(child));
@@ -190,27 +192,27 @@ log("substitution",s);
 assert(walk(s, m).a instanceof LVar, walk(s, m).a);
 
 //Template
-asserte(render(walk(s,m).a, s, [], m).textContent, '1');
+asserte(render(walk(s,m).a, s, [], m)[0].textContent, '1');
 
 //DOM
 
 let o = []; // observers: convert substitution values into dom updates
 
 // Static
-asserte(render('lorem', s, o, m).textContent, 'lorem'); // Static text node
-asserte(render(['div', 'lorem'], s, o, m).innerHTML, 'lorem'); // Static dom node
-asserte(render(['div', ['div', 'lorem']], s, o, m).childNodes[0].innerHTML, 'lorem'); // Static nested dom node
+asserte(render('lorem', s, o, m)[0].textContent, 'lorem'); // Static text node
+asserte(render(['div', 'lorem'], s, o, m)[0].innerHTML, 'lorem'); // Static dom node
+asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem'); // Static nested dom node
 
 // Dynamic
 let model = walk(s,m);
-let n = render(model.a, s, o, m);
+let n = render(model.a, s, o, m)[0];
 asserte(n.textContent, '1');
 update({2:2}, o);
 asserte(n.textContent, '2');
 
 // Lists
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o, m).childNodes[0].innerHTML, 'lorem');
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return 'lorem' }]], s, o, m).childNodes[0].innerHTML, 'lorem');
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m).childNodes[0].innerHTML, 'ipsum');
+asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return 'lorem' }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
 console.log('Tests Complete');
