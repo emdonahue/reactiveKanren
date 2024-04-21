@@ -46,7 +46,16 @@ class PropObserver {
 }
 
 class List {
-
+    static fromArray(a) {
+        let l = new Empty();
+        for (const e of a.reverse()) {
+            l = new Cons(e, l);
+        }
+        return l;
+    }
+    [Symbol.iterator]() {
+        return this.toArray()[Symbol.iterator]();
+    }
 }
 
 class Cons extends List {
@@ -55,10 +64,16 @@ class Cons extends List {
 	this.car = car;
 	this.cdr = cdr;
     }
+    toArray() {
+        return [this.car].concat(this.cdr.toArray());
+    }
+    
 }
 
 class Empty extends List {
-
+    toArray() {
+        return [];
+    }
 }
 
 const nil = new Empty();
@@ -105,12 +120,21 @@ function render(spec, sub, obs) {
 	return node;
     }
     else if (Array.isArray(spec)) { // Build a DOM node
-	let parent = document.createElement(spec[0]);
-	for (let i=1; i<spec.length; i++) {
-	    log('child render', render(spec[i], sub, obs));	    
-	    parent.appendChild(render(spec[i], sub, obs));
-	}
-	return parent;
+        if (spec[0] instanceof List) {
+            let parent = document.createDocumentFragment();
+            for (const e of spec[0]) {
+                parent.appendChild(render(spec[1], sub, obs)); 
+            }
+            return parent;
+        }
+        else {
+	    let parent = document.createElement(spec[0]);
+	    for (let i=1; i<spec.length; i++) {
+	        log('child render', render(spec[i], sub, obs));	    
+	        parent.appendChild(render(spec[i], sub, obs));
+	    }
+	    return parent;
+        }
     }
     else if (spec instanceof LVar) { // Build a watched Text node
 	let node = render(walk(sub, spec), sub, obs);
@@ -167,6 +191,7 @@ let o = []; // observers: convert substitution values into dom updates
 asserte(render('lorem', s, o).textContent, 'lorem'); // Static text node
 asserte(render(['div', 'lorem'], s, o).innerHTML, 'lorem'); // Static dom node
 asserte(render(['div', ['div', 'lorem']], s, o).childNodes[0].innerHTML, 'lorem'); // Static nested dom node
+asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o).childNodes[0].innerHTML, 'lorem');
 
 // Dynamic
 let model = walk(s,m);
