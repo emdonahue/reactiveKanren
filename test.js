@@ -81,26 +81,28 @@ const nil = new Empty();
 
 function normalize(model, substitution) {
     if (model instanceof LVar) {
-	return model;
+	return [model, substitution];
     }
     else if (Array.isArray(model)) {
 	let tail = new LVar(substitution.push(nil) - 1);
 	for (let i=model.length-1; 0<=i; i--) {
-	    tail = new LVar(substitution.push(new Cons(normalize(model[i], substitution), tail)) - 1);
+            var [lvar, substitution] = normalize(model[i], substitution);
+	    tail = new LVar(substitution.push(new Cons(lvar, tail)) - 1);
 	}
-	return tail;
+	return [tail, substitution];
     }
     else if (typeof model == 'object') {
 	let m = {};
 	for (const k in model) {
 	    //log('k',k,'submodel',model[k], 'substitution',JSON.stringify(substitution));
-	    m[k] = new LVar(substitution.push(new LVar(substitution.push(normalize(model[k], substitution)) - 1)) - 1);
+            var [lvar, substitution] = normalize(model[k], substitution);
+	    m[k] = new LVar(substitution.push(new LVar(substitution.push(lvar) - 1)) - 1);
 	    //log('id',m[k],'substitution',JSON.stringify(substitution));
 	}
-	return new LVar(substitution.push(m) - 1);
+	return [new LVar(substitution.push(m) - 1), substitution];
     }
     else {
-	return new LVar(substitution.push(model) - 1);
+	return [new LVar(substitution.push(model) - 1), substitution];
     }
 }
 
@@ -173,13 +175,13 @@ function update2(lvar, val, sub, obs) {
 
 logging=false;
 
-let s = [];
-let m = normalize({
+
+let [m, s] = normalize({
     a: 1,
     b: 2,
     c: [3, 4],
     d: {e: 5, f: 6}
-}, s);
+}, []);
 
 
 
