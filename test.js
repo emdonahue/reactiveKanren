@@ -145,9 +145,8 @@ function walk(substitution, lvar) {
 
 // RENDERING
 
-function render(spec, sub, obs, model) {
+function render(spec, sub=nil, obs=nil, model={}) {
     log('render', spec, sub, obs, model);
-    assert(sub);
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
 	//return [node, new PropObserver(node, 'textContent')];
@@ -242,5 +241,10 @@ asserte(n.textContent, '2');
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return 'lorem' }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
+
+
+
+let [todo_node] = render(['div', 'lorem ipsum']);
+document.body.appendChild(todo_node);
 
 console.log('Tests Complete');
