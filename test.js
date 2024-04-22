@@ -66,7 +66,12 @@ class List {
     acons(k, v) {
         return this.cons(new Cons(k, v));
     }
-    
+    walk(lvar) {
+        if (!(lvar instanceof LVar)) return lvar;
+        const v = this.assq(lvar);
+        if (v) { return this.walk(v.cdr); }
+        else return v;
+    }
 }
 
 class Cons extends List {
@@ -135,13 +140,6 @@ function normalize(model, substitution=nil) {
     }
 }
 
-function walk(substitution, lvar) {
-    if (!(lvar instanceof LVar)) return lvar;
-    const v = substitution.assq(lvar);
-    if (v) { return walk(substitution, v.cdr); }
-    else return v;
-}
-
 
 // RENDERING
 
@@ -157,7 +155,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
     }
     else if (Array.isArray(spec)) { // Build a DOM node
         if (spec[0] instanceof LVar) {
-            return render([walk(sub, spec[0])].concat(spec.slice(1)), sub, obs, model);
+            return render([sub.walk(spec[0])].concat(spec.slice(1)), sub, obs, model);
         }
         else if (spec[0] instanceof List) { // Build an iterable DOM list
             let parent = document.createDocumentFragment();
@@ -178,7 +176,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
         }
     }
     else if (spec instanceof LVar) { // Build a watched Text node
-	var [node, sub, obs] = render(walk(sub, spec), sub, obs, model);
+	var [node, sub, obs] = render(sub.walk(spec), sub, obs, model);
 	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent'))];
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
@@ -190,7 +188,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
 
 function update(sub, obs) {
     for (o of obs) {
-        o.update(walk(sub, o.lvar));
+        o.update(sub.walk(o.lvar));
     }
 }
 
@@ -219,10 +217,10 @@ log("model",m);
 log("substitution",s);
 
 //Model
-assert(walk(s, m).a instanceof LVar, walk(s, m).a);
+assert(s.walk(m).a instanceof LVar, s.walk(m).a);
 
 //Template
-asserte(render(walk(s,m).a, s, nil, m)[0].textContent, '1');
+asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
 
 //DOM
 
@@ -234,7 +232,7 @@ asserte(render(['div', 'lorem'], s, o, m)[0].innerHTML, 'lorem'); // Static dom 
 asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem'); // Static nested dom node
 
 // Dynamic
-let model = walk(s,m);
+let model = s.walk(m);
 var [n,,o] = render(model.a, s, o, m);
 asserte(n.textContent, '1');
 update(s.acons(model.a, 2), o);
@@ -251,7 +249,7 @@ let [todo_model, todo_substitution] =
     normalize({todos: [{title: 'get todos displaying', done: false},
                        {title: 'streamline api', done: false}]});
 let [todo_node] = render(['div',
-                          [walk(todo_substitution, todo_model).todos,
+                          [todo_substitution.walk(todo_model).todos,
                            ['div', 'todo item']]],
                          todo_substitution, nil, todo_model);
 document.body.appendChild(todo_node);
