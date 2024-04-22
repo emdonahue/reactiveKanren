@@ -243,10 +243,9 @@ asserte(render(['div', 'lorem'], s, o, m)[0].innerHTML, 'lorem'); // Static dom 
 asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem'); // Static nested dom node
 
 // Dynamic
-let model = s.walk(m);
-var [n,,o] = render(model.a, s, o, m);
+var [n,,o] = render(s.walk(m).a, s, o, m);
 asserte(n.textContent, '1');
-update(s.acons(model.a, 2), o);
+update(s.acons(s.walk(m).a, 2), o);
 asserte(n.textContent, '2');
 
 // Lists
@@ -259,10 +258,10 @@ let [todo_model, todo_substitution] =
     normalize({todos: [{title: 'get todos displaying', done: false},
                        {title: 'streamline api', done: false}]});
 
-
+console.log(todo_substitution + '')
 let [todo_node] = render(['div',
                           [todo_substitution.walk(todo_model).todos,
-                           ['div', 'todo item']]],
+                           ['div', function (e) {console.log(todo_substitution.walk(e).title);return todo_substitution.walk(e).title}]]],
                          todo_substitution, nil, todo_model);
 document.body.appendChild(todo_node);
 
