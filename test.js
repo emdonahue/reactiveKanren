@@ -28,6 +28,9 @@ function asserte(a, b) {
     if (!equals(a, b)) throw Error(JSON.stringify(a) + ' != ' + JSON.stringify(b));
 }
 
+function primitive(x) {
+    return typeof x == 'string' || typeof x == 'number';
+}
 
 class LVar {
     constructor(id) {
@@ -70,9 +73,12 @@ class List {
     acons(k, v) {
         return this.cons(new Cons(k, v));
     }
+    member(e) {
+        return this.memp((x) => x == e);
+    }
     walk(lvar) {
         if (!(lvar instanceof LVar)) return lvar;
-        const v = this.assq(lvar);
+        const v = this.assoc(lvar);
         if (v) { return this.walk(v.cdr); }
         else return lvar;
     }
@@ -95,13 +101,17 @@ class Cons extends List {
     toArray() {
         return [this.car].concat((this.cdr instanceof List) ? this.cdr.toArray() : [this.cdr]);            
     }
-    assq(key) {
+    assoc(key) {
         if (this.car instanceof Cons && this.car.car == key) {
             return this.car;
         }
         else {
-            return this.cdr.assq(key);
+            return this.cdr.assoc(key);
         }
+    }
+    memp(p) {
+        if (p(this.car)) return this.car;
+        return this.cdr.memp(p);
     }
 
 }
@@ -111,9 +121,10 @@ class Empty extends List {
         return [];
     }
     
-    assq(key) {
+    assoc(key) {
         return false;
     }
+    memp(p) { return undefined };
 }
 
 const nil = new Empty();
@@ -217,6 +228,26 @@ function update2(lvar, val, sub, obs) {
 }
 
 
+function collect_garbage(sub, root) {
+    
+}
+
+function garbage_sweep(sub, root, marked=nil) {
+    if (root instanceof LVar) {
+        if (marked.member(root)) return marked;
+        return garbage_sweep(sub, sub.assoc(root), marked.cons(root));
+    }
+    else if (primitive(root)) {
+        return marked;
+    }
+    else {
+        for (const p in root) {
+            marked = garbage_sweep(sub, root[p], marked);
+        }
+        return marked;
+    }
+}
+
 // TESTING
 
 logging=false;
@@ -234,6 +265,7 @@ log("substitution",s);
 
 //Model
 assert(s.walk(m).a instanceof LVar, s.walk(m).a);
+asserte(garbage_sweep(s, m).length(), 17);
 
 //Template
 asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
@@ -263,11 +295,61 @@ let [todo_model, todo_substitution] =
     normalize({todos: [{title: 'get todos displaying', done: false},
                        {title: 'streamline api', done: false}]});
 
-console.log(todo_substitution + '')
+//console.log(todo_substitution + '')
 let [todo_node] = render(['div',
                           [todo_substitution.walk(todo_model).todos,
                            ['div', function (e) {return todo_substitution.walk_path(e, 'title')}]]],
                          todo_substitution, nil, todo_model);
+todo_substitution = todo_substitution.acons(todo_substitution.walk_path(todo_model, 'todos', 'cdr'),
+                                            todo_substitution.walk_path(todo_model, 'todos', 'cdr', 'cdr'));
+
+//0: (cons #1 #2)
+//1: 'test
+//2: (cons #3 #4)
+//3 'test2
+//4 nil
+
+//tail deletion
+//0: (cons #1 #2)
+//1: 'test
+//2: #4            (cons #3 #4)
+//3 'test2
+//4 nil
+
+//head deletion
+//0: #2              (cons #1 #2)
+//1: 'test
+//2: (cons #3 #4)
+//3 'test2
+//4 nil
+
+//multi deletion
+//0: #4              (cons #1 #2)
+//1: 'test
+//2: (cons #3 #4)
+//3 'test2
+//4 nil
+
+//multi deletion
+//0: #4              (cons #1 #2)
+//1: 'test
+//2: (cons #3 #4)
+//3 'test2
+//4 nil
+
+//insertion
+//0: (cons #1 #2)
+//1: 'test
+//2: (cons #6 #7)          #3
+//3: (cons #4 #5)
+//4 'test2
+//5 nil
+//6 'test3
+//7 #3
+
+//first garbage collect all unreachable items
+//if a list observer is changed to something other than original object, particularly a free var, delete its node
+//console.log(todo_substitution)
 document.body.appendChild(todo_node);
 
 console.log('Tests Complete');
