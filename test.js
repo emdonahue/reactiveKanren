@@ -76,6 +76,11 @@ class List {
         if (v) { return this.walk(v.cdr); }
         else return lvar;
     }
+    walk_path(lvar, prop, ...path) {
+        let v = this.walk(lvar);
+        if (path.length == 0) return v[prop];
+        return this.walk_path(v[prop], ...path);
+    }
     toString() {
         return '(' + this.toArray().map((x) => x.toString()).join(' ') + ')';
     }
@@ -261,7 +266,7 @@ let [todo_model, todo_substitution] =
 console.log(todo_substitution + '')
 let [todo_node] = render(['div',
                           [todo_substitution.walk(todo_model).todos,
-                           ['div', function (e) {console.log(todo_substitution.walk(e).title);return todo_substitution.walk(e).title}]]],
+                           ['div', function (e) {return todo_substitution.walk_path(e, 'title')}]]],
                          todo_substitution, nil, todo_model);
 document.body.appendChild(todo_node);
 
