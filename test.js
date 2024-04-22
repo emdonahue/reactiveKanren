@@ -48,7 +48,7 @@ class PropObserver {
 
 class List {
     static fromArray(a) {
-        let l = new Empty();
+        let l = nil;
         for (const e of a.reverse()) {
             l = new Cons(e, l);
         }
@@ -57,6 +57,16 @@ class List {
     [Symbol.iterator]() {
         return this.toArray()[Symbol.iterator]();
     }
+    length() {
+        return this.toArray().length;
+    }
+    cons(e) {
+        return new Cons(e, this);
+    }
+    acons(k, v) {
+        return this.cons(new Cons(k, v));
+    }
+    
 }
 
 class Cons extends List {
@@ -68,12 +78,24 @@ class Cons extends List {
     toArray() {
         return [this.car].concat(this.cdr.toArray());
     }
+    assq(key) {
+        if (this.car instanceof Cons && this.car.car == key) {
+            return this.car;
+        }
+        else {
+            return this.cdr.assq(key);
+        }
+    }
 
 }
 
 class Empty extends List {
     toArray() {
         return [];
+    }
+    
+    assq(key) {
+        return false;
     }
 }
 
@@ -84,10 +106,12 @@ function normalize(model, substitution) {
 	return [model, substitution];
     }
     else if (Array.isArray(model)) {
-	let tail = new LVar(substitution.push(nil) - 1);
+	let tail = new LVar(substitution.length()); //substitution.push(nil) - 1
+        substitution = substitution.acons(tail, nil);
 	for (let i=model.length-1; 0<=i; i--) {
             var [lvar, substitution] = normalize(model[i], substitution);
-	    tail = new LVar(substitution.push(new Cons(lvar, tail)) - 1);
+	    tail = new LVar(substitution.length()); //substitution.push(new Cons(lvar, tail)) - 1
+            substitution = substitution.acons(lvar, tail);
 	}
 	return [tail, substitution];
     }
@@ -96,19 +120,26 @@ function normalize(model, substitution) {
 	for (const k in model) {
 	    //log('k',k,'submodel',model[k], 'substitution',JSON.stringify(substitution));
             var [lvar, substitution] = normalize(model[k], substitution);
-	    m[k] = new LVar(substitution.push(new LVar(substitution.push(lvar) - 1)) - 1);
+            const lvar2 = new LVar(substitution.length());
+            substitution = substitution.acons(lvar2, lvar);
+	    m[k] = lvar2;
+            //substitution = substitution.push(new LVar(substitution.push(lvar) - 1)) - 1
 	    //log('id',m[k],'substitution',JSON.stringify(substitution));
 	}
-	return [new LVar(substitution.push(m) - 1), substitution];
+        const mvar = new LVar(substitution.length());
+	return [mvar, substitution.acons(mvar, m)];
     }
     else {
-	return [new LVar(substitution.push(model) - 1), substitution];
+        const lvar = new LVar(substitution.length());
+	return [lvar, substitution.acons(lvar, model)];
     }
 }
 
 function walk(substitution, lvar) {
     if (!(lvar instanceof LVar)) return lvar;
-    return walk(substitution, substitution[lvar.id]);
+    const v = substitution.assq(lvar);
+    if (v) { return walk(substitution, v.cdr); }
+    else return v;
 }
 
 
@@ -181,14 +212,10 @@ let [m, s] = normalize({
     b: 2,
     c: [3, 4],
     d: {e: 5, f: 6}
-}, []);
-
-
-
+}, nil);
 
 log("model",m);
 log("substitution",s);
-
 
 //Model
 assert(walk(s, m).a instanceof LVar, walk(s, m).a);
@@ -209,7 +236,7 @@ asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, '
 let model = walk(s,m);
 let n = render(model.a, s, o, m)[0];
 asserte(n.textContent, '1');
-update({2:2}, o);
+update(s.acons(model.a, 2), o);
 asserte(n.textContent, '2');
 
 // Lists
