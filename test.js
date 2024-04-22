@@ -101,7 +101,7 @@ class Empty extends List {
 
 const nil = new Empty();
 
-function normalize(model, substitution) {
+function normalize(model, substitution=nil) {
     if (model instanceof LVar) {
 	return [model, substitution];
     }
@@ -156,7 +156,10 @@ function render(spec, sub=nil, obs=nil, model={}) {
         return render(spec(model), sub, obs, model);
     }
     else if (Array.isArray(spec)) { // Build a DOM node
-        if (spec[0] instanceof List) { // Build an iterable DOM list
+        if (spec[0] instanceof LVar) {
+            return render([walk(sub, spec[0])].concat(spec.slice(1)), sub, obs, model);
+        }
+        else if (spec[0] instanceof List) { // Build an iterable DOM list
             let parent = document.createDocumentFragment();
             for (const e of spec[0]) {
                 var [node, sub, obs] = render(spec[1], sub, obs, e);
@@ -244,7 +247,13 @@ asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { retur
 
 
 
-let [todo_node] = render(['div', 'lorem ipsum']);
+let [todo_model, todo_substitution] =
+    normalize({todos: [{title: 'get todos displaying', done: false},
+                       {title: 'streamline api', done: false}]});
+let [todo_node] = render(['div',
+                          [walk(todo_substitution, todo_model).todos,
+                           ['div', 'todo item']]],
+                         todo_substitution, nil, todo_model);
 document.body.appendChild(todo_node);
 
 console.log('Tests Complete');
