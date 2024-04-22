@@ -1,6 +1,7 @@
 let logging = false;
-function log() {
-    if (logging) console.log.apply(console, arguments);
+function log(...args) {
+    if (logging) console.log.apply(console, args);
+    return args.length == 1 ? args[0] : args;
 }
 
 function test(f, test_name) {
@@ -31,6 +32,9 @@ function asserte(a, b) {
 class LVar {
     constructor(id) {
 	this.id = id;
+    }
+    toString() {
+        return '<' + this.id + '>';
     }
 }
 
@@ -70,7 +74,10 @@ class List {
         if (!(lvar instanceof LVar)) return lvar;
         const v = this.assq(lvar);
         if (v) { return this.walk(v.cdr); }
-        else return v;
+        else return lvar;
+    }
+    toString() {
+        return '(' + this.toArray().map((x) => x.toString()).join(' ') + ')';
     }
 }
 
@@ -81,7 +88,7 @@ class Cons extends List {
 	this.cdr = cdr;
     }
     toArray() {
-        return [this.car].concat(this.cdr.toArray());
+        return [this.car].concat((this.cdr instanceof List) ? this.cdr.toArray() : [this.cdr]);            
     }
     assq(key) {
         if (this.car instanceof Cons && this.car.car == key) {
@@ -107,16 +114,18 @@ class Empty extends List {
 const nil = new Empty();
 
 function normalize(model, substitution=nil) {
+    log('normalize', model, substitution);
     if (model instanceof LVar) {
 	return [model, substitution];
     }
     else if (Array.isArray(model)) {
 	let tail = new LVar(substitution.length()); //substitution.push(nil) - 1
         substitution = substitution.acons(tail, nil);
-	for (let i=model.length-1; 0<=i; i--) {
+	for (let i=model.length-1; 0<=i; i--) {            
             var [lvar, substitution] = normalize(model[i], substitution);
-	    tail = new LVar(substitution.length()); //substitution.push(new Cons(lvar, tail)) - 1
-            substitution = substitution.acons(lvar, tail);
+	    let tail2 = new LVar(substitution.length()); //substitution.push(new Cons(lvar, tail)) - 1
+            substitution = substitution.acons(tail2, new Cons(lvar, tail));
+            tail = tail2;
 	}
 	return [tail, substitution];
     }
@@ -154,19 +163,20 @@ function render(spec, sub=nil, obs=nil, model={}) {
         return render(spec(model), sub, obs, model);
     }
     else if (Array.isArray(spec)) { // Build a DOM node
-        if (spec[0] instanceof LVar) {
-            return render([sub.walk(spec[0])].concat(spec.slice(1)), sub, obs, model);
-        }
-        else if (spec[0] instanceof List) { // Build an iterable DOM list
+        let head_spec = sub.walk(spec[0]);
+        if (head_spec instanceof List) { // Build an iterable DOM list
             let parent = document.createDocumentFragment();
-            for (const e of spec[0]) {
-                var [node, sub, obs] = render(spec[1], sub, obs, e);
+            let items = head_spec;
+            
+            while (items instanceof Cons) {
+                var [node, sub, obs] = render(spec[1], sub, obs, items.car);
                 parent.appendChild(node);
+                items = sub.walk(items.cdr);
             }
             return [parent, sub, obs];
         } // Build a head node for the rest of the child specs
-        else {
-	    let parent = document.createElement(spec[0]);
+        else if (typeof head_spec == 'string'){
+	    let parent = document.createElement(head_spec);
 	    for (let i=1; i<spec.length; i++) {
 	        log('child render', render(spec[i], sub, obs, model));
                 var [node, sub, obs] = render(spec[i], sub, obs, model);
@@ -174,6 +184,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
 	    }
 	    return [parent, sub, obs];
         }
+        else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
     }
     else if (spec instanceof LVar) { // Build a watched Text node
 	var [node, sub, obs] = render(sub.walk(spec), sub, obs, model);
@@ -244,10 +255,11 @@ asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { retur
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
 
-
 let [todo_model, todo_substitution] =
     normalize({todos: [{title: 'get todos displaying', done: false},
                        {title: 'streamline api', done: false}]});
+
+
 let [todo_node] = render(['div',
                           [todo_substitution.walk(todo_model).todos,
                            ['div', 'todo item']]],
