@@ -177,8 +177,7 @@ function render(spec, sub, obs, model) {
     }
     else if (spec instanceof LVar) { // Build a watched Text node
 	var [node, sub, obs] = render(walk(sub, spec), sub, obs, model);
-	obs.push(new PropObserver(spec, node, 'textContent'));
-	return [node, sub, obs];
+	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent'))];
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
     //    		typeof child === 'number') head.appendChild(document.createTextNode(child));
@@ -221,11 +220,11 @@ log("substitution",s);
 assert(walk(s, m).a instanceof LVar, walk(s, m).a);
 
 //Template
-asserte(render(walk(s,m).a, s, [], m)[0].textContent, '1');
+asserte(render(walk(s,m).a, s, nil, m)[0].textContent, '1');
 
 //DOM
 
-let o = []; // observers: convert substitution values into dom updates
+var o = nil; // observers: convert substitution values into dom updates
 
 // Static
 asserte(render('lorem', s, o, m)[0].textContent, 'lorem'); // Static text node
@@ -234,7 +233,7 @@ asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, '
 
 // Dynamic
 let model = walk(s,m);
-let n = render(model.a, s, o, m)[0];
+var [n,,o] = render(model.a, s, o, m);
 asserte(n.textContent, '1');
 update(s.acons(model.a, 2), o);
 asserte(n.textContent, '2');
