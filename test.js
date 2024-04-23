@@ -50,6 +50,22 @@ class PropObserver {
 
     update(val) {
 	this.node[this.attr] = val;
+        return true;
+    }
+}
+
+class IterObserver {
+    constructor(lvar, node) {
+        this.lvar = lvar;
+	this.node = node;
+    }
+
+    update(val) {
+	if (val instanceof LVar) {
+            this.node.remove();
+            return false;
+        }
+        return true;
     }
 }
 
@@ -218,22 +234,11 @@ function render(spec, sub=nil, obs=nil, model={}) {
 // UPDATING
 
 function update(sub, obs) {
-    for (o of obs) {
-        o.update(sub.walk(o.lvar));
-    }
+    return obs.filter((o) => o.update(sub.walk(o.lvar)));
 }
 
-function update2(lvar, val, sub, obs) {
-    let s = [...sub];
-    s[lvar.id] = val;
-    let observers = obs[lvar.id];
-    if (observers) observers.forEach(function (o) { o.update(val) });
-    return s;
-}
-
-
-function collect_garbage(sub, root) {
-    
+function garbage_collect(sub, root) {
+    return garbage_sweep(sub, garbage_mark(sub, root));
 }
 
 function garbage_mark(sub, root, marked=nil) {
@@ -302,17 +307,21 @@ asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { retur
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
 
-let [todo_model, todo_substitution] =
+var [todo_model, todo_substitution] =
     normalize({todos: [{title: 'get todos displaying', done: false},
                        {title: 'streamline api', done: false}]});
 
 //console.log(todo_substitution + '')
-let [todo_node] = render(['div',
-                          [todo_substitution.walk(todo_model).todos,
-                           ['div', function (e) {return todo_substitution.walk_path(e, 'title')}]]],
-                         todo_substitution, nil, todo_model);
-todo_substitution = todo_substitution.acons(todo_substitution.walk_path(todo_model, 'todos', 'cdr'),
-                                            todo_substitution.walk_path(todo_model, 'todos', 'cdr', 'cdr'));
+var [todo_node, todo_substitution, todo_observers] =
+    render(['div',
+            [todo_substitution.walk(todo_model).todos,
+             ['div', function (e) {return todo_substitution.walk_path(e, 'title')}]]],
+           todo_substitution, nil, todo_model);
+todo_substitution = garbage_collect(
+    todo_substitution.acons(todo_substitution.walk_path(todo_model, 'todos', 'cdr'),
+                            todo_substitution.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model);
+
+
 
 //0: (cons #1 #2)
 //1: 'test
