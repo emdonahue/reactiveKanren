@@ -57,7 +57,7 @@ class List {
     static fromArray(a) {
         let l = nil;
         for (const e of a.reverse()) {
-            l = new Cons(e, l);
+            l = l.cons(e);
         }
         return l;
     }
@@ -68,10 +68,10 @@ class List {
         return this.toArray().length;
     }
     cons(e) {
-        return new Cons(e, this);
+        return new Pair(e, this);
     }
     acons(k, v) {
-        return this.cons(new Cons(k, v));
+        return this.cons(new Pair(k, v));
     }
     member(e) {
         return this.memp((x) => x == e);
@@ -92,7 +92,7 @@ class List {
     }
 }
 
-class Cons extends List {
+class Pair extends List {
     constructor(car, cdr) {
 	super();
 	this.car = car;
@@ -102,7 +102,7 @@ class Cons extends List {
         return [this.car].concat((this.cdr instanceof List) ? this.cdr.toArray() : [this.cdr]);            
     }
     assoc(key) {
-        if (this.car instanceof Cons && this.car.car == key) {
+        if (this.car instanceof Pair && this.car.car == key) {
             return this.car;
         }
         else {
@@ -113,7 +113,10 @@ class Cons extends List {
         if (p(this.car)) return this.car;
         return this.cdr.memp(p);
     }
-
+    filter(p) {
+        if (p(this.car)) return this.cdr.filter(p).cons(this.car);
+        return this.cdr.filter(p);
+    }
 }
 
 class Empty extends List {
@@ -125,6 +128,7 @@ class Empty extends List {
         return false;
     }
     memp(p) { return undefined };
+    filter(p) { return this };
 }
 
 const nil = new Empty();
@@ -139,8 +143,8 @@ function normalize(model, substitution=nil) {
         substitution = substitution.acons(tail, nil);
 	for (let i=model.length-1; 0<=i; i--) {            
             var [lvar, substitution] = normalize(model[i], substitution);
-	    let tail2 = new LVar(substitution.length()); //substitution.push(new Cons(lvar, tail)) - 1
-            substitution = substitution.acons(tail2, new Cons(lvar, tail));
+	    let tail2 = new LVar(substitution.length()); //substitution.push(new Pair(lvar, tail)) - 1
+            substitution = substitution.acons(tail2, new Pair(lvar, tail));
             tail = tail2;
 	}
 	return [tail, substitution];
@@ -184,7 +188,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
             let parent = document.createDocumentFragment();
             let items = head_spec;
             
-            while (items instanceof Cons) {
+            while (items instanceof Pair) {
                 var [node, sub, obs] = render(spec[1], sub, obs, items.car);
                 parent.appendChild(node);
                 items = sub.walk(items.cdr);
@@ -232,20 +236,25 @@ function collect_garbage(sub, root) {
     
 }
 
-function garbage_sweep(sub, root, marked=nil) {
+function garbage_mark(sub, root, marked=nil) {
+    // Return vars in sub still reachable from root.
     if (root instanceof LVar) {
         if (marked.member(root)) return marked;
-        return garbage_sweep(sub, sub.assoc(root), marked.cons(root));
+        return garbage_mark(sub, sub.assoc(root), marked.cons(root));
     }
     else if (primitive(root)) {
         return marked;
     }
     else {
         for (const p in root) {
-            marked = garbage_sweep(sub, root[p], marked);
+            marked = garbage_mark(sub, root[p], marked);
         }
         return marked;
     }
+}
+
+function garbage_sweep(sub, marked) {
+    return sub.filter((b) => marked.member(b.car));
 }
 
 // TESTING
@@ -265,7 +274,9 @@ log("substitution",s);
 
 //Model
 assert(s.walk(m).a instanceof LVar, s.walk(m).a);
-asserte(garbage_sweep(s, m).length(), 17);
+asserte(garbage_mark(s, m).length(), 17);
+asserte(garbage_mark(s.acons(s.walk_path(m, 'c'), s.walk_path(m,'a')), m).length(), 12);
+asserte(garbage_sweep(s, garbage_mark(s.acons(s.walk_path(m, 'c'), s.walk_path(m,'a')), m)).length(), 12);
 
 //Template
 asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
