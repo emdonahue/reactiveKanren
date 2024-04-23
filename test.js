@@ -29,12 +29,13 @@ function asserte(a, b) {
 }
 
 function primitive(x) {
-    return typeof x == 'string' || typeof x == 'number';
+    return typeof x == 'string' || typeof x == 'number' || x instanceof Empty;
 }
 
 class LVar {
-    constructor(id) {
-	this.id = id;
+    static id = 0;
+    constructor() {
+	this.id = LVar.id++;
     }
     toString() {
         return '<' + this.id + '>';
@@ -61,11 +62,11 @@ class IterObserver {
     }
 
     update(val) {
-	if (val instanceof LVar) {
-            this.node.remove();
-            return false;
-        }
-        return true;
+        console.log('itervar', val);
+        if (val instanceof Pair) return true;
+        console.log('removing node')
+        this.node.remove();
+        return false;
     }
 }
 
@@ -98,13 +99,20 @@ class List {
         if (v) { return this.walk(v.cdr); }
         else return lvar;
     }
+    reify(lvar) {
+        if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr)));
+        let v = this.walk(lvar);
+        if (v instanceof LVar || primitive(v)) return v;
+        if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
+        return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
+    }
     walk_path(lvar, prop, ...path) {
         let v = this.walk(lvar);
         if (path.length == 0) return v[prop];
         return this.walk_path(v[prop], ...path);
     }
     toString() {
-        return '(' + this.toArray().map((x) => x.toString()).join(' ') + ')';
+        return '(' + this.toArray().join(' ') + ')';
     }
 }
 
@@ -133,6 +141,9 @@ class Pair extends List {
         if (p(this.car)) return this.cdr.filter(p).cons(this.car);
         return this.cdr.filter(p);
     }
+    map(f) {
+        return this.cdr.map(f).cons(f(this.car));
+    }
 }
 
 class Empty extends List {
@@ -145,6 +156,7 @@ class Empty extends List {
     }
     memp(p) { return undefined };
     filter(p) { return this };
+    map(f) { return this };
 }
 
 const nil = new Empty();
@@ -155,11 +167,11 @@ function normalize(model, substitution=nil) {
 	return [model, substitution];
     }
     else if (Array.isArray(model)) {
-	let tail = new LVar(substitution.length()); //substitution.push(nil) - 1
+	let tail = new LVar();
         substitution = substitution.acons(tail, nil);
 	for (let i=model.length-1; 0<=i; i--) {            
             var [lvar, substitution] = normalize(model[i], substitution);
-	    let tail2 = new LVar(substitution.length()); //substitution.push(new Pair(lvar, tail)) - 1
+	    let tail2 = new LVar();
             substitution = substitution.acons(tail2, new Pair(lvar, tail));
             tail = tail2;
 	}
@@ -170,17 +182,17 @@ function normalize(model, substitution=nil) {
 	for (const k in model) {
 	    //log('k',k,'submodel',model[k], 'substitution',JSON.stringify(substitution));
             var [lvar, substitution] = normalize(model[k], substitution);
-            const lvar2 = new LVar(substitution.length());
+            const lvar2 = new LVar();
             substitution = substitution.acons(lvar2, lvar);
 	    m[k] = lvar2;
             //substitution = substitution.push(new LVar(substitution.push(lvar) - 1)) - 1
 	    //log('id',m[k],'substitution',JSON.stringify(substitution));
 	}
-        const mvar = new LVar(substitution.length());
+        const mvar = new LVar();
 	return [mvar, substitution.acons(mvar, m)];
     }
     else {
-        const lvar = new LVar(substitution.length());
+        const lvar = new LVar();
 	return [lvar, substitution.acons(lvar, model)];
     }
 }
@@ -203,11 +215,14 @@ function render(spec, sub=nil, obs=nil, model={}) {
         if (head_spec instanceof List) { // Build an iterable DOM list
             let parent = document.createDocumentFragment();
             let items = head_spec;
+            let linkvar = spec[0];
             
-            while (items instanceof Pair) {
+            while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
                 var [node, sub, obs] = render(spec[1], sub, obs, items.car);
                 parent.appendChild(node);
-                items = sub.walk(items.cdr);
+                obs = obs.cons(new IterObserver(linkvar, node));
+                linkvar = items.cdr;
+                items = sub.walk(linkvar);
             }
             return [parent, sub, obs];
         } // Build a head node for the rest of the child specs
@@ -307,20 +322,32 @@ asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { retur
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
 
-var [todo_model, todo_substitution] =
+var [todo_model, todo_sub] =
     normalize({todos: [{title: 'get todos displaying', done: false},
                        {title: 'streamline api', done: false}]});
 
-//console.log(todo_substitution + '')
-var [todo_node, todo_substitution, todo_observers] =
+//console.log(todo_sub + '')
+var [todo_node, todo_sub, todo_obs] =
     render(['div',
-            [todo_substitution.walk(todo_model).todos,
-             ['div', function (e) {return todo_substitution.walk_path(e, 'title')}]]],
-           todo_substitution, nil, todo_model);
-todo_substitution = garbage_collect(
-    todo_substitution.acons(todo_substitution.walk_path(todo_model, 'todos', 'cdr'),
-                            todo_substitution.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model);
-
+            [todo_sub.walk(todo_model).todos,
+             ['div', function (e) {return todo_sub.walk_path(e, 'title')}]]],
+           todo_sub, nil, todo_model);
+console.log(todo_sub + '')
+console.log(todo_sub.reify() + '')
+console.log(todo_obs.map((x) => x.lvar) + '')
+console.log(todo_sub.walk_path(todo_model, 'todos', 'cdr'))
+console.log(todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr'))
+console.log(garbage_collect(
+    todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
+                   todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model) + '');
+//console.log(todo_sub.reify(todo_sub.walk(todo_model).todos) + '')
+//console.log(todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
+//                           todo_sub.walk(todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr'))) + '');
+todo_sub = garbage_collect(
+    todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
+                   todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model)
+//console.log(todo_sub + '')
+todo_obs = update(todo_sub, todo_obs);
 
 
 //0: (cons #1 #2)
@@ -369,7 +396,7 @@ todo_substitution = garbage_collect(
 
 //first garbage collect all unreachable items
 //if a list observer is changed to something other than original object, particularly a free var, delete its node
-//console.log(todo_substitution)
+//console.log(todo_sub)
 document.body.appendChild(todo_node);
 
 console.log('Tests Complete');
