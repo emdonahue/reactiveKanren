@@ -177,6 +177,9 @@ class List {
         }
         return l;
     }
+    static fromTree(a) {
+        return this.fromArray(a).map(x => Array.isArray(x) ? this.fromTree(x) : x);
+    }
     static from(...e) {
         return this.fromArray([...e]);
     }
@@ -543,8 +546,9 @@ asserte(todo_node.childNodes.length, 1);
 // MK TEST
 
 asserte((new Succeed).run(), List.from(nil));
-asserte(fresh((x) => x.unify(1)).run(), List.from(List.from(1)));
-asserte(fresh((x, y) => x.unify(1).conj(y.unify(2))).run(), List.from(List.from(1, 2)));
+asserte(fresh((x) => x.unify(1)).run(), List.fromTree([[1]]));
+asserte(fresh((x, y) => x.unify(1).conj(y.unify(2))).run(), List.fromTree([[1, 2]]));
+//asserte(fresh((x) => x.unify(1).disj(x.unify(2))).run(), List.from(List.from(1), List.from(2)));
 
 document.body.appendChild(todo_node);
 
