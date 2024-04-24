@@ -52,13 +52,30 @@ class Goal {
     disj(x) {
         return new Disj(this, x);
     }
+    run(n) {
+        return this.eval(new State(nil)).take(n).map(s => s.reify(nil));
+        
+    }
 }
+
+class Succeed extends Goal {
+    eval(s) { return s }
+}
+var succeed = new Succeed;
+
+class Fail extends Goal {
+    eval(s) { return failure }
+}
+var fail = new Fail;
 
 class Conj extends Goal {
     constructor(lhs, rhs) {
         super();
         this.lhs = lhs;
         this.rhs = rhs;
+    }
+    eval(s) {
+        return this.lhs.run(s).eval(this.rhs);
     }
 }
 
@@ -76,9 +93,12 @@ class Fresh extends Goal {
         this.vars = vars;
         this.ctn = ctn;
     }
-    run() {
-//        console.log(this.ctn, this.vars, [...this.vars], this.ctn(...this.vars))
-        return this.ctn(...this.vars).run(nil).reify(this.vars);
+    run(n) {
+        //console.log(this.ctn, this.vars+'', this.ctn(...this.vars).eval(new State(nil)));
+        return this.ctn(...this.vars).eval(new State(nil)).take(n).map(s => s.reify(this.vars));        
+    }
+    eval(s) {
+        return new Suspended(s, this.ctn(...this.vars));
     }
 }
 
@@ -88,8 +108,36 @@ class Unify extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    run(s) {
+    eval(s) {
         return s.unify(this.lhs, this.rhs);
+    }
+}
+
+class Stream {
+}
+
+class State extends Stream {
+    constructor(sub) {
+        super();
+        this.substitution = sub;
+    }
+    take(n) { return List.from(this) }
+    reify(x) { return this.substitution.reify(x) }
+}
+
+class Suspended extends Stream {
+    constructor(s, g) {
+        super();
+        this.state=s;
+        this.goal = g;
+    }
+}
+
+class MPlus extends Stream {
+    constructor(lhs, rhs) {
+        super();
+        this.lhs = lhs;
+        this.rhs = rhs;
     }
 }
 
@@ -180,7 +228,10 @@ class List {
         if (x instanceof LVar) return this.acons(x, y);
         if (y instanceof LVar) return this.acons(y, x);
         if (x instanceof Pair && y instanceof Pair) return this.unify(x.car, y.car).unify(x.cdr, y.cdr);
-        return Failure;
+        return failure;
+    }
+    eval(g) {
+        return g.eval(this);
     }
 }
 
@@ -230,9 +281,11 @@ class Empty extends List {
 const nil = new Empty();
 
 class Failure {
-    static unify() { return this };
-    static reify(x) { return x };
+    unify() { return this };
+    reify(x) { return x };
+    eval(x) { return this };
 }
+var failure = new Failure;
 
 // MK
 
@@ -487,7 +540,10 @@ asserte(todo_node.childNodes.length, 1);
 
 // MK TEST
 
-asserte(fresh((x) => x.unify(1)).run(), List.from(1));
+asserte((new Succeed).run(), List.from(nil));
+//asserte(fresh((x) => x.unify(1)).run(), List.from(List.from(1)));
+
+//asserte(fresh((x, y) => x.unify(1).conj(y.unify(2))).run(), List.from(1, 2));
 
 document.body.appendChild(todo_node);
 
