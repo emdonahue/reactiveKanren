@@ -40,6 +40,57 @@ class LVar {
     toString() {
         return '<' + this.id + '>';
     }
+    unify(x) {
+        return new Unify(this, x);
+    }
+}
+
+class Goal {
+    conj(x) {
+        return new Conj(this, x);
+    }
+    disj(x) {
+        return new Disj(this, x);
+    }
+}
+
+class Conj extends Goal {
+    constructor(lhs, rhs) {
+        super();
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+}
+
+class Disj extends Goal {
+    constructor(lhs, rhs) {
+        super();
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+}
+
+class Fresh extends Goal {
+    constructor(vars, ctn) {
+        super();
+        this.vars = vars;
+        this.ctn = ctn;
+    }
+    run() {
+//        console.log(this.ctn, this.vars, [...this.vars], this.ctn(...this.vars))
+        return this.ctn(...this.vars).run(nil).reify(this.vars);
+    }
+}
+
+class Unify extends Goal {
+    constructor(lhs, rhs) {
+        super();
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+    run(s) {
+        return s.unify(this.lhs, this.rhs);
+    }
 }
 
 class PropObserver {
@@ -62,9 +113,7 @@ class IterObserver {
     }
 
     update(val) {
-        console.log('itervar', val);
         if (val instanceof Pair) return true;
-        console.log('removing node')
         this.node.remove();
         return false;
     }
@@ -77,6 +126,9 @@ class List {
             l = l.cons(e);
         }
         return l;
+    }
+    static from(...e) {
+        return this.fromArray([...e]);
     }
     [Symbol.iterator]() {
         return this.toArray()[Symbol.iterator]();
@@ -92,6 +144,13 @@ class List {
     }
     member(e) {
         return this.memp((x) => x == e);
+    }
+    static repeat(n, f) {
+        return nil.repeat(n, f);
+    }
+    repeat(n, f) {
+        if (n <= 0) return this;
+        return this.cons(f()).repeat(n-1, f);
     }
     walk(lvar) {
         if (!(lvar instanceof LVar)) return lvar;
@@ -113,6 +172,15 @@ class List {
     }
     toString() {
         return '(' + this.toArray().join(' ') + ')';
+    }
+    unify(x, y) {
+        x = this.walk(x);
+        y = this.walk(y);
+        if (x == y) return this;
+        if (x instanceof LVar) return this.acons(x, y);
+        if (y instanceof LVar) return this.acons(y, x);
+        if (x instanceof Pair && y instanceof Pair) return this.unify(x.car, y.car).unify(x.cdr, y.cdr);
+        return Failure;
     }
 }
 
@@ -160,6 +228,20 @@ class Empty extends List {
 }
 
 const nil = new Empty();
+
+class Failure {
+    static unify() { return this };
+    static reify(x) { return x };
+}
+
+// MK
+
+function fresh(f) {
+    return new Fresh(List.repeat(f.length, () => new LVar()), f);
+}
+
+
+// RRP
 
 function normalize(model, substitution=nil) {
     log('normalize', model, substitution);
@@ -332,6 +414,8 @@ var [todo_node, todo_sub, todo_obs] =
             [todo_sub.walk(todo_model).todos,
              ['div', function (e) {return todo_sub.walk_path(e, 'title')}]]],
            todo_sub, nil, todo_model);
+asserte(todo_node.childNodes.length, 2);
+/*
 console.log(todo_sub + '')
 console.log(todo_sub.reify() + '')
 console.log(todo_obs.map((x) => x.lvar) + '')
@@ -340,6 +424,7 @@ console.log(todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr'))
 console.log(garbage_collect(
     todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
                    todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model) + '');
+*/
 //console.log(todo_sub.reify(todo_sub.walk(todo_model).todos) + '')
 //console.log(todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
 //                           todo_sub.walk(todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr'))) + '');
@@ -348,6 +433,7 @@ todo_sub = garbage_collect(
                    todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model)
 //console.log(todo_sub + '')
 todo_obs = update(todo_sub, todo_obs);
+asserte(todo_node.childNodes.length, 1);
 
 
 //0: (cons #1 #2)
@@ -397,6 +483,12 @@ todo_obs = update(todo_sub, todo_obs);
 //first garbage collect all unreachable items
 //if a list observer is changed to something other than original object, particularly a free var, delete its node
 //console.log(todo_sub)
+
+
+// MK TEST
+
+asserte(fresh((x) => x.unify(1)).run(), List.from(1));
+
 document.body.appendChild(todo_node);
 
 console.log('Tests Complete');
