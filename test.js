@@ -75,7 +75,7 @@ class Conj extends Goal {
         this.rhs = rhs;
     }
     eval(s) {
-        return this.lhs.run(s).eval(this.rhs);
+        return this.rhs.eval(this.lhs.eval(s));
     }
 }
 
@@ -124,6 +124,7 @@ class State extends Stream {
     take(n) { return List.from(this) }
     reify(x) { return this.substitution.reify(x) }
     unify(x, y) { return new State(this.substitution.unify(x, y)) }
+    eval(g) { return g.eval(this) }
 }
 
 class Suspended extends Stream {
@@ -543,8 +544,7 @@ asserte(todo_node.childNodes.length, 1);
 
 asserte((new Succeed).run(), List.from(nil));
 asserte(fresh((x) => x.unify(1)).run(), List.from(List.from(1)));
-
-//asserte(fresh((x, y) => x.unify(1).conj(y.unify(2))).run(), List.from(1, 2));
+asserte(fresh((x, y) => x.unify(1).conj(y.unify(2))).run(), List.from(List.from(1, 2)));
 
 document.body.appendChild(todo_node);
 
