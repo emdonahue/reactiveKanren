@@ -56,15 +56,18 @@ class Goal {
         return this.eval(new State(nil)).take(n).map(s => s.reify(nil));
         
     }
+    suspend(s) { return new Suspended(s, this) }
 }
 
 class Succeed extends Goal {
     eval(s) { return s }
+    suspend(s) { return s }
 }
 var succeed = new Succeed;
 
 class Fail extends Goal {
     eval(s) { return failure }
+    suspend(s) { return failure }
 }
 var fail = new Fail;
 
@@ -97,10 +100,10 @@ class Fresh extends Goal {
         this.ctn = ctn;
     }
     run(n=1) {
-        return this.ctn(...this.vars).eval(new State(nil)).take(n).map(s => s.reify(this.vars));        
+        return this.eval(new State(nil)).take(n).map(s => s.reify(this.vars));        
     }
     eval(s) {
-        return new Suspended(s, this.ctn(...this.vars));
+        return to_goal(this.ctn(...this.vars)).suspend(s);
     }
 }
 
@@ -117,7 +120,7 @@ class Unify extends Goal {
 
 class Stream {
     mplus(s) { return s._mplus(this) }
-    _mplus(s) { return new MPlus(s, this) }
+    _mplus(s) { return new MPlus(this, s) }
     take(n) {
         let s = this;
         while (s.isIncomplete()) { s = s.step() }
@@ -187,6 +190,26 @@ class MPlus extends Stream {
     }
 }
 
+function to_goal(g) {
+    return (Array.isArray(g)) ? g.reduceRight((cs, c) => c.conj(cs)) : g;
+}
+
+function conde(...condes) {
+    return condes.reduceRight((cs, c) => to_goal(c).disj(cs));
+}
+
+function unify(x, y) {
+    return new Unify(x, y);
+}
+
+
+
+
+
+
+
+
+// RRP
 class PropObserver {
     constructor(lvar, node, attr) {
         this.lvar = lvar;
@@ -583,9 +606,9 @@ asserte(todo_node.childNodes.length, 1);
 // MK TEST
 
 asserte((new Succeed).run(), List.from(nil));
-asserte(fresh((x) => x.unify(1)).run(), List.fromTree([[1]]));
-asserte(fresh((x, y) => x.unify(1).conj(y.unify(2))).run(), List.fromTree([[1, 2]]));
-asserte(fresh((x) => x.unify(1).disj(x.unify(2))).run(2), List.fromTree([[1], [2]]));
+asserte(fresh((x) => unify(x, 1)).run(), List.fromTree([[1]]));
+asserte(fresh((x, y) => [x.unify(1), y.unify(2)]).run(), List.fromTree([[1, 2]]));
+asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
 
 document.body.appendChild(todo_node);
 
