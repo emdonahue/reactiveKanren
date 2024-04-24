@@ -85,6 +85,9 @@ class Disj extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+    eval(s) {
+        return this.lhs.eval(s).mplus(this.rhs.eval(s));
+    }
 }
 
 class Fresh extends Goal {
@@ -93,8 +96,7 @@ class Fresh extends Goal {
         this.vars = vars;
         this.ctn = ctn;
     }
-    run(n) {
-        //console.log(this.ctn, this.vars+'', this.ctn(...this.vars).eval(new State(nil)));
+    run(n=1) {
         return this.ctn(...this.vars).eval(new State(nil)).take(n).map(s => s.reify(this.vars));        
     }
     eval(s) {
@@ -114,7 +116,27 @@ class Unify extends Goal {
 }
 
 class Stream {
+    mplus(s) { return s._mplus(this) }
+    _mplus(s) { return new MPlus(s, this) }
+    take(n) {
+        let s = this;
+        while (s.isIncomplete()) { s = s.step() }
+        if (failure == s) return nil;
+        return new Pair(s.answer(), s.step().take(n-1));
+    }
+    isIncomplete() { return true }
 }
+
+class Failure extends Stream {
+    unify() { return this };
+    reify(x) { return x };
+    eval(x) { return this };
+    mplus(s) { return s };
+    _mplus(s) { return s };
+    isIncomplete() { return false }
+    step() { return this }
+}
+var failure = new Failure;
 
 class State extends Stream {
     constructor(sub) {
@@ -125,6 +147,11 @@ class State extends Stream {
     reify(x) { return this.substitution.reify(x) }
     unify(x, y) { return new State(this.substitution.unify(x, y)) }
     eval(g) { return g.eval(this) }
+    isIncomplete() { return false }
+    answer() { return this }
+    step() { return failure }
+    mplus(s) { return new Answers(this, s) }
+    _mplus(s) { return new Answers(this, s) }
 }
 
 class Suspended extends Stream {
@@ -133,6 +160,20 @@ class Suspended extends Stream {
         this.state=s;
         this.goal = g;
     }
+    step() { return this.goal.eval(this.state) }
+}
+
+class Answers extends Stream {
+    constructor(state, stream) {
+        super();
+        this.state = state;
+        this.stream = stream;
+    }
+    isIncomplete() { return false }
+    answer() { return this.state }
+    step() { return this.stream }
+    mplus(s) { return new Answers(this.state, this.stream.mplus(s)) }
+    _mplus(s) { return new Answers(this.state, this.stream.mplus(s)) }
 }
 
 class MPlus extends Stream {
@@ -140,6 +181,9 @@ class MPlus extends Stream {
         super();
         this.lhs = lhs;
         this.rhs = rhs;
+    }
+    step() {
+        return this.lhs.step().mplus(this.rhs);
     }
 }
 
@@ -284,13 +328,6 @@ class Empty extends List {
 }
 
 const nil = new Empty();
-
-class Failure {
-    unify() { return this };
-    reify(x) { return x };
-    eval(x) { return this };
-}
-var failure = new Failure;
 
 // MK
 
@@ -548,7 +585,7 @@ asserte(todo_node.childNodes.length, 1);
 asserte((new Succeed).run(), List.from(nil));
 asserte(fresh((x) => x.unify(1)).run(), List.fromTree([[1]]));
 asserte(fresh((x, y) => x.unify(1).conj(y.unify(2))).run(), List.fromTree([[1, 2]]));
-//asserte(fresh((x) => x.unify(1).disj(x.unify(2))).run(), List.from(List.from(1), List.from(2)));
+asserte(fresh((x) => x.unify(1).disj(x.unify(2))).run(2), List.fromTree([[1], [2]]));
 
 document.body.appendChild(todo_node);
 
