@@ -61,8 +61,8 @@ class Goal {
     disj(x) {
         return new Disj(this, x);
     }
-    run(n=1, reify=true) {
-        return this.eval(new State()).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
+    run(n=1, {reify=true, substitution=nil}={}) {
+        return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
         
     }
     suspend(s) { return new Suspended(s, this) }
@@ -108,8 +108,8 @@ class Fresh extends Goal {
         this.vars = vars;
         this.ctn = ctn;
     }
-    run(n=1, reify=true) {
-        return this.eval(new State()).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(this.vars) : s);
+    run(n=1, {reify=true, substitution=nil}={}) {
+        return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(this.vars) : s);
     }
     eval(s) {
         return to_goal(this.ctn(...this.vars)).suspend(s);
@@ -331,12 +331,12 @@ class List {
     toString() {
         return '(' + this.toArray().map(e => e.toString === Object.prototype.toString ? JSON.stringify(e) : e.toString()).join(' ') + ')';
     }
-    unify(x, y) {
-        x = this.walk(x);
-        y = this.walk(y);
+    unify(x_var, y_var) { //DOC unifier has to be very lazy about preserving variable paths and not updating to latest value
+        let x = this.walk(x_var);
+        let y = this.walk(y_var);
         if (x == y) return this;
-        if (x instanceof LVar) return this.acons(x, y);
-        if (y instanceof LVar) return this.acons(y, x);
+        if (x instanceof LVar) return this.acons(x, y_var);
+        if (y instanceof LVar) return this.acons(y, x_var);
         if (primitive(x) || primitive(y)) return failure;
         let s = this;
         for (let k of Object.keys(x).filter(k => Object.hasOwn(y, k))) {
@@ -608,7 +608,10 @@ var [td_node, td_sub, td_obs] =
            td_sub, nil, td_model);
 asserte(td_node.childNodes.length, 2);
 
-
+//console.log(td_sub.reify(td_model));
+console.log(td_model)
+console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution + '' );
+console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution.reify(td_model));
 
 /*
 console.log(td_sub + '')
