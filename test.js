@@ -163,6 +163,7 @@ class State extends Stream {
     step() { return failure }
     mplus(s) { return new Answers(this, s) }
     _mplus(s) { return new Answers(this, s) }
+    update_substitution() { return this.updates.update_substitution(this.substitution) }
 }
 
 class Suspended extends Stream {
@@ -297,6 +298,12 @@ class List {
         if (v) { return this.walk(v.cdr); }
         else return lvar;
     }
+    walk_binding(lvar) {
+        if (!(lvar instanceof LVar)) return new Pair(lvar, lvar);
+        const v = this.assoc(lvar);
+        if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr) : v; }
+        else return new Pair(lvar, lvar);
+    }
     reify(lvar) {
         if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr)));
         let v = this.walk(lvar);
@@ -356,6 +363,10 @@ class Pair extends List {
     map(f) {
         return this.cdr.map(f).cons(f(this.car));
     }
+    update_substitution(s) { // Called on the updates substitution with the normal substitution as a parameter.
+        let b = s.walk_binding(this.car);
+        return s.acons(b.car, this.cdr);
+    }
 }
 
 class Empty extends List {
@@ -369,6 +380,7 @@ class Empty extends List {
     memp(p) { return undefined };
     filter(p) { return this };
     map(f) { return this };
+    update_substitution(s) { return s }
 }
 
 const nil = new Empty();
@@ -542,37 +554,41 @@ asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o, m)[
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return 'lorem' }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
 asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
-
-var [todo_model, todo_sub] =
-    normalize({todos: [{title: 'get todos displaying', done: false},
+// TDList
+var [td_model, td_sub] =
+    normalize({todos: [{title: 'get tds displaying', done: false},
                        {title: 'streamline api', done: false}]});
 
-//console.log(todo_sub + '')
-var [todo_node, todo_sub, todo_obs] =
+//console.log(td_sub + '')
+
+var [td_node, td_sub, td_obs] =
     render(['div',
-            [todo_sub.walk(todo_model).todos,
-             ['div', function (e) {return todo_sub.walk_path(e, 'title')}]]],
-           todo_sub, nil, todo_model);
-asserte(todo_node.childNodes.length, 2);
+            [td_sub.walk(td_model).todos,
+             ['div', function (e) {return td_sub.walk_path(e, 'title')}]]],
+           td_sub, nil, td_model);
+asserte(td_node.childNodes.length, 2);
+
+
+
 /*
-console.log(todo_sub + '')
-console.log(todo_sub.reify() + '')
-console.log(todo_obs.map((x) => x.lvar) + '')
-console.log(todo_sub.walk_path(todo_model, 'todos', 'cdr'))
-console.log(todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr'))
+console.log(td_sub + '')
+console.log(td_sub.reify() + '')
+console.log(td_obs.map((x) => x.lvar) + '')
+console.log(td_sub.walk_path(td_model, 'tds', 'cdr'))
+console.log(td_sub.walk_path(td_model, 'tds', 'cdr', 'cdr'))
 console.log(garbage_collect(
-    todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
-                   todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model) + '');
+    td_sub.acons(td_sub.walk_path(td_model, 'tds', 'cdr'),
+                   td_sub.walk_path(td_model, 'tds', 'cdr', 'cdr')), td_model) + '');
 */
-//console.log(todo_sub.reify(todo_sub.walk(todo_model).todos) + '')
-//console.log(todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
-//                           todo_sub.walk(todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr'))) + '');
-todo_sub = garbage_collect(
-    todo_sub.acons(todo_sub.walk_path(todo_model, 'todos', 'cdr'),
-                   todo_sub.walk_path(todo_model, 'todos', 'cdr', 'cdr')), todo_model)
-//console.log(todo_sub + '')
-todo_obs = update(todo_sub, todo_obs);
-asserte(todo_node.childNodes.length, 1);
+//console.log(td_sub.reify(td_sub.walk(td_model).tds) + '')
+//console.log(td_sub.acons(td_sub.walk_path(td_model, 'tds', 'cdr'),
+//                           td_sub.walk(td_sub.walk_path(td_model, 'tds', 'cdr', 'cdr'))) + '');
+td_sub = garbage_collect(
+    td_sub.acons(td_sub.walk_path(td_model, 'todos', 'cdr'),
+                   td_sub.walk_path(td_model, 'todos', 'cdr', 'cdr')), td_model)
+//console.log(td_sub + '')
+td_obs = update(td_sub, td_obs);
+asserte(td_node.childNodes.length, 1);
 
 
 //0: (cons #1 #2)
@@ -621,7 +637,7 @@ asserte(todo_node.childNodes.length, 1);
 
 //first garbage collect all unreachable items
 //if a list observer is changed to something other than original object, particularly a free var, delete its node
-//console.log(todo_sub)
+//console.log(td_sub)
 
 
 // MK TEST
@@ -637,6 +653,6 @@ asserte(fresh((x) => unify({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => unify({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
 
-document.body.appendChild(todo_node);
+document.body.appendChild(td_node);
 
 console.log('Tests Complete');
