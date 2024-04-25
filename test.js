@@ -599,8 +599,6 @@ var [td_model, td_sub] =
     normalize({todos: [{title: 'get tds displaying', done: false},
                        {title: 'streamline api', done: false}]});
 
-//console.log(td_sub + '')
-
 var [td_node, td_sub, td_obs] =
     render(['div',
             [td_sub.walk(td_model).todos,
@@ -613,27 +611,24 @@ console.log(td_model)
 console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution + '' );
 console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution.reify(td_model));
 
-/*
-console.log(td_sub + '')
-console.log(td_sub.reify() + '')
-console.log(td_obs.map((x) => x.lvar) + '')
-console.log(td_sub.walk_path(td_model, 'tds', 'cdr'))
-console.log(td_sub.walk_path(td_model, 'tds', 'cdr', 'cdr'))
-console.log(garbage_collect(
-    td_sub.acons(td_sub.walk_path(td_model, 'tds', 'cdr'),
-                   td_sub.walk_path(td_model, 'tds', 'cdr', 'cdr')), td_model) + '');
-*/
-//console.log(td_sub.reify(td_sub.walk(td_model).tds) + '')
-//console.log(td_sub.acons(td_sub.walk_path(td_model, 'tds', 'cdr'),
-//                           td_sub.walk(td_sub.walk_path(td_model, 'tds', 'cdr', 'cdr'))) + '');
-td_sub = garbage_collect(
-    td_sub.acons(td_sub.walk_path(td_model, 'todos', 'cdr'),
-                   td_sub.walk_path(td_model, 'todos', 'cdr', 'cdr')), td_model)
-//console.log(td_sub + '')
+td_sub = fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model),
+                         setunify(td1, 'set unify working')]).run(1, {reify: false, substitution: td_sub}).car.substitution
+td_obs = update(td_sub, td_obs);
+
+asserte(td_node.childNodes[0].innerHTML, 'set unify working');
+
+td_sub = fresh((x1, x2) => [unify({todos: new Pair(new LVar(), x1)}, td_model),
+                            unify(x1, new Pair(new LVar(), x2)),
+                            setunify(x1, x2)]).run(1, {reify: false, substitution: td_sub}).car.substitution
+td_sub = garbage_collect(td_sub, td_model);
+
 td_obs = update(td_sub, td_obs);
 asserte(td_node.childNodes.length, 1);
 
 document.body.appendChild(td_node);
+
+
+
 //0: (cons #1 #2)
 //1: 'test
 //2: (cons #3 #4)
