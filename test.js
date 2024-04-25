@@ -29,7 +29,7 @@ function asserte(a, b) {
 }
 
 function primitive(x) {
-    return typeof x == 'string' || typeof x == 'number' || x instanceof Empty;
+    return typeof x == 'string' || typeof x == 'number' || x instanceof Empty || x === null || x === undefined;
 }
 
 class LVar {
@@ -53,7 +53,7 @@ class Goal {
         return new Disj(this, x);
     }
     run(n) {
-        return this.eval(new State(nil)).take(n).map(s => s.reify(nil));
+        return this.eval(new State()).take(n).map(s => s.reify(nil));
         
     }
     suspend(s) { return new Suspended(s, this) }
@@ -100,7 +100,7 @@ class Fresh extends Goal {
         this.ctn = ctn;
     }
     run(n=1) {
-        return this.eval(new State(nil)).take(n).map(s => s.reify(this.vars));        
+        return this.eval(new State()).take(n).map(s => s.reify(this.vars));        
     }
     eval(s) {
         return to_goal(this.ctn(...this.vars)).suspend(s);
@@ -142,13 +142,21 @@ class Failure extends Stream {
 var failure = new Failure;
 
 class State extends Stream {
-    constructor(sub) {
+    constructor(sub=nil, updates=nil) {
         super();
         this.substitution = sub;
+        this.updates = updates;
     }
     take(n) { return List.from(this) }
     reify(x) { return this.substitution.reify(x) }
-    unify(x, y) { return new State(this.substitution.unify(x, y)) }
+    unify(x, y) {
+        let s = this.substitution.unify(x, y);
+        if (s == failure) return s;
+        return new State(s, this.updates) }
+    update(x, y) {
+        let s = this.updates.unify(x, y);
+        if (s == failure) return s;
+        return new State(this.substitution, s) }
     eval(g) { return g.eval(this) }
     isIncomplete() { return false }
     answer() { return this }
@@ -190,6 +198,15 @@ class MPlus extends Stream {
     }
 }
 
+class UnifyUpdate extends Goal {
+    constructor(lhs, rhs) {
+        super();
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+    eval(s) { return s.update(this.lhs, this.rhs) }
+}
+
 function to_goal(g) {
     return (Array.isArray(g)) ? g.reduceRight((cs, c) => c.conj(cs)) : g;
 }
@@ -202,7 +219,9 @@ function unify(x, y) {
     return new Unify(x, y);
 }
 
-
+function setunify(x, y) {
+    return new UnifyUpdate(x, y);
+}
 
 
 
@@ -299,11 +318,13 @@ class List {
         if (x == y) return this;
         if (x instanceof LVar) return this.acons(x, y);
         if (y instanceof LVar) return this.acons(y, x);
-        if (x instanceof Pair && y instanceof Pair) return this.unify(x.car, y.car).unify(x.cdr, y.cdr);
-        return failure;
-    }
-    eval(g) {
-        return g.eval(this);
+        if (primitive(x) || primitive(y)) return failure;
+        let s = this;
+        for (let k of Object.keys(x).filter(k => Object.hasOwn(y, k))) {
+            s = s.unify(x[k], y[k]);
+            if (s === failure) return failure;
+        }
+        return s;
     }
 }
 
@@ -608,6 +629,12 @@ asserte(todo_node.childNodes.length, 1);
 asserte((new Succeed).run(), List.from(nil));
 asserte(fresh((x) => unify(x, 1)).run(), List.fromTree([[1]]));
 asserte(fresh((x, y) => [x.unify(1), y.unify(2)]).run(), List.fromTree([[1, 2]]));
+asserte(fresh((x) => [x.unify(1), x.unify(2)]).run(), nil);
+asserte(fresh((x, y) => unify(new Pair(x,y), new Pair(1,2))).run(), List.fromTree([[1, 2]]));
+asserte(fresh((x, y) => unify({a:x, b:y}, {a:1, b:2})).run(), List.fromTree([[1, 2]]));
+asserte(fresh((x) => unify({a:1, b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
+asserte(fresh((x) => unify({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
+asserte(fresh((x) => unify({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
 
 document.body.appendChild(todo_node);
