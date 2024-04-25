@@ -25,11 +25,20 @@ function equals(a, b) {
 }
 
 function asserte(a, b) {
-    if (!equals(a, b)) throw Error(JSON.stringify(a) + ' != ' + JSON.stringify(b));
+    if (!equals(a, b)) throw Error(assert_print(a) + ' != ' + assert_print(b));
+}
+
+function assert_print(x) {
+    if (x instanceof List) return x.toString();
+    return JSON.stringify(x);
 }
 
 function primitive(x) {
     return typeof x == 'string' || typeof x == 'number' || x instanceof Empty || x === null || x === undefined;
+}
+
+function copy(x) {
+    return Object.assign(Object.create(Object.getPrototypeOf(x)), x);
 }
 
 class LVar {
@@ -209,7 +218,10 @@ class UnifyUpdate extends Goal {
 }
 
 function to_goal(g) {
-    return (Array.isArray(g)) ? g.reduceRight((cs, c) => c.conj(cs)) : g;
+    if (Array.isArray(g)) return g.reduceRight((cs, c) => to_goal(c).conj(cs));
+    else if (true === g) return succeed;
+    else if (false === g) return fail;
+    else return g;
 }
 
 function conde(...condes) {
@@ -317,7 +329,7 @@ class List {
         return this.walk_path(v[prop], ...path);
     }
     toString() {
-        return '(' + this.toArray().join(' ') + ')';
+        return '(' + this.toArray().map(e => e.toString === Object.prototype.toString ? JSON.stringify(e) : e.toString()).join(' ') + ')';
     }
     unify(x, y) {
         x = this.walk(x);
@@ -374,13 +386,25 @@ class Pair extends List {
         let b = this.walk_binding(x);
         if (primitive(y)) return this.acons(b.car, y);
         let val = b.cdr;
-        if (primitive(val)) return this.acons(b.car, y); //TODO need to normalize
-        let s = this;
-        //console.log(x,y,b);
-        for (let k in y) {
-            s = s.update_binding(val[k], y[k]);
+        if (primitive(val)) {
+            let [n, s] = normalize(y, this);
+            return s.acons(b.car, n); // may be able to walk n and store the reified structure directly, simplifying primitive storage
         }
-        return s;
+        let s = this;
+        let u = copy(y);
+        //console.log(x,y,b);
+        for (let k in u) {
+            if (Object.hasOwn(val, k)) {
+                s = s.update_binding(val[k], y[k]);
+                u[k] = val[k];
+            }
+            else {
+                let n;
+                [n, s] = normalize(u[k], this);
+                u[k] = n;
+            }
+        }
+        return s.acons(b.car, u);
     }
 }
 
@@ -606,7 +630,7 @@ td_sub = garbage_collect(
 td_obs = update(td_sub, td_obs);
 asserte(td_node.childNodes.length, 1);
 
-
+document.body.appendChild(td_node);
 //0: (cons #1 #2)
 //1: 'test
 //2: (cons #3 #4)
@@ -658,7 +682,7 @@ asserte(td_node.childNodes.length, 1);
 
 // MK TEST
 
-asserte((new Succeed).run(), List.from(nil));
+asserte(succeed.run(), List.from(nil));
 asserte(fresh((x) => unify(x, 1)).run(), List.fromTree([[1]]));
 asserte(fresh((x, y) => [x.unify(1), y.unify(2)]).run(), List.fromTree([[1, 2]]));
 asserte(fresh((x) => [x.unify(1), x.unify(2)]).run(), nil);
@@ -674,7 +698,12 @@ asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]]));
 asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]]));
 asserte(fresh((x) => [unify(x,new Pair(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]]));
 asserte(fresh((x,y,z) => [unify(x,new Pair(y,z)), setunify(x, new Pair(1,2))]).run(), List.fromTree([[new Pair(1, 2), 1, 2]]));
+asserte(fresh((x) => [unify(x,1), setunify(x, new Pair(1,2))]).run(), List.fromTree([[new Pair(1, 2)]]));
+asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
+asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
+asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
 
-document.body.appendChild(td_node);
+
+
 
 console.log('Tests Complete');
