@@ -500,7 +500,14 @@ function render(spec, sub=nil, obs=nil, model={}) {
             return [parent, sub, obs];
         } // Build a head node for the rest of the child specs
         else if (typeof head_spec == 'string'){
-	    let parent = document.createElement(head_spec);
+	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model);
+        }
+        else if (head_spec.prototype === undefined) {
+            let parent = document.createElement(head_spec.tagName || 'div');
+            for (let k in head_spec) {
+                if (k === 'tagName') continue;
+                parent[k] = head_spec[k];
+            }
 	    for (let i=1; i<spec.length; i++) {
 	        log('child render', render(spec[i], sub, obs, model));
                 var [node, sub, obs] = render(spec[i], sub, obs, model);
@@ -579,9 +586,11 @@ asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
 var o = nil; // observers: convert substitution values into dom updates
 
 // Static
-asserte(render('lorem', s, o, m)[0].textContent, 'lorem'); // Static text node
-asserte(render(['div', 'lorem'], s, o, m)[0].innerHTML, 'lorem'); // Static dom node
-asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem'); // Static nested dom node
+asserte(render('lorem', s, o, m)[0].textContent, 'lorem');
+asserte(render(['div', 'lorem'], s, o, m)[0].innerHTML, 'lorem');
+asserte(render([{tagName: 'div'}], s, o, m)[0].tagName, 'DIV');
+asserte(render([{tagName: 'div', name: 'lorem'}], s, o, m)[0].name, 'lorem');
+asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
 
 // Dynamic
 var [n,,o] = render(s.walk(m).a, s, o, m);
