@@ -52,8 +52,8 @@ class Goal {
     disj(x) {
         return new Disj(this, x);
     }
-    run(n) {
-        return this.eval(new State()).take(n).map(s => s.reify(nil));
+    run(n=1, reify=true) {
+        return this.eval(new State()).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
         
     }
     suspend(s) { return new Suspended(s, this) }
@@ -99,8 +99,8 @@ class Fresh extends Goal {
         this.vars = vars;
         this.ctn = ctn;
     }
-    run(n=1) {
-        return this.eval(new State()).take(n).map(s => s.reify(this.vars));        
+    run(n=1, reify=true) {
+        return this.eval(new State()).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(this.vars) : s);
     }
     eval(s) {
         return to_goal(this.ctn(...this.vars)).suspend(s);
@@ -163,7 +163,7 @@ class State extends Stream {
     step() { return failure }
     mplus(s) { return new Answers(this, s) }
     _mplus(s) { return new Answers(this, s) }
-    update_substitution() { return this.updates.update_substitution(this.substitution) }
+    update_substitution() { return new State(this.updates.update_substitution(this.substitution)) }
 }
 
 class Suspended extends Stream {
@@ -341,6 +341,8 @@ class Pair extends List {
 	this.car = car;
 	this.cdr = cdr;
     }
+    caar() { return this.car.car }
+    cdar() { return this.car.cdr }
     toArray() {
         return [this.car].concat((this.cdr instanceof List) ? this.cdr.toArray() : [this.cdr]);            
     }
@@ -364,8 +366,21 @@ class Pair extends List {
         return this.cdr.map(f).cons(f(this.car));
     }
     update_substitution(s) { // Called on the updates substitution with the normal substitution as a parameter.
-        let b = s.walk_binding(this.car);
-        return s.acons(b.car, this.cdr);
+        //console.log('sub',s+'',this+'',s.update_binding(this.caar(), this.cdar())+'', this.cdr.update_substitution(s.update_binding(this.caar(), this.cdar()))+'')
+        return this.cdr.update_substitution(s.update_binding(this.caar(), this.cdar()));
+    }
+    update_binding(x, y) {
+        //console.log('binding', this+'', x,y);
+        let b = this.walk_binding(x);
+        if (primitive(y)) return this.acons(b.car, y);
+        let val = b.cdr;
+        if (primitive(val)) return this.acons(b.car, y); //TODO need to normalize
+        let s = this;
+        //console.log(x,y,b);
+        for (let k in y) {
+            s = s.update_binding(val[k], y[k]);
+        }
+        return s;
     }
 }
 
@@ -381,6 +396,7 @@ class Empty extends List {
     filter(p) { return this };
     map(f) { return this };
     update_substitution(s) { return s }
+    update_binding(x, y) { return this.acons(x, y) }
 }
 
 const nil = new Empty();
@@ -652,6 +668,12 @@ asserte(fresh((x) => unify({a:1, b:x}, {a:1, b:2})).run(), List.fromTree([[2]]))
 asserte(fresh((x) => unify({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => unify({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
+
+//console.log('test',fresh((x) => setunify(x, 1)).run(1,false).car);
+asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]]));
+asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]]));
+asserte(fresh((x) => [unify(x,new Pair(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]]));
+asserte(fresh((x,y,z) => [unify(x,new Pair(y,z)), setunify(x, new Pair(1,2))]).run(), List.fromTree([[new Pair(1, 2), 1, 2]]));
 
 document.body.appendChild(td_node);
 
