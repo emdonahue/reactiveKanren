@@ -473,7 +473,7 @@ function normalize(model, substitution=nil) {
 
 // RENDERING
 
-function render(spec, sub=nil, obs=nil, model={}) {
+function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
     log('render', spec, sub, obs, model);
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
@@ -481,7 +481,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
 	return [node, sub, obs];
     }
     else if (spec instanceof Function) {
-        return render(spec(model), sub, obs, model);
+        return render(spec(model), sub, obs, model, update);
     }
     else if (Array.isArray(spec)) { // Build a DOM node
         let head_spec = sub.walk(spec[0]);
@@ -491,7 +491,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
             let linkvar = spec[0];
             
             while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
-                var [node, sub, obs] = render(spec[1], sub, obs, items.car);
+                var [node, sub, obs] = render(spec[1], sub, obs, items.car, update);
                 parent.appendChild(node);
                 obs = obs.cons(new IterObserver(linkvar, node));
                 linkvar = items.cdr;
@@ -500,17 +500,26 @@ function render(spec, sub=nil, obs=nil, model={}) {
             return [parent, sub, obs];
         } // Build a head node for the rest of the child specs
         else if (typeof head_spec == 'string'){
-	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model);
+	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
         }
         else if (head_spec.prototype === undefined) {
             let parent = document.createElement(head_spec.tagName || 'div');
             for (let k in head_spec) {
                 if (k === 'tagName') continue;
-                parent[k] = head_spec[k];
+                if (k.substring(0,2) == 'on') {
+                    (k => {
+                        parent.addEventListener(
+                            k.substring(2),
+                            function(e) {
+                                update(head_spec[k](model, e));
+                            }
+                        );})(k);
+                }
+                else parent[k] = head_spec[k];
             }
 	    for (let i=1; i<spec.length; i++) {
-	        log('child render', render(spec[i], sub, obs, model));
-                var [node, sub, obs] = render(spec[i], sub, obs, model);
+	        log('child render', render(spec[i], sub, obs, model, update));
+                var [node, sub, obs] = render(spec[i], sub, obs, model, update);
                 parent.appendChild(node);
 	    }
 	    return [parent, sub, obs];
@@ -518,7 +527,7 @@ function render(spec, sub=nil, obs=nil, model={}) {
         else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
     }
     else if (spec instanceof LVar) { // Build a watched Text node
-	var [node, sub, obs] = render(sub.walk(spec), sub, obs, model);
+	var [node, sub, obs] = render(sub.walk(spec), sub, obs, model, update);
 	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent'))];
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
@@ -611,11 +620,17 @@ var [td_model, td_sub] =
 var [td_node, td_sub, td_obs] =
     render(['div',
             [td_sub.walk(td_model).todos,
-             ['div', function (e) {return td_sub.walk_path(e, 'title')}]]],
-           td_sub, nil, td_model);
+             [{onclick: m => {console.log('click model', m); return fresh(x => [unify({title: x}, m), setunify(x, 'event handler works')])}},
+              function (e) {return td_sub.walk_path(e, 'title')}]]],
+           td_sub, nil, td_model, g => {console.log(g.run(1, {reify:false, substitution: td_sub}).car.substitution + '')
+                                        td_sub = g.run(1, {reify:false,
+                                                                           substitution: td_sub}).car.substitution;
+                                        console.log('garbage collected', td_sub+'', td_obs)
+                                        td_obs = update(td_sub, td_obs)});
 asserte(td_node.childNodes.length, 2);
 
 //console.log(td_sub.reify(td_model));
+/*
 console.log(td_model)
 console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution + '' );
 console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution.reify(td_model));
@@ -633,7 +648,7 @@ td_sub = garbage_collect(td_sub, td_model);
 
 td_obs = update(td_sub, td_obs);
 asserte(td_node.childNodes.length, 1);
-
+*/
 document.body.appendChild(td_node);
 
 
