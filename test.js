@@ -1,6 +1,8 @@
+//TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
+
 let logging = false;
 function log(...args) {
-    if (logging) console.log.apply(console, args);
+    if (logging) console.log.apply(console, args.map(toString));
     return args.length == 1 ? args[0] : args;
 }
 
@@ -25,12 +27,11 @@ function equals(a, b) {
 }
 
 function asserte(a, b) {
-    if (!equals(a, b)) throw Error(assert_print(a) + ' != ' + assert_print(b));
+    if (!equals(a, b)) throw Error(toString(a) + ' != ' + toString(b));
 }
 
-function assert_print(x) {
-    if (x instanceof List) return x.toString();
-    return JSON.stringify(x);
+function toString(x) {
+    return x.toString === Object.prototype.toString ? JSON.stringify(x) : x.toString();
 }
 
 function primitive(x) {
@@ -172,7 +173,9 @@ class State extends Stream {
     step() { return failure }
     mplus(s) { return new Answers(this, s) }
     _mplus(s) { return new Answers(this, s) }
-    update_substitution() { return new State(this.updates.update_substitution(this.substitution)) }
+    update_substitution() {
+        log('update_substitution', this.substitution, this.updates);
+        return new State(this.updates.update_substitution(this.substitution)) }
 }
 
 class Suspended extends Stream {
@@ -262,9 +265,10 @@ class IterObserver {
     }
 
     update(val) {
-        if (val instanceof Pair) return true;
-        this.node.remove();
-        return false;
+        //if (val instanceof Pair) return true;
+        //this.node.remove();
+        //return false;
+        return true;
     }
 }
 
@@ -329,8 +333,8 @@ class List {
         return this.walk_path(v[prop], ...path);
     }
     toString() {
-        return '(' + this.toArray().map(e => e.toString === Object.prototype.toString ? JSON.stringify(e) : e.toString()).join(' ') + ')';
-    }
+        return '(' + this._toString() + ')';
+    }    
     unify(x_var, y_var) { //DOC unifier has to be very lazy about preserving variable paths and not updating to latest value
         let x = this.walk(x_var);
         let y = this.walk(y_var);
@@ -406,6 +410,9 @@ class Pair extends List {
         }
         return s.acons(b.car, u);
     }
+    _toString() {
+        return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + JSON.stringify(this.cdr)}`;
+    }
 }
 
 class Empty extends List {
@@ -421,6 +428,7 @@ class Empty extends List {
     map(f) { return this };
     update_substitution(s) { return s }
     update_binding(x, y) { return this.acons(x, y) }
+    _toString() { return '' }
 }
 
 const nil = new Empty();
@@ -489,15 +497,17 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
             let parent = document.createDocumentFragment();
             let items = head_spec;
             let linkvar = spec[0];
+            let vars_nodes = [];
             
             while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
                 var [node, sub, obs] = render(spec[1], sub, obs, items.car, update);
                 parent.appendChild(node);
-                obs = obs.cons(new IterObserver(linkvar, node));
+                vars_nodes.push(new Pair(linkvar, node));
+                //obs = obs.cons(new IterObserver(linkvar, node));
                 linkvar = items.cdr;
                 items = sub.walk(linkvar);
             }
-            return [parent, sub, obs];
+            return [parent, sub, obs.cons(new IterObserver(List.fromArray(vars_nodes)))];
         } // Build a head node for the rest of the child specs
         else if (typeof head_spec == 'string'){
 	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
@@ -624,10 +634,19 @@ var [td_node, td_sub, td_obs] =
               function (e) {return td_sub.walk_path(e, 'title')}]]],
            td_sub, nil, td_model, g => {console.log(g.run(1, {reify:false, substitution: td_sub}).car.substitution + '')
                                         td_sub = g.run(1, {reify:false,
-                                                                           substitution: td_sub}).car.substitution;
-                                        console.log('garbage collected', td_sub+'', td_obs)
+                                                           substitution: td_sub}).car.substitution;
                                         td_obs = update(td_sub, td_obs)});
 asserte(td_node.childNodes.length, 2);
+
+console.log(td_sub.reify(td_model))
+td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
+                                unify(x1, new Pair(x2, x3)),
+                                setunify(x1, x3)]).run(1, {reify:false,
+                                                           substitution: td_sub}).car.substitution;
+td_sub = garbage_collect(td_sub, td_model);
+td_obs = update(td_sub, td_obs)
+console.log(td_sub.reify(td_model))
+
 
 //console.log(td_sub.reify(td_model));
 /*
@@ -702,6 +721,7 @@ document.body.appendChild(td_node);
 //console.log(td_sub)
 
 
+
 // MK TEST
 
 asserte(succeed.run(), List.from(nil));
@@ -714,6 +734,7 @@ asserte(fresh((x) => unify({a:1, b:x}, {a:1, b:2})).run(), List.fromTree([[2]]))
 asserte(fresh((x) => unify({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => unify({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
+asserte(fresh((x,y) => [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil))]).run(), List.fromTree([[List.from(1, 2), List.from(2)]]));
 
 //console.log('test',fresh((x) => setunify(x, 1)).run(1,false).car);
 asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]]));
@@ -724,7 +745,8 @@ asserte(fresh((x) => [unify(x,1), setunify(x, new Pair(1,2))]).run(), List.fromT
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
-
+logging = true
+asserte(fresh((w,x,y,z) => [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]).run(), List.fromTree([[new Pair(2, nil), new Pair(2, nil), new Pair(2, nil), new Pair(2, nil)]]));
 
 
 
