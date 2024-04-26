@@ -46,9 +46,10 @@ class LVar {
     static id = 0;
     constructor() {
 	this.id = LVar.id++;
+        this.label = '';
     }
     toString() {
-        return '<' + this.id + '>';
+        return '<' + this.label + this.id + '>';
     }
     unify(x) {
         return new Unify(this, x);
@@ -175,7 +176,10 @@ class State extends Stream {
     _mplus(s) { return new Answers(this, s) }
     update_substitution() {
         log('update_substitution', this.substitution, this.updates);
-        return new State(this.updates.update_substitution(this.substitution)) }
+        s = new State(this.updates.update_substitution(this.substitution));
+        log('updated_substitution', s.substitution);
+        return s;
+    }
 }
 
 class Suspended extends Stream {
@@ -386,9 +390,9 @@ class Pair extends List {
         return this.cdr.update_substitution(s.update_binding(this.caar(), this.cdar()));
     }
     update_binding(x, y) {
-        //console.log('binding', this+'', x,y);
+        log('update_binding', x, y, this);
         let b = this.walk_binding(x);
-        if (primitive(y)) return this.acons(b.car, y);
+        if (primitive(y) || y instanceof LVar) return this.acons(b.car, y);
         let val = b.cdr;
         if (primitive(val)) {
             let [n, s] = normalize(y, this);
@@ -411,7 +415,7 @@ class Pair extends List {
         return s.acons(b.car, u);
     }
     _toString() {
-        return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + JSON.stringify(this.cdr)}`;
+        return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + toString(this.cdr)}`;
     }
 }
 
@@ -746,7 +750,10 @@ asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
 logging = true
-asserte(fresh((w,x,y,z) => [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]).run(), List.fromTree([[new Pair(2, nil), new Pair(2, nil), new Pair(2, nil), new Pair(2, nil)]]));
+console.log(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z';return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]}).run())
+
+
+//asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z'; [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]}).run(), List.fromTree([[new Pair(2, nil), new Pair(2, nil), new Pair(2, nil), new Pair(2, nil)]]));
 
 
 
