@@ -279,7 +279,16 @@ class IterObserver {
         // get list of vars still in store
         // remove nodes for all variables no longer in store
         // for all vars in store,
-        dlog('moddom', this.moddom(this.lvar, sub));
+        let ns = this.moddom(this.lvar, sub);
+        dlog('ns', ns, this.lvar_nodes)
+        dlog('sub', sub)
+        this.lvar_nodes = this.lvar_nodes.filter(b => {
+            if (ns.member(b.car)) return true;
+            dlog('removing', b.car)
+            b.cdr.remove();
+            return false;
+        });
+        dlog('lvar nodes', this.lvar_nodes);
                     /*
         this.lvar_nodes = this.lvar_nodes.filter(
             function ({car:v, cdr:n}) {
@@ -299,7 +308,7 @@ class IterObserver {
     moddom(lvar, sub) {
         let w = sub.walk(lvar);
         if (w instanceof Empty) {
-            return List.from(lvar)
+            return nil;
         }
         assert(w instanceof Pair);
         return this.moddom(w.cdr, sub).cons(lvar);
@@ -513,6 +522,18 @@ function normalize(model, substitution=nil) {
     }
 }
 
+function normalize2(model, sub=nil) {
+    if (primitive(model) || model instanceof LVar) return [model, sub];
+    let m = Object.create(Object.getPrototypeOf(model));
+    let n;
+    for (let k in model) {
+        let v = new LVar();
+        [n,sub] = normalize2(model[k], sub);
+        sub = sub.acons(v, n);
+        m[k] = v;
+    }
+    return [m, sub];
+}
 
 // RENDERING
 
@@ -594,6 +615,7 @@ function garbage_collect(sub, root) {
 
 function garbage_mark(sub, root, marked=nil) {
     // Return vars in sub still reachable from root.
+    log('garbage_mark', root, marked);
     if (root instanceof LVar) {
         if (marked.member(root)) return marked;
         return garbage_mark(sub, sub.assoc(root), marked.cons(root));
@@ -618,7 +640,7 @@ function garbage_sweep(sub, marked) {
 logging=false;
 
 
-let [m, s] = normalize({
+let [m, s] = normalize2({
     a: 1,
     b: 2,
     c: [3, 4],
@@ -630,9 +652,9 @@ log("substitution",s);
 
 //Model
 assert(s.walk(m).a instanceof LVar, s.walk(m).a);
-asserte(garbage_mark(s, m).length(), 17);
-asserte(garbage_mark(s.acons(s.walk_path(m, 'c'), s.walk_path(m,'a')), m).length(), 12);
-asserte(garbage_sweep(s, garbage_mark(s.acons(s.walk_path(m, 'c'), s.walk_path(m,'a')), m)).length(), 12);
+asserte(garbage_mark(s, m).length(), 8);
+asserte(garbage_mark(s.acons(m.c, m.a), m).length(), 6);
+asserte(garbage_sweep(s, garbage_mark(s.acons(m.c, m.a), m)).length(), 6);
 
 //Template
 asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
@@ -661,7 +683,7 @@ asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { retur
 
 // TDList
 var [td_model, td_sub] =
-    normalize({todos: [{title: 'get tds displaying', done: false},
+    normalize2({todos: [{title: 'get tds displaying', done: false},
                        {title: 'streamline api', done: false}]});
 
 var [td_node, td_sub, td_obs] =
@@ -676,11 +698,15 @@ var [td_node, td_sub, td_obs] =
 asserte(td_node.childNodes.length, 3);
 
 console.log(td_sub.reify(td_model))
+dlog('pre set', td_sub)
 td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
                                 unify(x1, new Pair(x2, x3)),
                                 setunify(x1, x3)]).run(1, {reify:false,
                                                            substitution: td_sub}).car.substitution;
+dlog('delete data', td_sub, td_model)
+dlog('garbage mark', garbage_mark(td_sub, td_model))
 td_sub = garbage_collect(td_sub, td_model);
+dlog('garbage collected', td_sub)
 td_obs = update(td_sub, td_obs)
 dlog(td_sub)
 console.log(td_sub.reify(td_model))
