@@ -36,11 +36,11 @@ function asserte(a, b) {
 }
 
 function toString(x) {
-    return x.toString === Object.prototype.toString ? JSON.stringify(x) : x.toString();
+    return x.toString && x.toString === Object.prototype.toString ? JSON.stringify(x) : x.toString();
 }
 
 function primitive(x) {
-    return typeof x == 'string' || typeof x == 'number' || x instanceof Empty || x === null || x === undefined;
+    return typeof x == 'string' || typeof x == 'boolean' || typeof x == 'number' || x instanceof Empty || x === null || x === undefined;
 }
 
 function copy(x) {
@@ -524,15 +524,19 @@ function normalize(model, substitution=nil) {
 
 function normalize2(model, sub=nil) {
     if (primitive(model) || model instanceof LVar) return [model, sub];
-    let m = Object.create(Object.getPrototypeOf(model));
-    let n;
-    for (let k in model) {
-        let v = new LVar();
-        [n,sub] = normalize2(model[k], sub);
-        sub = sub.acons(v, n);
-        m[k] = v;
+    else if (Array.isArray(model)) { return normalize2(List.fromArray(model), sub); }
+    else {
+        let m = Object.create(Object.getPrototypeOf(model));
+        let n;
+        for (let k in model) {
+            assert(!(model[k] instanceof LVar)); //normalized values should be fully ground
+            let v = new LVar();
+            [n,sub] = normalize2(model[k], sub);
+            sub = sub.acons(v, n);
+            m[k] = v;
+        }
+        return [m, sub];
     }
-    return [m, sub];
 }
 
 // RENDERING
@@ -652,7 +656,7 @@ log("substitution",s);
 
 //Model
 assert(s.walk(m).a instanceof LVar, s.walk(m).a);
-asserte(garbage_mark(s, m).length(), 8);
+asserte(garbage_mark(s, m).length(), 10);
 asserte(garbage_mark(s.acons(m.c, m.a), m).length(), 6);
 asserte(garbage_sweep(s, garbage_mark(s.acons(m.c, m.a), m)).length(), 6);
 
@@ -684,7 +688,8 @@ asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { retur
 // TDList
 var [td_model, td_sub] =
     normalize2({todos: [{title: 'get tds displaying', done: false},
-                       {title: 'streamline api', done: false}]});
+                        {title: 'streamline api', done: false}]});
+
 
 var [td_node, td_sub, td_obs] =
     render(['div',
