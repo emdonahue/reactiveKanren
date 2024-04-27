@@ -6,6 +6,11 @@ function log(...args) {
     return args.length == 1 ? args[0] : args;
 }
 
+function dlog(...args) {
+    console.log.apply(console, args.map(toString));
+    return args.length == 1 ? args[0] : args;
+}
+
 function test(f, test_name) {
     try {
 	f();
@@ -256,24 +261,50 @@ class PropObserver {
 	this.attr = attr;
     }
 
-    update(val) {
-	this.node[this.attr] = val;
+    update(sub) {
+	this.node[this.attr] = sub.walk(this.lvar);
         return true;
     }
 }
 
 class IterObserver {
-    constructor(lvar, node) {
+    constructor(lvar, node, lvar_nodes) {
+        dlog('iter observer', lvar_nodes)
         this.lvar = lvar;
-	this.node = node;
+        this.node = node;
+        this.lvar_nodes = lvar_nodes;
     }
 
-    update(val) {
+    update(sub) {
+        // get list of vars still in store
+        // remove nodes for all variables no longer in store
+        // for all vars in store,
+        dlog('moddom', this.moddom(this.lvar, sub));
+                    /*
+        this.lvar_nodes = this.lvar_nodes.filter(
+            function ({car:v, cdr:n}) {
+                dlog('walk', v, sub.walk(v))
+                if (!(sub.walk(v) instanceof Pair)) {
+                    console.log('remove', sub.walk(v))
+                    n.remove();
+                    return false; }
+                return true;
+            });
+*/
         //if (val instanceof Pair) return true;
         //this.node.remove();
         //return false;
         return true;
     }
+    moddom(lvar, sub) {
+        let w = sub.walk(lvar);
+        if (w instanceof Empty) {
+            return List.from(lvar)
+        }
+        assert(w instanceof Pair);
+        return this.moddom(w.cdr, sub).cons(lvar);
+    }
+    
 }
 
 class List {
@@ -501,6 +532,8 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
             let parent = document.createDocumentFragment();
             let items = head_spec;
             let linkvar = spec[0];
+            let listvar = spec[0]; //TODO in simple static list cases this may not be a var
+            let listnode = document.createComment('');
             let vars_nodes = [];
             
             while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
@@ -511,7 +544,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
                 linkvar = items.cdr;
                 items = sub.walk(linkvar);
             }
-            return [parent, sub, obs.cons(new IterObserver(List.fromArray(vars_nodes)))];
+            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, List.fromArray(vars_nodes)))];
         } // Build a head node for the rest of the child specs
         else if (typeof head_spec == 'string'){
 	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
@@ -552,7 +585,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
 // UPDATING
 
 function update(sub, obs) {
-    return obs.filter((o) => o.update(sub.walk(o.lvar)));
+    return obs.filter((o) => o.update(sub));
 }
 
 function garbage_collect(sub, root) {
@@ -640,7 +673,7 @@ var [td_node, td_sub, td_obs] =
                                         td_sub = g.run(1, {reify:false,
                                                            substitution: td_sub}).car.substitution;
                                         td_obs = update(td_sub, td_obs)});
-asserte(td_node.childNodes.length, 2);
+asserte(td_node.childNodes.length, 3);
 
 console.log(td_sub.reify(td_model))
 td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
@@ -649,6 +682,7 @@ td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
                                                            substitution: td_sub}).car.substitution;
 td_sub = garbage_collect(td_sub, td_model);
 td_obs = update(td_sub, td_obs)
+dlog(td_sub)
 console.log(td_sub.reify(td_model))
 
 
@@ -749,11 +783,7 @@ asserte(fresh((x) => [unify(x,1), setunify(x, new Pair(1,2))]).run(), List.fromT
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
-logging = true
-console.log(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z';return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]}).run())
-
-
-//asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z'; [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]}).run(), List.fromTree([[new Pair(2, nil), new Pair(2, nil), new Pair(2, nil), new Pair(2, nil)]]));
+asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z'; return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]}).run(), List.fromTree([[new Pair(2, nil), new Pair(2, nil), new Pair(2, nil), new Pair(2, nil)]]));
 
 
 
