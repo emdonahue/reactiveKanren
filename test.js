@@ -94,7 +94,8 @@ class Conj extends Goal {
         this.rhs = rhs;
     }
     eval(s) {
-        return this.rhs.eval(this.lhs.eval(s));
+        s = this.lhs.eval(s);
+        return s === failure ? failure : this.rhs.eval(s);
     }
 }
 
@@ -227,7 +228,7 @@ class UnifyUpdate extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    eval(s) { return s.update(this.lhs, this.rhs) }
+    eval(s) { console.log(s); return s.update(this.lhs, this.rhs) }
 }
 
 function to_goal(g) {
@@ -448,8 +449,6 @@ class Pair extends List {
             return log('update_binding ->', s.extend(x_var, n));
         }
         
-        //if (!primitive(y_val))
-
         else if (primitive(y_val)) return log('update_binding ->', this.extend(x_var, y_val));
 
         else {
@@ -468,7 +467,8 @@ class Pair extends List {
             }
             return log('update_binding ->', s.extend(x_var, norm));
         }
-        
+
+        /*
         let b = this.walk_binding(x);
         if (primitive(y) || y instanceof LVar) return this.extend(b.car, y);
         let val = b.cdr;
@@ -491,6 +491,7 @@ class Pair extends List {
             }
         }
         return s.extend(b.car, u);
+        */
     }
     _toString() {
         return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + toString(this.cdr)}`;
@@ -743,24 +744,26 @@ var [td_node, td_sub, td_obs] =
                                         td_obs = update(td_sub, td_obs)});
 asserte(td_node.childNodes.length, 3);
 
-/*
-console.log(td_sub.reify(td_model))
-dlog('pre set', td_sub)
+
+//console.log(td_sub.reify(td_model))
+dlog('starting model/sub',td_model, td_sub)
 td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
                                 unify(x1, new Pair(x2, x3)),
                                 setunify(x1, x3)]).run(1, {reify:false,
                                                            substitution: td_sub}).car.substitution;
-dlog('delete data', td_sub, td_model)
+dlog('deleted model/sub', td_model, td_sub)
 dlog('garbage mark', garbage_mark(td_sub, td_model))
 td_sub = garbage_collect(td_sub, td_model);
 dlog('garbage collected', td_sub)
 td_obs = update(td_sub, td_obs)
 dlog(td_sub)
 console.log(td_sub.reify(td_model))
-*/
+
 
 //console.log(td_sub.reify(td_model));
+
 /*
+//setting value in place?
 console.log(td_model)
 console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution + '' );
 console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution.reify(td_model));
@@ -777,8 +780,9 @@ td_sub = fresh((x1, x2) => [unify({todos: new Pair(new LVar(), x1)}, td_model),
 td_sub = garbage_collect(td_sub, td_model);
 
 td_obs = update(td_sub, td_obs);
-asserte(td_node.childNodes.length, 1);
+asserte(td_node.childNodes.length, 2);
 */
+
 document.body.appendChild(td_node);
 
 
@@ -856,7 +860,17 @@ asserte(fresh((x) => [unify(x,1), setunify(x, new Pair(1,2))]).run(), List.fromT
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
-asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z'; return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(w, z)]}).run(), List.fromTree([[[2], [2], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
+
+asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z';
+                            return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(w, z)]}).run(), List.fromTree([[[2], [2], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
+
+asserte(fresh((a,b,c,d,x,y) => {a.label='a'; b.label='b'; c.label='c'; d.label='d';
+                                    x.label = 'x'; y.label='y';
+                                    return [unify(a, {prop: b}), unify(b,1),
+                                            unify(c, {prop: d}), unify(d,2),
+                                            unify(x,new Pair(a, y)), unify(y,new Pair(c, nil)),
+                                            setunify(x, y)]}).run(),
+        List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]]));
 
 
 
