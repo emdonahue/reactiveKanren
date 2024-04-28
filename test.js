@@ -228,7 +228,7 @@ class UnifyUpdate extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    eval(s) { console.log(s); return s.update(this.lhs, this.rhs) }
+    eval(s) { return s.update(this.lhs, this.rhs) }
 }
 
 function to_goal(g) {
@@ -436,7 +436,6 @@ class Pair extends List {
     }
     update_binding(x, y) {
         if (primitive(x)) return this;
-        log('update_binding', x, y, this);
         let {car: x_var, cdr: x_val} = this.walk_binding(x);
         let {car: y_var, cdr: y_val} = this.walk_binding(y);
 
@@ -446,10 +445,10 @@ class Pair extends List {
         //obj x obj => update overlap, normalize diff, then overwrite. maybe create a pojo by assoc each value in the sub and then normalize so itll ignore vars
         if (primitive(x_val)) {
             let [n, s] = normalize2(y_val, this);
-            return log('update_binding ->', s.extend(x_var, n));
+            return log('update_binding', x, y, this, '->', s.extend(x_var, n));
         }
         
-        else if (primitive(y_val)) return log('update_binding ->', this.extend(x_var, y_val));
+        else if (primitive(y_val)) return log('update_binding', x, y, this, '->', this.extend(x_var, y_val));
 
         else {
             let norm = copy(y_val);
@@ -458,14 +457,14 @@ class Pair extends List {
             for (let k in norm) {
                 if (Object.hasOwn(x_val, k)) {
                     s = s.update_binding(x_val[k], y_val[k]);
-                    norm[k] = y_val[k];
+                    norm[k] = x_val[k];
                 }
                 else {
                     [n, s] = normalize2(y_val[k], s);
                     norm[k] = n;
                 }
             }
-            return log('update_binding ->', s.extend(x_var, norm));
+            return log('update_binding', x, y, this, '->', s.extend(x_var, norm));
         }
 
         /*
@@ -747,11 +746,14 @@ asserte(td_node.childNodes.length, 3);
 
 //console.log(td_sub.reify(td_model))
 dlog('starting model/sub',td_model, td_sub)
+logging = true
 td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
                                 unify(x1, new Pair(x2, x3)),
                                 setunify(x1, x3)]).run(1, {reify:false,
                                                            substitution: td_sub}).car.substitution;
+
 dlog('deleted model/sub', td_model, td_sub)
+logging = false
 dlog('garbage mark', garbage_mark(td_sub, td_model))
 td_sub = garbage_collect(td_sub, td_model);
 dlog('garbage collected', td_sub)
@@ -862,7 +864,7 @@ asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
 
 asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z';
-                            return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(w, z)]}).run(), List.fromTree([[[2], [2], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
+                            return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(w, z)]}).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
 
 asserte(fresh((a,b,c,d,x,y) => {a.label='a'; b.label='b'; c.label='c'; d.label='d';
                                     x.label = 'x'; y.label='y';
