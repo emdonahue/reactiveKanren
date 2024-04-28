@@ -3,12 +3,12 @@
 let logging = false;
 function log(...args) {
     if (logging) console.log.apply(console, args.map(toString));
-    return args.length == 1 ? args[0] : args;
+    return args[args.length-1];
 }
 
 function dlog(...args) {
     console.log.apply(console, args.map(toString));
-    return args.length == 1 ? args[0] : args;
+    return args[args.length-1];
 }
 
 function test(f, test_name) {
@@ -116,7 +116,7 @@ class Fresh extends Goal {
         this.ctn = ctn;
     }
     run(n=1, {reify=true, substitution=nil}={}) {
-        return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(this.vars) : s);
+        return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? log('run', s.substitution).reify(this.vars) : s);
     }
     eval(s) {
         return to_goal(this.ctn(...this.vars)).suspend(s);
@@ -167,6 +167,7 @@ class State extends Stream {
     reify(x) { return this.substitution.reify(x) }
     unify(x, y) {
         let s = this.substitution.unify(x, y);
+        log('unify', x, y, this.substitution, s);
         if (s == failure) return s;
         return new State(s, this.updates) }
     update(x, y) {
@@ -269,7 +270,7 @@ class PropObserver {
 
 class IterObserver {
     constructor(lvar, node, lvar_nodes) {
-        dlog('iter observer', lvar_nodes)
+        //dlog('iter observer', lvar_nodes)
         this.lvar = lvar;
         this.node = node;
         this.lvar_nodes = lvar_nodes;
@@ -342,6 +343,9 @@ class List {
     acons(k, v) {
         return this.cons(new Pair(k, v));
     }
+    extend(k, v) {
+        return this.filter(x => x.car != k).acons(k, v);
+    }
     member(e) {
         return this.memp((x) => x == e);
     }
@@ -383,8 +387,8 @@ class List {
         let x = this.walk(x_var);
         let y = this.walk(y_var);
         if (x == y) return this;
-        if (x instanceof LVar) return this.acons(x, y_var);
-        if (y instanceof LVar) return this.acons(y, x_var);
+        if (x instanceof LVar) return this.extend(x, y_var);
+        if (y instanceof LVar) return this.extend(y, x_var);
         if (primitive(x) || primitive(y)) return failure;
         let s = this;
         for (let k of Object.keys(x).filter(k => Object.hasOwn(y, k))) {
@@ -430,13 +434,47 @@ class Pair extends List {
         return this.cdr.update_substitution(s.update_binding(this.caar(), this.cdar()));
     }
     update_binding(x, y) {
+        if (primitive(x)) return this;
         log('update_binding', x, y, this);
+        let {car: x_var, cdr: x_val} = this.walk_binding(x);
+        let {car: y_var, cdr: y_val} = this.walk_binding(y);
+
+        //TODO walk and remove props of lhs not contained in rhs rather than mark sweep later
+        // prim x obj => normalize to create space
+        // obj x prim => just overwrite
+        //obj x obj => update overlap, normalize diff, then overwrite. maybe create a pojo by assoc each value in the sub and then normalize so itll ignore vars
+        if (primitive(x_val)) {
+            let [n, s] = normalize2(y_val, this);
+            return log('update_binding ->', s.extend(x_var, n));
+        }
+        
+        //if (!primitive(y_val))
+
+        else if (primitive(y_val)) return log('update_binding ->', this.extend(x_var, y_val));
+
+        else {
+            let norm = copy(y_val);
+            let s = this;
+            let n;
+            for (let k in norm) {
+                if (Object.hasOwn(x_val, k)) {
+                    s = s.update_binding(x_val[k], y_val[k]);
+                    norm[k] = y_val[k];
+                }
+                else {
+                    [n, s] = normalize2(y_val[k], s);
+                    norm[k] = n;
+                }
+            }
+            return log('update_binding ->', s.extend(x_var, norm));
+        }
+        
         let b = this.walk_binding(x);
-        if (primitive(y) || y instanceof LVar) return this.acons(b.car, y);
+        if (primitive(y) || y instanceof LVar) return this.extend(b.car, y);
         let val = b.cdr;
         if (primitive(val)) {
             let [n, s] = normalize(y, this);
-            return s.acons(b.car, n); // may be able to walk n and store the reified structure directly, simplifying primitive storage
+            return s.extend(b.car, n); // may be able to walk n and store the reified structure directly, simplifying primitive storage
         }
         let s = this;
         let u = copy(y);
@@ -452,7 +490,7 @@ class Pair extends List {
                 u[k] = n;
             }
         }
-        return s.acons(b.car, u);
+        return s.extend(b.car, u);
     }
     _toString() {
         return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + toString(this.cdr)}`;
@@ -471,7 +509,7 @@ class Empty extends List {
     filter(p) { return this };
     map(f) { return this };
     update_substitution(s) { return s }
-    update_binding(x, y) { return this.acons(x, y) }
+    update_binding(x, y) { return this.extend(x, y) }
     _toString() { return '' }
 }
 
@@ -486,6 +524,7 @@ function fresh(f) {
 
 // RRP
 
+
 function normalize(model, substitution=nil) {
     log('normalize', model, substitution);
     if (model instanceof LVar) {
@@ -493,11 +532,11 @@ function normalize(model, substitution=nil) {
     }
     else if (Array.isArray(model)) {
 	let tail = new LVar();
-        substitution = substitution.acons(tail, nil);
+        substitution = substitution.extend(tail, nil);
 	for (let i=model.length-1; 0<=i; i--) {            
             var [lvar, substitution] = normalize(model[i], substitution);
 	    let tail2 = new LVar();
-            substitution = substitution.acons(tail2, new Pair(lvar, tail));
+            substitution = substitution.extend(tail2, new Pair(lvar, tail));
             tail = tail2;
 	}
 	return [tail, substitution];
@@ -508,17 +547,17 @@ function normalize(model, substitution=nil) {
 	    //log('k',k,'submodel',model[k], 'substitution',JSON.stringify(substitution));
             var [lvar, substitution] = normalize(model[k], substitution);
             const lvar2 = new LVar();
-            substitution = substitution.acons(lvar2, lvar);
+            substitution = substitution.extend(lvar2, lvar);
 	    m[k] = lvar2;
             //substitution = substitution.push(new LVar(substitution.push(lvar) - 1)) - 1
 	    //log('id',m[k],'substitution',JSON.stringify(substitution));
 	}
         const mvar = new LVar();
-	return [mvar, substitution.acons(mvar, m)];
+	return [mvar, substitution.extend(mvar, m)];
     }
     else {
         const lvar = new LVar();
-	return [lvar, substitution.acons(lvar, model)];
+	return [lvar, substitution.extend(lvar, model)];
     }
 }
 
@@ -529,11 +568,13 @@ function normalize2(model, sub=nil) {
         let m = Object.create(Object.getPrototypeOf(model));
         let n;
         for (let k in model) {
-            assert(!(model[k] instanceof LVar)); //normalized values should be fully ground
-            let v = new LVar();
-            [n,sub] = normalize2(model[k], sub);
-            sub = sub.acons(v, n);
-            m[k] = v;
+            if ((model[k] instanceof LVar)) { m[k] = model[k] }
+            else {
+                let v = new LVar();
+                [n,sub] = normalize2(model[k], sub);
+                sub = sub.extend(v, n);
+                m[k] = v;
+            }
         }
         return [m, sub];
     }
@@ -613,8 +654,8 @@ function update(sub, obs) {
     return obs.filter((o) => o.update(sub));
 }
 
-function garbage_collect(sub, root) {
-    return garbage_sweep(sub, garbage_mark(sub, root));
+function garbage_collect(sub, root) { //TODO filter out rhs vars bc they arent value holders
+    return garbage_sweep(sub, garbage_mark(sub, root)).filter(b => !(b.cdr instanceof LVar));
 }
 
 function garbage_mark(sub, root, marked=nil) {
@@ -702,6 +743,7 @@ var [td_node, td_sub, td_obs] =
                                         td_obs = update(td_sub, td_obs)});
 asserte(td_node.childNodes.length, 3);
 
+/*
 console.log(td_sub.reify(td_model))
 dlog('pre set', td_sub)
 td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
@@ -715,7 +757,7 @@ dlog('garbage collected', td_sub)
 td_obs = update(td_sub, td_obs)
 dlog(td_sub)
 console.log(td_sub.reify(td_model))
-
+*/
 
 //console.log(td_sub.reify(td_model));
 /*
@@ -814,7 +856,7 @@ asserte(fresh((x) => [unify(x,1), setunify(x, new Pair(1,2))]).run(), List.fromT
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
-asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z'; return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(x, z)]}).run(), List.fromTree([[new Pair(2, nil), new Pair(2, nil), new Pair(2, nil), new Pair(2, nil)]]));
+asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z'; return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(w, z)]}).run(), List.fromTree([[[2], [2], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
 
 
 
