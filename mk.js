@@ -103,6 +103,9 @@ class Pair extends List {
     map(f) {
         return this.cdr.map(f).cons(f(this.car));
     }
+    fold(f, x) {
+        return this.cdr.fold(f, f(x, this.car));
+    }
     append(xs) {
         return new Pair(this.car, this.cdr.append(xs));
     }
@@ -162,6 +165,7 @@ class Empty extends List {
     update_substitution(s) { return s; }
     update_binding(x, y) { return this.extend(x, y); }
     append(xs) { return xs; }
+    fold(f, x) { return x; }
     _toString() { return ''; }
 }
 

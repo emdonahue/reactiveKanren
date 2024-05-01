@@ -46,9 +46,11 @@ class PropObserver {
 	this.attr = attr;
     }
 
-    update(sub) {
-	this.node[this.attr] = sub.walk(this.lvar);
-        return true;
+    update(sub, obs) {
+        let val = sub.walk(this.lvar);
+        if (val instanceof LVar) return [sub, obs];
+	this.node[this.attr] = val;
+        return [sub, obs.cons(this)];
     }
 }
 
@@ -61,7 +63,7 @@ class IterObserver {
         this.template = template;
     }
 
-    update(sub) {
+    update(sub, obs, updater) {
         // get list of vars still in store
         // remove nodes for all variables no longer in store
         // for all vars in store,
@@ -74,7 +76,8 @@ class IterObserver {
             b.cdr.remove();
             return false;
         }).append(ns.filter(v => !this.lvar_nodes.assoc(v)).map(v => {
-            let [node, s, o] = render(this.template, sub, nil, sub.walk(v).car, () => {});
+            let node;
+            [node, sub, obs] = render(this.template, sub, nil, sub.walk(v).car, () => {});
             this.node.parentNode.insertBefore(node, this.node);
             return cons(v, node);
         }));
@@ -93,7 +96,7 @@ class IterObserver {
         //if (val instanceof Pair) return true;
         //this.node.remove();
         //return false;
-        return true;
+        return [sub, obs.cons(this)];
     }
     moddom(lvar, sub) {
         let w = sub.walk(lvar);
@@ -181,8 +184,9 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
 
 // UPDATING
 
-function update(sub, obs) {
-    return obs.filter((o) => o.update(sub));
+function update(sub, obs, updater) {
+    //return obs.filter((o) => o.update(sub, obs, updater));
+    return obs.fold(([sub, obs], o) => o.update(sub, obs, updater), [sub, nil])[1];
 }
 
 function garbage_collect(sub, root) { 
@@ -263,15 +267,19 @@ var [td_model, td_sub] =
                         {title: 'streamline api', done: false}]});
 
 
+function td_updater() {
+    console.log(g.run(1, {reify:false, substitution: td_sub}).car.substitution + '')
+    td_sub = g.run(1, {reify:false,
+                       substitution: td_sub}).car.substitution;
+    td_obs = update(td_sub, td_obs, td_updater);
+}
+
 var [td_node, td_sub, td_obs] =
     render(['div',
             [td_sub.walk(td_model).todos,
              [{onclick: m => {console.log('click model', m); return fresh(x => [unify({title: x}, m), setunify(x, 'event handler works')])}},
               function (e) {return td_sub.walk_path(e, 'title')}]]],
-           td_sub, nil, td_model, g => {console.log(g.run(1, {reify:false, substitution: td_sub}).car.substitution + '')
-                                        td_sub = g.run(1, {reify:false,
-                                                           substitution: td_sub}).car.substitution;
-                                        td_obs = update(td_sub, td_obs)});
+           td_sub, nil, td_model, td_updater);
 asserte(td_node.childNodes.length, 3);
 
 
@@ -286,7 +294,7 @@ td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
 //dlog('garbage mark', garbage_mark(td_sub, td_model))
 td_sub = garbage_collect(td_sub, td_model);
 //dlog('garbage collected', td_sub)
-td_obs = update(td_sub, td_obs)
+td_obs = update(td_sub, td_obs, td_updater)
 //dlog(td_sub)
 console.log(td_sub.reify(td_model))
 
@@ -297,7 +305,7 @@ td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: cons(x2, x3)}),
                                                            substitution: td_sub}).car.substitution;
 
 td_sub = garbage_collect(td_sub, td_model);
-td_obs = update(td_sub, td_obs)
+td_obs = update(td_sub, td_obs, td_updater)
 
 //console.log(td_sub.reify(td_model));
 
