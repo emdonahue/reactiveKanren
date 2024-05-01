@@ -53,11 +53,12 @@ class PropObserver {
 }
 
 class IterObserver {
-    constructor(lvar, node, lvar_nodes) {
+    constructor(lvar, node, lvar_nodes, template) {
         //dlog('iter observer', lvar_nodes)
         this.lvar = lvar;
         this.node = node;
         this.lvar_nodes = lvar_nodes;
+        this.template = template;
     }
 
     update(sub) {
@@ -73,8 +74,7 @@ class IterObserver {
             b.cdr.remove();
             return false;
         }).append(ns.filter(v => !this.lvar_nodes.assoc(v)).map(v => {
-            let node = document.createElement('div');
-            node.innerHTML = 'ADDED';
+            let [node, s, o] = render(this.template, sub, nil, sub.walk(v).car, () => {});
             this.node.parentNode.insertBefore(node, this.node);
             return new Pair(v, node);
         }));
@@ -121,7 +121,6 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
     log('render', spec, sub, obs, model);
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
-	//return [node, new PropObserver(node, 'textContent')];
 	return [node, sub, obs];
     }
     else if (spec instanceof Function) {
@@ -141,11 +140,10 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
                 var [node, sub, obs] = render(spec[1], sub, obs, items.car, update);
                 parent.appendChild(node);
                 vars_nodes.push(new Pair(linkvar, node));
-                //obs = obs.cons(new IterObserver(linkvar, node));
                 linkvar = items.cdr;
                 items = sub.walk(linkvar);
             }
-            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, List.fromArray(vars_nodes)))];
+            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, List.fromArray(vars_nodes), spec[1]))];
         } // Build a head node for the rest of the child specs
         else if (typeof head_spec == 'string'){
 	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
@@ -179,8 +177,6 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
 	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent'))];
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
-    //    		typeof child === 'number') head.appendChild(document.createTextNode(child));
-    //document.createDocumentFragment());}
 }
 
 // UPDATING
@@ -189,8 +185,8 @@ function update(sub, obs) {
     return obs.filter((o) => o.update(sub));
 }
 
-function garbage_collect(sub, root) { //TODO filter out rhs vars bc they arent value holders
-    return garbage_sweep(sub, garbage_mark(sub, root)).filter(b => !(b.cdr instanceof LVar));
+function garbage_collect(sub, root) { 
+    return garbage_sweep(sub, garbage_mark(sub, root));
 }
 
 function garbage_mark(sub, root, marked=nil) {
