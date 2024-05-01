@@ -76,7 +76,7 @@ class IterObserver {
         }).append(ns.filter(v => !this.lvar_nodes.assoc(v)).map(v => {
             let [node, s, o] = render(this.template, sub, nil, sub.walk(v).car, () => {});
             this.node.parentNode.insertBefore(node, this.node);
-            return new Pair(v, node);
+            return cons(v, node);
         }));
         dlog('lvar nodes', this.lvar_nodes);
                     /*
@@ -139,11 +139,11 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
             while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
                 var [node, sub, obs] = render(spec[1], sub, obs, items.car, update);
                 parent.appendChild(node);
-                vars_nodes.push(new Pair(linkvar, node));
+                vars_nodes.push(cons(linkvar, node));
                 linkvar = items.cdr;
                 items = sub.walk(linkvar);
             }
-            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, List.fromArray(vars_nodes), spec[1]))];
+            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), spec[1]))];
         } // Build a head node for the rest of the child specs
         else if (typeof head_spec == 'string'){
 	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
@@ -253,9 +253,9 @@ update(s.acons(s.walk(m).a, 2), o);
 asserte(n.textContent, '2');
 
 // Lists
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return 'lorem' }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([List.fromArray(['ipsum', 'dolor']), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
+asserte(render([list('ipsum', 'dolor'), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+asserte(render([list('ipsum', 'dolor'), ['div', function (e) { return 'lorem' }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+asserte(render([list('ipsum', 'dolor'), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
 // TDList
 var [td_model, td_sub] =
@@ -278,7 +278,7 @@ asserte(td_node.childNodes.length, 3);
 //console.log(td_sub.reify(td_model))
 //dlog('starting model/sub',td_model, td_sub)
 td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
-                                unify(x1, new Pair(x2, x3)),
+                                unify(x1, cons(x2, x3)),
                                 setunify(x1, x3)]).run(1, {reify:false,
                                                            substitution: td_sub}).car.substitution;
 
@@ -292,8 +292,8 @@ console.log(td_sub.reify(td_model))
 
 //TODO make setunify read from old and write to new
 //add one
-td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: new Pair(x2, x3)}),
-                                setunify(x3, new Pair({title: 'add works', done: false}, nil))]).run(1, {reify:false,
+td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: cons(x2, x3)}),
+                                setunify(x3, cons({title: 'add works', done: false}, nil))]).run(1, {reify:false,
                                                            substitution: td_sub}).car.substitution;
 
 td_sub = garbage_collect(td_sub, td_model);
@@ -304,17 +304,17 @@ td_obs = update(td_sub, td_obs)
 /*
 //setting value in place?
 console.log(td_model)
-console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution + '' );
-console.log(fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution.reify(td_model));
+console.log(fresh((td1) => [unify({todos: cons({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution + '' );
+console.log(fresh((td1) => [unify({todos: cons({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution.reify(td_model));
 
-td_sub = fresh((td1) => [unify({todos: new Pair({title: td1}, new LVar())}, td_model),
+td_sub = fresh((td1) => [unify({todos: cons({title: td1}, new LVar())}, td_model),
                          setunify(td1, 'set unify working')]).run(1, {reify: false, substitution: td_sub}).car.substitution
 td_obs = update(td_sub, td_obs);
 
 asserte(td_node.childNodes[0].innerHTML, 'set unify working');
 
-td_sub = fresh((x1, x2) => [unify({todos: new Pair(new LVar(), x1)}, td_model),
-                            unify(x1, new Pair(new LVar(), x2)),
+td_sub = fresh((x1, x2) => [unify({todos: cons(new LVar(), x1)}, td_model),
+                            unify(x1, cons(new LVar(), x2)),
                             setunify(x1, x2)]).run(1, {reify: false, substitution: td_sub}).car.substitution
 td_sub = garbage_collect(td_sub, td_model);
 
@@ -378,35 +378,35 @@ document.body.appendChild(td_node);
 
 // MK TEST
 
-asserte(succeed.run(), List.from(nil));
+asserte(succeed.run(), list(nil));
 asserte(fresh((x) => unify(x, 1)).run(), List.fromTree([[1]]));
 asserte(fresh((x, y) => [x.unify(1), y.unify(2)]).run(), List.fromTree([[1, 2]]));
 asserte(fresh((x) => [x.unify(1), x.unify(2)]).run(), nil);
-asserte(fresh((x, y) => unify(new Pair(x,y), new Pair(1,2))).run(), List.fromTree([[1, 2]]));
+asserte(fresh((x, y) => unify(cons(x,y), cons(1,2))).run(), List.fromTree([[1, 2]]));
 asserte(fresh((x, y) => unify({a:x, b:y}, {a:1, b:2})).run(), List.fromTree([[1, 2]]));
 asserte(fresh((x) => unify({a:1, b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => unify({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => unify({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
-asserte(fresh((x,y) => [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil))]).run(), List.fromTree([[List.from(1, 2), List.from(2)]]));
+asserte(fresh((x,y) => [unify(x,cons(1, y)), unify(y,cons(2, nil))]).run(), List.fromTree([[list(1, 2), list(2)]]));
 
 asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]]));
 asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]]));
-asserte(fresh((x) => [unify(x,new Pair(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]]));
-asserte(fresh((x,y,z) => [unify(x,new Pair(y,z)), setunify(x, new Pair(1,2))]).run(), List.fromTree([[new Pair(1, 2), 1, 2]]));
-asserte(fresh((x) => [unify(x,1), setunify(x, new Pair(1,2))]).run(), List.fromTree([[new Pair(1, 2)]]));
+asserte(fresh((x) => [unify(x,cons(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]]));
+asserte(fresh((x,y,z) => [unify(x,cons(y,z)), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]]));
+asserte(fresh((x) => [unify(x,1), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
 
 asserte(fresh((w,x,y,z) => {w.label = 'w'; x.label = 'x'; y.label='y'; z.label='z';
-                            return [unify(x,new Pair(1, y)), unify(y,new Pair(2, nil)), unify(x,w),unify(x,new Pair(1, z)), setunify(w, z)]}).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
+                            return [unify(x,cons(1, y)), unify(y,cons(2, nil)), unify(x,w),unify(x,cons(1, z)), setunify(w, z)]}).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
 
 asserte(fresh((a,b,c,d,x,y) => {a.label='a'; b.label='b'; c.label='c'; d.label='d';
                                     x.label = 'x'; y.label='y';
                                     return [unify(a, {prop: b}), unify(b,1),
                                             unify(c, {prop: d}), unify(d,2),
-                                            unify(x,new Pair(a, y)), unify(y,new Pair(c, nil)),
+                                            unify(x,cons(a, y)), unify(y,cons(c, nil)),
                                             setunify(x, y)]}).run(),
         List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]]));
 
