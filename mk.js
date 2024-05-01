@@ -109,33 +109,29 @@ class Pair extends List {
     append(xs) {
         return new Pair(this.car, this.cdr.append(xs));
     }
-    update_substitution(s) { // Called on the updates substitution with the normal substitution as a parameter.
-        //console.log('sub',s+'',this+'',s.update_binding(this.caar(), this.cdar())+'', this.cdr.update_substitution(s.update_binding(this.caar(), this.cdar()))+'')
-        return this.cdr.update_substitution(s.update_binding(this.caar(), this.cdar()));
+    update_substitution(s2, s=s2) { // Called on the updates substitution with the normal substitution as a parameter.
+        return this.cdr.update_substitution(s2.update_binding(this.caar(), this.cdar(), s), s);
     }
-    update_binding(x, y) {
+    update_binding(x, y, sub) {
         if (primitive(x)) return this;
-        let {car: x_var, cdr: x_val} = this.walk_binding(x);
-        let {car: y_var, cdr: y_val} = this.walk_binding(y);
+        let {car: x_var, cdr: x_val} = sub.walk_binding(x);
+        let {car: y_var, cdr: y_val} = sub.walk_binding(y);
 
-        //TODO walk and remove props of lhs not contained in rhs rather than mark sweep later
-        // prim x obj => normalize to create space
-        // obj x prim => just overwrite
-        //obj x obj => update overlap, normalize diff, then overwrite. maybe create a pojo by assoc each value in the sub and then normalize so itll ignore vars
-        if (primitive(x_val)) {
+        if (primitive(x_val)) { // New prim values can just be dropped in over top of old values.
             let [n, s] = normalize2(y_val, this);
             return log('update_binding', x, y, this, '->', s.extend(x_var, n));
         }
-        
+
+        // Old prim values dont need to be reconciled, so just create new storage and update the new value.
         else if (primitive(y_val)) return log('update_binding', x, y, this, '->', this.extend(x_var, y_val));
 
-        else {
+        else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
             let norm = copy(y_val);
             let s = this;
             let n;
             for (let k in norm) {
                 if (Object.hasOwn(x_val, k)) {
-                    s = s.update_binding(x_val[k], y_val[k]);
+                    s = s.update_binding(x_val[k], y_val[k], sub);
                     norm[k] = x_val[k];
                 }
                 else {
@@ -186,6 +182,7 @@ class LVar {
     unify(x) {
         return new Unify(this, x);
     }
+    name(n) { this.label = n; return this; }
 }
 
 // Goals
@@ -322,13 +319,11 @@ class State extends Stream {
     reify(x) { return this.substitution.reify(x); }
     unify(x, y) {
         let s = this.substitution.unify(x, y);
-        log('unify', x, y, this.substitution, s);
+        log('unify', x, y, this.substitution, '->', s);
         if (s == failure) return s;
         return new State(s, this.updates); }
     update(x, y) {
-        let s = this.updates.unify(x, y);
-        if (s == failure) return s;
-        return new State(this.substitution, s); }
+        return new State(this.substitution, this.updates.acons(x, y)); }
     eval(g) { return g.eval(this); }
     isIncomplete() { return false; }
     answer() { return this; }
