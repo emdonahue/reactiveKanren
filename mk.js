@@ -262,12 +262,34 @@ class Unify extends Goal {
     }
 }
 
+class UnifyUpdate extends Goal {
+    constructor(lhs, rhs) {
+        super();
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+    eval(s) { return s.update(this.lhs, this.rhs); }
+}
+
+class Reunification extends Goal {
+    constructor(lhs, rhs) {
+        super();
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+    eval(s) { return s.extend(this.lhs, this.rhs); }
+}
+
 function conde(...condes) {
     return condes.reduceRight((cs, c) => to_goal(c).disj(cs));
 }
 
 function unify(x, y) {
     return new Unify(x, y);
+}
+
+function reunify(x, y) {
+    return new Reunification(x, y);
 }
 
 function setunify(x, y) {
@@ -324,6 +346,7 @@ class State extends Stream {
         return new State(s, this.updates); }
     update(x, y) {
         return new State(this.substitution, this.updates.acons(x, y)); }
+    extend(x, y) { return new State(this.substitution.extend(x, y), this.updates); }
     eval(g) { return g.eval(this); }
     isIncomplete() { return false; }
     answer() { return this; }
@@ -371,15 +394,6 @@ class MPlus extends Stream {
     }
 }
 
-class UnifyUpdate extends Goal {
-    constructor(lhs, rhs) {
-        super();
-        this.lhs = lhs;
-        this.rhs = rhs;
-    }
-    eval(s) { return s.update(this.lhs, this.rhs); }
-}
-
 // Constants
 const nil = new Empty();
 const fail = new Fail;
@@ -407,4 +421,4 @@ function normalize2(model, sub=nil) {
     }
 }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify};

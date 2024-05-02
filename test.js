@@ -1,6 +1,6 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, normalize2, succeed, fail} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail} from './mk.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
 function test(f, test_name) {
@@ -35,8 +35,26 @@ function asserte(a, b) {
 
 
 
+//(spec, sub=nil, obs=nil, model={}, update=()=>{})
+class App {
+    constructor(model, template) {
+        let [m, s] = normalize2(model);
+        this.model = m;
+        let [n, s2, o] = render(template, s, nil, this.model, this.update.bind(this));
+        this.substitution = s2;
+        this.observers = o;
+        this.root = n;        
+    }
+    update() {
+        //this.substitution = 
+    }
+}
 
-
+function td_updater() {
+     td_sub = g.run(1, {reify:false,
+                       substitution: td_sub}).car.substitution;
+    td_obs = update(td_sub, td_obs, td_updater);
+}
 
 // RRP
 class PropObserver {
@@ -262,6 +280,23 @@ asserte(render([list('ipsum', 'dolor'), ['div', function (e) { return 'lorem' }]
 asserte(render([list('ipsum', 'dolor'), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
 // TDList
+let data = {todos: [{title: 'get tds displaying', done: false},
+                    {title: 'streamline api', done: false}]};
+let template = ['div',
+                       'succeed'
+                      ];
+
+/*
+[td_sub.walk(m).todos,
+                        [{onclick: m => {console.log('click model', m); return fresh(x => [unify({title: x}, m), setunify(x, 'event handler works')])}},
+                         function (e) {return td_sub.walk_path(e, 'title')}]]
+*/
+
+let app = new App(data, template);
+
+document.body.appendChild(app.root);
+
+/*
 var [td_model, td_sub] =
     normalize2({todos: [{title: 'get tds displaying', done: false},
                         {title: 'streamline api', done: false}]});
@@ -306,6 +341,7 @@ td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: cons(x2, x3)}),
 
 td_sub = garbage_collect(td_sub, td_model);
 td_obs = update(td_sub, td_obs, td_updater)
+*/
 
 //console.log(td_sub.reify(td_model));
 
@@ -330,7 +366,7 @@ td_obs = update(td_sub, td_obs);
 asserte(td_node.childNodes.length, 2);
 */
 
-document.body.appendChild(td_node);
+//document.body.appendChild(td_node);
 
 
 
@@ -397,6 +433,8 @@ asserte(fresh((x) => unify({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => unify({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
 asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
 asserte(fresh((x,y) => [unify(x,cons(1, y)), unify(y,cons(2, nil))]).run(), List.fromTree([[list(1, 2), list(2)]]));
+
+asserte(fresh((x) => [unify(x, 1), reunify(x, 2)]).run(), List.fromTree([[2]]));
 
 asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]]));
 asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]]));
