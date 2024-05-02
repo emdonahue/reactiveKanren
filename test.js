@@ -145,7 +145,10 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
 	return [node, sub, obs];
     }
     else if (spec instanceof Function) {
-        return render(spec(model), sub, obs, model, update);
+        let v = new LVar();
+        let g = spec(v, model);
+        let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+        return render(v, s, obs, model, update);
     }
     else if (Array.isArray(spec)) { // Build a DOM node
         let head_spec = sub.walk(spec[0]);
@@ -277,8 +280,8 @@ asserte(n.textContent, '2');
 
 // Lists
 asserte(render([list('ipsum', 'dolor'), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([list('ipsum', 'dolor'), ['div', function (e) { return 'lorem' }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([list('ipsum', 'dolor'), ['div', function (e) { return e }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
+asserte(render([list('ipsum', 'dolor'), ['div', function (v) { return unify(v, 'lorem') }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v, m) }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
 
 // TDList
 let data = {todos: [{title: 'get tds displaying', done: false},
