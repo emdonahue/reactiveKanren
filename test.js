@@ -148,6 +148,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
         let v = new LVar();
         let g = spec(v, model);
         let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+        log('render/fn', s.reify(g));
         return render(v, s, obs, model, update);
     }
     else if (Array.isArray(spec)) { // Build a DOM node
@@ -173,6 +174,13 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
         else if (typeof head_spec == 'string'){
 	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
         }
+        else if (head_spec instanceof Function) {
+            let v = new LVar();
+            let g = head_spec(v, model);
+            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+            log('render/fn', s.reify(g));
+            return render([v, ...spec.slice(1)], s, obs, model, update);
+        }
         else if (head_spec.prototype === undefined) {
             let parent = document.createElement(head_spec.tagName || 'div');
             for (let k in head_spec) {
@@ -189,7 +197,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
                 else parent[k] = head_spec[k];
             }
 	    for (let i=1; i<spec.length; i++) {
-	        log('child render', render(spec[i], sub, obs, model, update));
+	        //log('child render', render(spec[i], sub, obs, model, update));
                 var [node, sub, obs] = render(spec[i], sub, obs, model, update);
                 parent.appendChild(node);
 	    }
@@ -287,7 +295,7 @@ asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v
 let data = {todos: [{title: 'get tds displaying', done: false},
                     {title: 'streamline api', done: false}]};
 let template = ['div',
-                [['succeed', 'fail'], ['div', 'blah']]
+                [(todos, m) => unify({todos: todos}, m), ['div', 'blah']]
                       ];
 
 /*
@@ -296,8 +304,9 @@ let template = ['div',
                          function (e) {return td_sub.walk_path(e, 'title')}]]
 */
 
+logging(true)
 let app = new App(data, template);
-
+logging(false)
 document.body.appendChild(app.root);
 
 /*
