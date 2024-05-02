@@ -166,6 +166,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
             }
             return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), spec[1]))];
         } // Build a head node for the rest of the child specs
+        else if (Array.isArray(head_spec)) return render([list(...head_spec), ...spec.slice(1)], sub, obs, model, update);
         else if (typeof head_spec == 'string'){
 	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
         }
@@ -283,7 +284,7 @@ asserte(render([list('ipsum', 'dolor'), ['div', function (e) { return e }]], s, 
 let data = {todos: [{title: 'get tds displaying', done: false},
                     {title: 'streamline api', done: false}]};
 let template = ['div',
-                       'succeed'
+                [['succeed', 'fail'], ['div', 'blah']]
                       ];
 
 /*
