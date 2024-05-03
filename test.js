@@ -194,6 +194,13 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
                             }
                         );})(k);
                 }
+                else if (head_spec[k] instanceof Function) {
+                    let v = new LVar();
+                    let g = head_spec[k](v, model);
+                    let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+                    log('render/prop', k, s.walk(v));
+                    parent[k] = s.walk(v);
+                }
                 else parent[k] = head_spec[k];
             }
 	    for (let i=1; i<spec.length; i++) {
@@ -293,9 +300,11 @@ asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v
 
 // TDList
 let data = {todos: [{title: 'get tds displaying', done: false},
-                    {title: 'streamline api', done: false}]};
+                    {title: 'streamline api', done: true}]};
 let template = ['div',
-                [(todos, m) => unify({todos: todos}, m), ['div', 'blah']]
+                [(todos, m) => unify({todos: todos}, m),
+                 ['div', [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo)}],
+                  (title, todo) => unify({title: title}, todo)]]
                       ];
 
 /*
