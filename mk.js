@@ -281,7 +281,7 @@ class Reunification extends Goal {
 }
 
 function conde(...condes) {
-    return condes.reduceRight((cs, c) => to_goal(c).disj(cs));
+    return condes.reduceRight((cs, c) => to_goal(c).disj(to_goal(cs)));
 }
 
 function unify(x, y) {

@@ -201,7 +201,20 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
                     log('render/prop', k, s.walk(v));
                     parent[k] = s.walk(v);
                 }
-                else parent[k] = head_spec[k];
+                else if (primitive(head_spec[k])) parent[k] = head_spec[k]; // Also handles string styles
+                else if ('style' === k) {
+                    for (let style in head_spec.style) {
+                        if (primitive(head_spec.style[style])) parent.style[style] = head_spec.style[style];
+                        else {
+                            let v = new LVar();
+                            let g = head_spec.style[style](v, model);
+                            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+                            log('render/style', style, s.walk(v));
+                            parent.style[style] = s.walk(v);
+                        }
+                    }
+                }
+                else throw Error('Unrecognized property: ' + JSON.stringify(head_spec[k]));
             }
 	    for (let i=1; i<spec.length; i++) {
 	        //log('child render', render(spec[i], sub, obs, model, update));
@@ -303,9 +316,10 @@ let data = {todos: [{title: 'get tds displaying', done: false},
                     {title: 'streamline api', done: true}]};
 let template = ['div',
                 [(todos, m) => unify({todos: todos}, m),
-                 ['div', [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo)}],
-                  (title, todo) => unify({title: title}, todo)]]
-                      ];
+                 [{style: {color: (color, todo) => conde([unify({done: true}, todo), unify(color, 'green')],
+                                                         [unify({done: false}, todo), unify(color, 'black')])}},
+                  [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo)}],
+                  (title, todo) => unify({title: title}, todo)]]];
 
 /*
 [td_sub.walk(m).todos,
@@ -318,77 +332,6 @@ let app = new App(data, template);
 logging(false)
 document.body.appendChild(app.root);
 
-/*
-var [td_model, td_sub] =
-    normalize2({todos: [{title: 'get tds displaying', done: false},
-                        {title: 'streamline api', done: false}]});
-
-
-function td_updater() {
-    console.log(g.run(1, {reify:false, substitution: td_sub}).car.substitution + '')
-    td_sub = g.run(1, {reify:false,
-                       substitution: td_sub}).car.substitution;
-    td_obs = update(td_sub, td_obs, td_updater);
-}
-
-var [td_node, td_sub, td_obs] =
-    render(['div',
-            [td_sub.walk(td_model).todos,
-             [{onclick: m => {console.log('click model', m); return fresh(x => [unify({title: x}, m), setunify(x, 'event handler works')])}},
-              function (e) {return td_sub.walk_path(e, 'title')}]]],
-           td_sub, nil, td_model, td_updater);
-asserte(td_node.childNodes.length, 3);
-
-
-//console.log(td_sub.reify(td_model))
-//dlog('starting model/sub',td_model, td_sub)
-td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: x1}),
-                                unify(x1, cons(x2, x3)),
-                                setunify(x1, x3)]).run(1, {reify:false,
-                                                           substitution: td_sub}).car.substitution;
-
-//dlog('deleted model/sub', td_model, td_sub)
-//dlog('garbage mark', garbage_mark(td_sub, td_model))
-td_sub = garbage_collect(td_sub, td_model);
-//dlog('garbage collected', td_sub)
-td_obs = update(td_sub, td_obs, td_updater)
-//dlog(td_sub)
-console.log(td_sub.reify(td_model))
-
-//TODO make setunify read from old and write to new
-//add one
-td_sub = fresh((x1, x2, x3) => [unify(td_model,{todos: cons(x2, x3)}),
-                                setunify(x3, cons({title: 'add works', done: false}, nil))]).run(1, {reify:false,
-                                                           substitution: td_sub}).car.substitution;
-
-td_sub = garbage_collect(td_sub, td_model);
-td_obs = update(td_sub, td_obs, td_updater)
-*/
-
-//console.log(td_sub.reify(td_model));
-
-/*
-//setting value in place?
-console.log(td_model)
-console.log(fresh((td1) => [unify({todos: cons({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution + '' );
-console.log(fresh((td1) => [unify({todos: cons({title: td1}, new LVar())}, td_model), setunify(td1, 'updated')]).run(1, {reify: false, substitution: td_sub}).car.substitution.reify(td_model));
-
-td_sub = fresh((td1) => [unify({todos: cons({title: td1}, new LVar())}, td_model),
-                         setunify(td1, 'set unify working')]).run(1, {reify: false, substitution: td_sub}).car.substitution
-td_obs = update(td_sub, td_obs);
-
-asserte(td_node.childNodes[0].innerHTML, 'set unify working');
-
-td_sub = fresh((x1, x2) => [unify({todos: cons(new LVar(), x1)}, td_model),
-                            unify(x1, cons(new LVar(), x2)),
-                            setunify(x1, x2)]).run(1, {reify: false, substitution: td_sub}).car.substitution
-td_sub = garbage_collect(td_sub, td_model);
-
-td_obs = update(td_sub, td_obs);
-asserte(td_node.childNodes.length, 2);
-*/
-
-//document.body.appendChild(td_node);
 
 
 
