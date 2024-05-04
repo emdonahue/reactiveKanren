@@ -297,7 +297,7 @@ function setunify(x, y) {
 }
 
 function to_goal(g) {
-    if (Array.isArray(g)) return g.reduceRight((cs, c) => to_goal(c).conj(cs));
+    if (Array.isArray(g)) return g.reduceRight((cs, c) => to_goal(c).conj(to_goal(cs)));
     else if (true === g) return succeed;
     else if (false === g) return fail;
     else return g;
@@ -421,4 +421,4 @@ function normalize2(model, sub=nil) {
     }
 }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure};

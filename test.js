@@ -1,6 +1,7 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
+//TODO can we quote vars to preserve references?
 
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail, failure} from './mk.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
 function test(f, test_name) {
@@ -45,15 +46,22 @@ class App {
         this.observers = o;
         this.root = n;        
     }
-    update() {
-        //this.substitution = 
+    update(g) {
+        log('update');
+        let s = g.run(1, {reify:false, substitution: this.substitution}).car.substitution;
+        if (s === failure) throw Error('Update goal failed' + to_string(g));
+        let o;
+        [s, o] = this.observers.fold(([sub, obs], o) => o.update(sub, obs), [s, nil]);
+        this.substitution = s;
+        this.observers = o;
     }
 }
 
 function td_updater() {
-     td_sub = g.run(1, {reify:false,
-                       substitution: td_sub}).car.substitution;
-    td_obs = update(td_sub, td_obs, td_updater);
+    let s = g.run(1, {reify:false, substitution: td_sub}).car.substitution;
+    if (s === failure) throw Error('Update goal failed' + to_string(g));
+    let o;
+    [s, o] = update(td_sub, td_obs, td_updater);
 }
 
 // RRP
@@ -81,7 +89,7 @@ class IterObserver {
         this.template = template;
     }
 
-    update(sub, obs, updater) {
+    update(sub, obs) {
         // get list of vars still in store
         // remove nodes for all variables no longer in store
         // for all vars in store,
@@ -186,6 +194,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
             for (let k in head_spec) {
                 if (k === 'tagName') continue;
                 if (k.substring(0,2) == 'on') {
+                    log('render', 'on', k.substring(2));
                     (k => {
                         parent.addEventListener(
                             k.substring(2),
@@ -317,7 +326,9 @@ let data = {todos: [{title: 'get tds displaying', done: false},
 let template = ['div',
                 [(todos, m) => unify({todos: todos}, m),
                  [{style: {color: (color, todo) => conde([unify({done: true}, todo), unify(color, 'green')],
-                                                         [unify({done: false}, todo), unify(color, 'black')])}},
+                                                         [unify({done: false}, todo), unify(color, 'black')])},
+                   onchange: m => conde([unify({done: true}, m), setunify(m, {done: false})],
+                                        [unify({done: false}, m), setunify(m, {done: true})])},
                   [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo)}],
                   (title, todo) => unify({title: title}, todo)]]];
 
@@ -327,9 +338,9 @@ let template = ['div',
                          function (e) {return td_sub.walk_path(e, 'title')}]]
 */
 
-logging(true)
+//logging(true)
 let app = new App(data, template);
-logging(false)
+//logging(false)
 document.body.appendChild(app.root);
 
 
@@ -420,5 +431,5 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
         List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]]));
 
 
-
+logging(true)
 console.log('Tests Complete');
