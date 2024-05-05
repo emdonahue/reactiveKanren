@@ -202,20 +202,24 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
         
     }
+    cont(s) { return s === failure ? failure : this.eval(s); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
 }
 
 class Succeed extends Goal {
-    eval(s) { return s }
-    suspend(s) { return s }
+    eval(s) { return s; }
+    suspend(s, ctn=succeed) { return ctn.cont(s); }
+    cont(s) { return s; }
+    conj(g) { return g; }
     toString() { return 'succeed'; }
 }
 
 class Fail extends Goal {
-    eval(s) { return failure }
-    suspend(s) { return failure }
+    eval(s) { return failure; }
+    suspend(s) { return failure; }
+    conj(g) { return fail; }
     toString() { return 'fail'; }
 }
 
@@ -226,9 +230,8 @@ class Conj extends Goal {
         this.rhs = rhs;
     }
     filter(f) { return this.lhs.filter(f).conj(this.rhs.filter(f)); }
-    eval(s) {
-        s = this.lhs.eval(s);
-        return s === failure ? failure : this.rhs.eval(s);
+    eval(s, ctn=succeed) {
+        return this.lhs.eval(s, this.rhs.conj(ctn));
     }
     toString() { return `(${this.lhs} & ${this.rhs})`; }
 }
@@ -240,8 +243,8 @@ class Disj extends Goal {
         this.rhs = rhs;
     }
     is_disj() { return true; }
-    eval(s) {
-        return this.lhs.eval(s).mplus(this.rhs.eval(s));
+    eval(s, ctn=succeed) {
+        return this.lhs.eval(s, ctn).mplus(this.rhs.eval(s, ctn));
     }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
@@ -255,8 +258,8 @@ class Fresh extends Goal {
     run(n=1, {reify=true, substitution=nil}={}) {
         return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? log('run', s.substitution).reify(this.vars) : s);
     }
-    eval(s) {
-        return to_goal(this.ctn(...this.vars)).suspend(s);
+    eval(s, ctn=succeed) {
+        return to_goal(this.ctn(...this.vars)).conj(ctn).suspend(s);
     }
     toString() { return `(fresh ${this.vars})`; }
 }
@@ -267,8 +270,8 @@ class Unification extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    eval(s) {
-        return s.unify(this.lhs, this.rhs);
+    eval(s, ctn=succeed) {
+        return ctn.cont(s.unify(this.lhs, this.rhs));
     }
     toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
@@ -279,7 +282,7 @@ class UnifyUpdate extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    eval(s) { return s.update(this.lhs, this.rhs); }
+    eval(s, ctn=succeed) { return ctn.cont(s.update(this.lhs, this.rhs)); }
 }
 
 class Reunification extends Goal {
@@ -288,7 +291,7 @@ class Reunification extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    eval(s) { return s.extend(this.lhs, this.rhs); }
+    eval(s, ctn=succeed) { return ctn.cont(s.extend(this.lhs, this.rhs)); }
 }
 
 function conde(...condes) {
