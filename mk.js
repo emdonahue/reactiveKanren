@@ -180,7 +180,7 @@ class LVar {
         return '<' + this.label + this.id + '>';
     }
     unify(x) {
-        return new Unify(this, x);
+        return new Unification(this, x);
     }
     name(n) { this.label = n; return this; }
 }
@@ -204,16 +204,19 @@ class Goal {
     }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
+    toString() { return JSON.stringify(this); }
 }
 
 class Succeed extends Goal {
     eval(s) { return s }
     suspend(s) { return s }
+    toString() { return 'succeed'; }
 }
 
 class Fail extends Goal {
     eval(s) { return failure }
     suspend(s) { return failure }
+    toString() { return 'fail'; }
 }
 
 class Conj extends Goal {
@@ -227,6 +230,7 @@ class Conj extends Goal {
         s = this.lhs.eval(s);
         return s === failure ? failure : this.rhs.eval(s);
     }
+    toString() { return `(${this.lhs} & ${this.rhs})`; }
 }
 
 class Disj extends Goal {
@@ -239,6 +243,7 @@ class Disj extends Goal {
     eval(s) {
         return this.lhs.eval(s).mplus(this.rhs.eval(s));
     }
+    toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
 
 class Fresh extends Goal {
@@ -253,9 +258,10 @@ class Fresh extends Goal {
     eval(s) {
         return to_goal(this.ctn(...this.vars)).suspend(s);
     }
+    toString() { return `(fresh ${this.vars})`; }
 }
 
-class Unify extends Goal {
+class Unification extends Goal {
     constructor(lhs, rhs) {
         super();
         this.lhs = lhs;
@@ -264,6 +270,7 @@ class Unify extends Goal {
     eval(s) {
         return s.unify(this.lhs, this.rhs);
     }
+    toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
 
 class UnifyUpdate extends Goal {
@@ -289,7 +296,7 @@ function conde(...condes) {
 }
 
 function unify(x, y) {
-    return new Unify(x, y);
+    return new Unification(x, y);
 }
 
 function reunify(x, y) {

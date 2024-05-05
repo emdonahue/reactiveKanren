@@ -36,6 +36,7 @@ class App {
         this.model = m;
         let [n, s2, o, g] = render(template, s, nil, this.model, this.update.bind(this));
         console.assert(g);
+        log('init', 'goals', g);
         this.substitution = s2;
         this.observers = o;
         this.root = n;
@@ -150,7 +151,7 @@ class IterObserver {
 // RENDERING
 
 function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) { // -> node substitution observers
-    log('render', spec, sub, obs, model);
+    log('render', spec, sub, obs, model, goals);
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
 	return [node, sub, obs, goals];
@@ -190,7 +191,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
             let vars_nodes = [];
             
             while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
-                var [node, sub, obs] = render(spec[1], sub, obs, items.car, update, goals);
+                var [node, sub, obs, goals] = render(spec[1], sub, obs, items.car, update, goals);
                 parent.appendChild(node);
                 vars_nodes.push(cons(linkvar, node));
                 linkvar = items.cdr;
@@ -231,7 +232,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
                             log('render/style', style, s.walk(v));
                             parent.style[style] = s.walk(v);
                             obs = obs.cons(new StyleObserver(v, parent, k));
-                            log('render', 'goals', g, g.filter(g => g.is_disj()));
+                            log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
                             goals = goals.conj(g.filter(g => g.is_disj()));
                         }
                     }
@@ -240,7 +241,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
             }
 	    for (let i=1; i<spec.length; i++) { // Render child nodes
 	        //log('child render', render(spec[i], sub, obs, model, update));
-                var [node, sub, obs] = render(spec[i], sub, obs, model, update, goals);
+                var [node, sub, obs, goals] = render(spec[i], sub, obs, model, update, goals);
                 parent.appendChild(node);
 	    }
 	    return [parent, sub, obs, goals];
@@ -439,7 +440,8 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
 
 
 logging('update');
-logging('render', 'goals');
+//logging('init');
+//logging('render');
 let app = new App(data, template);
 document.body.appendChild(app.root);
 console.log('Tests Complete');
