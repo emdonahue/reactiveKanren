@@ -72,6 +72,7 @@ class PropObserver {
 	this.node[this.attr] = val;
         return [sub, obs.cons(this)];
     }
+    toString() { return `(${this.attr} ${this.lvar})` }
 }
 
 class StyleObserver extends PropObserver{
@@ -231,7 +232,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
                             let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
                             log('render/style', style, s.walk(v));
                             parent.style[style] = s.walk(v);
-                            obs = obs.cons(new StyleObserver(v, parent, k));
+                            obs = obs.cons(new StyleObserver(v, parent, style));
                             log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
                             goals = goals.conj(g.filter(g => g.is_disj()));
                         }
