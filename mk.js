@@ -197,11 +197,13 @@ class Goal {
     disj(x) {
         return new Disj(this, x);
     }
+    filter(f) { return f(this) ? this : succeed; }
     run(n=1, {reify=true, substitution=nil}={}) {
         return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
         
     }
     suspend(s) { return new Suspended(s, this) }
+    is_disj() { return false; }
 }
 
 class Succeed extends Goal {
@@ -220,6 +222,7 @@ class Conj extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+    filter(f) { return this.lhs.filter(f).conj(this.rhs.filter(f)); }
     eval(s) {
         s = this.lhs.eval(s);
         return s === failure ? failure : this.rhs.eval(s);
@@ -232,6 +235,7 @@ class Disj extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+    is_disj() { return true; }
     eval(s) {
         return this.lhs.eval(s).mplus(this.rhs.eval(s));
     }

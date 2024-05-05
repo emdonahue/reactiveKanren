@@ -1,11 +1,14 @@
-let is_logging = false;
+let logging_channels = [];
 
 function logging(on, ...channel) {
-    is_logging = (typeof on == 'boolean') ? on : [on, ...channel];
+    if (!on) logging_channels = [];
+    else logging_channels.push([on, ...channel]);
 }
 
 function log(...args) {
-    if (true === is_logging || Array.isArray(logging) && logging.every((e,i) => e === args[i])) console.log.apply(console, args.map(toString));
+    if (logging_channels.some(ch => ch.every((e,i) => e == args[i]))) {
+        console.log.apply(console, args.map(toString));
+    }
     return args[args.length-1];
 }
 

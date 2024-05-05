@@ -13,13 +13,6 @@ function test(f, test_name) {
     }
 }
 
-function assert(a, ...debug_info) {
-    if (!a) {
-	console.log(...debug_info);
-	throw Error("Assertion failed");
-    }
-}
-
 function equals(a, b) {
     return JSON.stringify(a) == JSON.stringify(b);
 }
@@ -41,27 +34,26 @@ class App {
     constructor(model, template) {
         let [m, s] = normalize2(model);
         this.model = m;
-        let [n, s2, o] = render(template, s, nil, this.model, this.update.bind(this));
+        let [n, s2, o, g] = render(template, s, nil, this.model, this.update.bind(this));
+        console.assert(g);
         this.substitution = s2;
         this.observers = o;
-        this.root = n;        
+        this.root = n;
+        this.goals = g;
+        this.update(succeed);
     }
     update(g) {
-        log('update');
-        let s = g.run(1, {reify:false, substitution: this.substitution}).car.substitution;
+        log('update', 'presub', this.substitution);
+        log('update', 'goals', this.goals);
+        let s = this.goals.conj(g).run(1, {reify:false, substitution: this.substitution}).car.substitution;
+        log('update', 'postsub', s);
         if (s === failure) throw Error('Update goal failed' + to_string(g));
         let o;
         [s, o] = this.observers.fold(([sub, obs], o) => o.update(sub, obs), [s, nil]);
-        this.substitution = s;
-        this.observers = o;
+        log('update', 'observers', o);
+        //this.substitution = s;
+        //this.observers = o;
     }
-}
-
-function td_updater() {
-    let s = g.run(1, {reify:false, substitution: td_sub}).car.substitution;
-    if (s === failure) throw Error('Update goal failed' + to_string(g));
-    let o;
-    [s, o] = update(td_sub, td_obs, td_updater);
 }
 
 // RRP
@@ -74,8 +66,19 @@ class PropObserver {
 
     update(sub, obs) {
         let val = sub.walk(this.lvar);
+        log('update', 'attr', this.attr, this.lvar, val);
         if (val instanceof LVar) return [sub, obs];
 	this.node[this.attr] = val;
+        return [sub, obs.cons(this)];
+    }
+}
+
+class StyleObserver extends PropObserver{
+    update(sub, obs) {
+        let val = sub.walk(this.lvar);
+        log('update', 'style', this.attr, this.lvar, val);
+        if (val instanceof LVar) return [sub, obs];
+	this.node.style[this.attr] = val;
         return [sub, obs.cons(this)];
     }
 }
@@ -129,7 +132,7 @@ class IterObserver {
         if (w === nil) {
             return nil;
         }
-        assert(w instanceof Pair);
+        console.assert(w instanceof Pair);
         return this.moddom(w.cdr, sub).cons(lvar);
     }
     
@@ -146,22 +149,39 @@ class IterObserver {
 
 // RENDERING
 
-function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
+function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) { // -> node substitution observers
     log('render', spec, sub, obs, model);
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
-	return [node, sub, obs];
+	return [node, sub, obs, goals];
     }
-    else if (spec instanceof Function) {
+    else if (spec instanceof LVar) { // Build a watched Text node
+	var [node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
+	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent')), goals];
+    }
+    else if (spec instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
         let g = spec(v, model);
         let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
         log('render/fn', s.reify(g));
-        return render(v, s, obs, model, update);
+        return render(v, s, obs, model, update, goals);
     }
-    else if (Array.isArray(spec)) { // Build a DOM node
+    else if (Array.isArray(spec)) { // Build a DOM tree node
+
+        // Build the head node
         let head_spec = sub.walk(spec[0]);
-        if (head_spec instanceof List) { // Build an iterable DOM list
+        if (Array.isArray(head_spec)) return render([list(...head_spec), ...spec.slice(1)], sub, obs, model, update, goals); // Convert arrays to lists
+        else if (typeof head_spec == 'string'){ // Strings are tagNames
+	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update, goals);
+        }
+        else if (head_spec instanceof Function) { // Dynamic head node
+            let v = new LVar();
+            let g = head_spec(v, model);
+            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+            log('render/fn', s.reify(g));
+            return render([v, ...spec.slice(1)], s, obs, model, update, goals);
+        }
+        else if (head_spec instanceof List) { // Build an iterable DOM list
             let parent = document.createDocumentFragment();
             let items = head_spec;
             let linkvar = spec[0];
@@ -170,26 +190,15 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
             let vars_nodes = [];
             
             while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
-                var [node, sub, obs] = render(spec[1], sub, obs, items.car, update);
+                var [node, sub, obs] = render(spec[1], sub, obs, items.car, update, goals);
                 parent.appendChild(node);
                 vars_nodes.push(cons(linkvar, node));
                 linkvar = items.cdr;
                 items = sub.walk(linkvar);
             }
-            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), spec[1]))];
-        } // Build a head node for the rest of the child specs
-        else if (Array.isArray(head_spec)) return render([list(...head_spec), ...spec.slice(1)], sub, obs, model, update);
-        else if (typeof head_spec == 'string'){
-	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update);
-        }
-        else if (head_spec instanceof Function) {
-            let v = new LVar();
-            let g = head_spec(v, model);
-            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
-            log('render/fn', s.reify(g));
-            return render([v, ...spec.slice(1)], s, obs, model, update);
-        }
-        else if (head_spec.prototype === undefined) {
+            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), spec[1])), goals];
+        }        
+        else if (head_spec.prototype === undefined) { // POJOs store node properties
             let parent = document.createElement(head_spec.tagName || 'div');
             for (let k in head_spec) {
                 if (k === 'tagName') continue;
@@ -209,6 +218,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
                     let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
                     log('render/prop', k, s.walk(v));
                     parent[k] = s.walk(v);
+                    obs = obs.cons(new PropObserver(v, parent, k));
                 }
                 else if (primitive(head_spec[k])) parent[k] = head_spec[k]; // Also handles string styles
                 else if ('style' === k) {
@@ -217,27 +227,26 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}) {
                         else {
                             let v = new LVar();
                             let g = head_spec.style[style](v, model);
-                            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+                            let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
                             log('render/style', style, s.walk(v));
                             parent.style[style] = s.walk(v);
+                            obs = obs.cons(new StyleObserver(v, parent, k));
+                            log('render', 'goals', g, g.filter(g => g.is_disj()));
+                            goals = goals.conj(g.filter(g => g.is_disj()));
                         }
                     }
                 }
                 else throw Error('Unrecognized property: ' + JSON.stringify(head_spec[k]));
             }
-	    for (let i=1; i<spec.length; i++) {
+	    for (let i=1; i<spec.length; i++) { // Render child nodes
 	        //log('child render', render(spec[i], sub, obs, model, update));
-                var [node, sub, obs] = render(spec[i], sub, obs, model, update);
+                var [node, sub, obs] = render(spec[i], sub, obs, model, update, goals);
                 parent.appendChild(node);
 	    }
-	    return [parent, sub, obs];
+	    return [parent, sub, obs, goals];
         }
         else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
-    }
-    else if (spec instanceof LVar) { // Build a watched Text node
-	var [node, sub, obs] = render(sub.walk(spec), sub, obs, model, update);
-	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent'))];
-    }
+    }    
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
 }
 
@@ -290,7 +299,7 @@ log("model",m);
 log("substitution",s);
 
 //Model
-assert(s.walk(m).a instanceof LVar, s.walk(m).a);
+console.assert(s.walk(m).a instanceof LVar, s.walk(m).a);
 asserte(garbage_mark(s, m).length(), 10);
 asserte(garbage_mark(s.acons(m.c, m.a), m).length(), 6);
 asserte(garbage_sweep(s, garbage_mark(s.acons(m.c, m.a), m)).length(), 6);
@@ -338,10 +347,8 @@ let template = ['div',
                          function (e) {return td_sub.walk_path(e, 'title')}]]
 */
 
-//logging(true)
-let app = new App(data, template);
-//logging(false)
-document.body.appendChild(app.root);
+//logging()
+
 
 
 
@@ -431,5 +438,8 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
         List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]]));
 
 
-logging(true)
+logging('update');
+logging('render', 'goals');
+let app = new App(data, template);
+document.body.appendChild(app.root);
 console.log('Tests Complete');
