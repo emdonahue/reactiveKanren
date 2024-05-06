@@ -179,33 +179,8 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
         // Build the head node
         let head_spec = sub.walk(spec[0]);
         if (Array.isArray(head_spec)) return render([list(...head_spec), ...spec.slice(1)], sub, obs, model, update, goals); // Convert arrays to lists
-        else if (typeof head_spec == 'string'){ // Strings are tagNames
-	    return render_head(head_spec, spec.slice(1), sub, obs, model, update, goals);
-        }
-        else if (head_spec instanceof Function) { // Dynamic head node
-            let v = new LVar();
-            let g = head_spec(v, model);
-            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
-            log('render/fn', s.reify(g));
-            return render([v, ...spec.slice(1)], s, obs, model, update, goals);
-        }
-        else if (head_spec instanceof List) { // Build an iterable DOM list
-            let parent = document.createDocumentFragment();
-            let items = head_spec;
-            let linkvar = spec[0];
-            let listvar = spec[0]; //TODO in simple static list cases this may not be a var
-            if (listvar instanceof LVar) listvar.name('list');
-            let listnode = document.createComment('');
-            let vars_nodes = [];
-
-            while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
-                var [node, sub, obs, goals] = render(spec[1], sub, obs, items.car, update, goals);
-                parent.appendChild(node);
-                vars_nodes.push(cons(linkvar, node));
-                linkvar = items.cdr;
-                items = sub.walk(linkvar);
-            }
-            return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), spec[1])), goals];
+        else if (typeof head_spec == 'string' || head_spec instanceof Function || head_spec instanceof List){ // Strings are tagNames
+	    return render_head(spec, sub, obs, model, update, goals);
         }
         else if (head_spec.prototype === undefined) { // POJOs store node properties
             let parent = document.createElement(head_spec.tagName || 'div');
@@ -259,9 +234,34 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
 }
 
-function render_head(head_spec, child_specs, sub, obs, model, update, goals) {
+function render_head([templ_head, ...templ_children], sub, obs, model, update, goals) { //TODO rename spec to template
+    let head_spec = sub.walk(templ_head);
     if (typeof head_spec == 'string'){ // Strings are tagNames
-        return render([{tagName:head_spec}, ...child_specs], sub, obs, model, update, goals); }
+        return render([{tagName:head_spec}, ...templ_children], sub, obs, model, update, goals); } //TODO redirect recursions to head reander
+    else if (head_spec instanceof Function) { // Dynamic head node
+        let v = new LVar();
+        let g = head_spec(v, model);
+        let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+        log('render', 'head', 'fn', s.reify(g));
+        return render([v, ...templ_children], s, obs, model, update, goals); }
+    else if (head_spec instanceof List) { // Build an iterable DOM list
+        let parent = document.createDocumentFragment();
+        let items = head_spec;
+        let linkvar = templ_head;
+        let listvar = templ_head; //TODO in simple static list cases this may not be a var
+        if (listvar instanceof LVar) listvar.name('list');
+        let listnode = document.createComment('');
+        let vars_nodes = [];
+
+        while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
+            var [node, sub, obs, goals] = render(templ_children[0], sub, obs, items.car, update, goals);
+            parent.appendChild(node);
+            vars_nodes.push(cons(linkvar, node));
+            linkvar = items.cdr;
+            items = sub.walk(linkvar);
+        }
+        return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals];
+    }
 }
 
 // UPDATING
