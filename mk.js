@@ -178,7 +178,7 @@ class LVar {
         this.label = '';
     }
     toString() {
-        return '<' + this.label + this.id + '>';
+        return `<${this.label}${this.label ? ':' : ''}${this.id}>`;
     }
     unify(x) {
         return new Unification(this, x);

@@ -46,6 +46,7 @@ class App {
     update(g) {
         log('update', 'goal', 'setunify', g);
         log('update', 'goal', 'derived', this.goals);
+        log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);
         let s = this.goals.conj(g).run(1, {reify:false, substitution: this.substitution}).car.substitution;
         s = garbage_collect(s, this.model);
@@ -139,7 +140,7 @@ class IterObserver {
         if (w === nil) {
             return nil;
         }
-        console.assert(w instanceof Pair);
+        console.assert(w instanceof Pair, w);
         return this.moddom(w.cdr, sub).cons(lvar);
     }
 
@@ -179,7 +180,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
         let head_spec = sub.walk(spec[0]);
         if (Array.isArray(head_spec)) return render([list(...head_spec), ...spec.slice(1)], sub, obs, model, update, goals); // Convert arrays to lists
         else if (typeof head_spec == 'string'){ // Strings are tagNames
-	    return render([{tagName:head_spec}].concat(spec.slice(1)), sub, obs, model, update, goals);
+	    return render_head(head_spec, spec.slice(1), sub, obs, model, update, goals);
         }
         else if (head_spec instanceof Function) { // Dynamic head node
             let v = new LVar();
@@ -193,6 +194,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
             let items = head_spec;
             let linkvar = spec[0];
             let listvar = spec[0]; //TODO in simple static list cases this may not be a var
+            if (listvar instanceof LVar) listvar.name('list');
             let listnode = document.createComment('');
             let vars_nodes = [];
 
@@ -255,6 +257,11 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
         else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
     }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
+}
+
+function render_head(head_spec, child_specs, sub, obs, model, update, goals) {
+    if (typeof head_spec == 'string'){ // Strings are tagNames
+        return render([{tagName:head_spec}, ...child_specs], sub, obs, model, update, goals); }
 }
 
 // UPDATING
