@@ -39,21 +39,25 @@ class App {
         log('init', 'goals', g);
         this.substitution = s2;
         this.observers = o;
-        this.root = n;
+        this.node = n;
         this.goals = g;
         this.update(succeed);
     }
     update(g) {
-        log('update', 'presub', this.substitution);
-        log('update', 'goals', this.goals);
+        log('update', 'goal', 'setunify', g);
+        log('update', 'goal', 'derived', this.goals);
+        log('update', 'sub', 'prev', this.substitution);
         let s = this.goals.conj(g).run(1, {reify:false, substitution: this.substitution}).car.substitution;
-        log('update', 'postsub', s);
-        if (s === failure) throw Error('Update goal failed' + to_string(g));
+        s = garbage_collect(s, this.model);
+        log('update', 'sub', 'updated', s);
+        s = this.goals.run(1, {reify:false, substitution: s}).car.substitution;
+        log('update', 'sub', 'derived', s);
+        if (2 === failure) throw Error('Update goal failed' + to_string(g));
         let o;
         [s, o] = this.observers.fold(([sub, obs], o) => o.update(sub, obs), [s, nil]);
         log('update', 'observers', o);
-        //this.substitution = s;
-        //this.observers = o;
+        this.substitution = garbage_collect(s, this.model);
+        this.observers = o;
     }
 }
 
@@ -72,7 +76,7 @@ class PropObserver {
 	this.node[this.attr] = val;
         return [sub, obs.cons(this)];
     }
-    toString() { return `(${this.attr} ${this.lvar})` }
+    toString() { return `(${this.lvar} ${this.attr})` }
 }
 
 class StyleObserver extends PropObserver{
@@ -93,11 +97,12 @@ class IterObserver {
         this.lvar_nodes = lvar_nodes;
         this.template = template;
     }
-
+    toString() { return `(${this.lvar} ${toString(this.template)})` }
     update(sub, obs) {
         // get list of vars still in store
         // remove nodes for all variables no longer in store
         // for all vars in store,
+        return [sub, obs.cons(this)];
         let ns = this.moddom(this.lvar, sub);
         dlog('ns', ns, this.lvar_nodes)
         dlog('sub', sub)
@@ -137,7 +142,7 @@ class IterObserver {
         console.assert(w instanceof Pair);
         return this.moddom(w.cdr, sub).cons(lvar);
     }
-    
+
 }
 
 
@@ -190,7 +195,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
             let listvar = spec[0]; //TODO in simple static list cases this may not be a var
             let listnode = document.createComment('');
             let vars_nodes = [];
-            
+
             while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
                 var [node, sub, obs, goals] = render(spec[1], sub, obs, items.car, update, goals);
                 parent.appendChild(node);
@@ -199,7 +204,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
                 items = sub.walk(linkvar);
             }
             return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), spec[1])), goals];
-        }        
+        }
         else if (head_spec.prototype === undefined) { // POJOs store node properties
             let parent = document.createElement(head_spec.tagName || 'div');
             for (let k in head_spec) {
@@ -248,7 +253,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
 	    return [parent, sub, obs, goals];
         }
         else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
-    }    
+    }
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
 }
 
@@ -259,7 +264,7 @@ function update(sub, obs, updater) {
     return obs.fold(([sub, obs], o) => o.update(sub, obs, updater), [sub, nil])[1];
 }
 
-function garbage_collect(sub, root) { 
+function garbage_collect(sub, root) {
     return garbage_sweep(sub, garbage_mark(sub, root));
 }
 
@@ -442,8 +447,9 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
 
 
 logging('update');
+//logging('unify');
 //logging('init');
 //logging('render');
 let app = new App(data, template);
-document.body.appendChild(app.root);
+document.body.appendChild(app.node);
 console.log('Tests Complete');

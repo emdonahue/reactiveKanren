@@ -60,6 +60,7 @@ class List {
     unify(x_var, y_var) { //DOC unifier has to be very lazy about preserving variable paths and not updating to latest value
         let x = this.walk(x_var);
         let y = this.walk(y_var);
+        log('unify', x, y);
         if (x == y) return this;
         if (x instanceof LVar) return this.extend(x, y_var);
         if (y instanceof LVar) return this.extend(y, x_var);
@@ -282,6 +283,7 @@ class UnifyUpdate extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+    toString() { return `(${toString(this.lhs)} =!= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this.lhs, this.rhs)); }
 }
 
