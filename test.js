@@ -159,84 +159,27 @@ class IterObserver {
 
 function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) { // -> node substitution observers
     log('render', spec, sub, obs, model, goals);
+    console.assert(obs instanceof List, obs);
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
-	return [node, sub, obs, goals];
-    }
+	return [node, sub, obs, goals]; }
     else if (spec instanceof LVar) { // Build a watched Text node
 	var [node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
-	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent')), goals];
-    }
+	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent')), goals]; }
     else if (spec instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
         let g = spec(v, model);
         let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
         log('render/fn', s.reify(g));
-        return render(v, s, obs, model, update, goals);
-    }
-    else if (Array.isArray(spec)) { // Build a DOM tree node
-
-        // Build the head node
-        let head_spec = sub.walk(spec[0]);
-        if (Array.isArray(head_spec)) return render([list(...head_spec), ...spec.slice(1)], sub, obs, model, update, goals); // Convert arrays to lists
-        else if (typeof head_spec == 'string' || head_spec instanceof Function || head_spec instanceof List){ // Strings are tagNames
-	    return render_head(spec, sub, obs, model, update, goals);
-        }
-        else if (head_spec.prototype === undefined) { // POJOs store node properties
-            let parent = document.createElement(head_spec.tagName || 'div');
-            for (let k in head_spec) {
-                if (k === 'tagName') continue;
-                if (k.substring(0,2) == 'on') {
-                    log('render', 'on', k.substring(2));
-                    (k => {
-                        parent.addEventListener(
-                            k.substring(2),
-                            function(e) {
-                                update(head_spec[k](model, e));
-                            }
-                        );})(k);
-                }
-                else if (head_spec[k] instanceof Function) {
-                    let v = new LVar();
-                    let g = head_spec[k](v, model);
-                    let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
-                    log('render/prop', k, s.walk(v));
-                    parent[k] = s.walk(v);
-                    obs = obs.cons(new PropObserver(v, parent, k));
-                }
-                else if (primitive(head_spec[k])) parent[k] = head_spec[k]; // Also handles string styles
-                else if ('style' === k) {
-                    for (let style in head_spec.style) {
-                        if (primitive(head_spec.style[style])) parent.style[style] = head_spec.style[style];
-                        else {
-                            let v = new LVar();
-                            let g = head_spec.style[style](v, model);
-                            let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
-                            log('render/style', style, s.walk(v));
-                            parent.style[style] = s.walk(v);
-                            obs = obs.cons(new StyleObserver(v, parent, style));
-                            log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
-                            goals = goals.conj(g.filter(g => g.is_disj()));
-                        }
-                    }
-                }
-                else throw Error('Unrecognized property: ' + JSON.stringify(head_spec[k]));
-            }
-	    for (let i=1; i<spec.length; i++) { // Render child nodes
-	        //log('child render', render(spec[i], sub, obs, model, update));
-                var [node, sub, obs, goals] = render(spec[i], sub, obs, model, update, goals);
-                parent.appendChild(node);
-	    }
-	    return [parent, sub, obs, goals];
-        }
-        else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
-    }
+        return render(v, s, obs, model, update, goals); }
+    else if (Array.isArray(spec)) return render_head(spec, sub, obs, model, update, goals);
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
 }
 
-function render_head([templ_head, ...templ_children], sub, obs, model, update, goals) { //TODO rename spec to template
+function render_head([templ_head, ...templ_children], sub, obs, model, update, goals) { //Render DOM tree
     let head_spec = sub.walk(templ_head);
-    if (typeof head_spec == 'string'){ // Strings are tagNames
+    if (Array.isArray(head_spec)) return render_head([list(...head_spec), ...templ_children], sub, obs, model, update, goals); // Convert arrays to lists
+    else if (typeof head_spec == 'string'){ // Strings are tagNames
         return render([{tagName:head_spec}, ...templ_children], sub, obs, model, update, goals); } //TODO redirect recursions to head reander
     else if (head_spec instanceof Function) { // Dynamic head node
         let v = new LVar();
@@ -262,6 +205,82 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
         }
         return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals];
     }
+    else if (head_spec.prototype === undefined) { // POJOs store node properties
+        let parent = document.createElement(head_spec.tagName || 'div');
+        [obs, goals] = render_attributes(head_spec, parent, sub, model, obs, goals, update);
+
+        /*
+        for (let k in head_spec) {
+            if (k === 'tagName') continue;
+            if (k.substring(0,2) == 'on') {
+                log('render', 'on', k.substring(2));
+                (k => {
+                    parent.addEventListener(
+                        k.substring(2),
+                        function(e) {
+                            update(head_spec[k](model, e));
+                        }
+                    );})(k);
+            }
+            else if (head_spec[k] instanceof Function) {
+                let v = new LVar();
+                let g = head_spec[k](v, model);
+                let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+                log('render/prop', k, s.walk(v));
+                parent[k] = s.walk(v);
+                obs = obs.cons(new PropObserver(v, parent, k));
+            }
+            else if (primitive(head_spec[k])) parent[k] = head_spec[k]; // Also handles string styles
+            else if ('style' === k) {
+                for (let style in head_spec.style) {
+                    if (primitive(head_spec.style[style])) parent.style[style] = head_spec.style[style];
+                    else {
+                        let v = new LVar();
+                        let g = head_spec.style[style](v, model);
+                        let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
+                        log('render/style', style, s.walk(v));
+                        parent.style[style] = s.walk(v);
+                        obs = obs.cons(new StyleObserver(v, parent, style));
+                        log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
+                        goals = goals.conj(g.filter(g => g.is_disj()));
+                    }
+                }
+            }
+            else throw Error('Unrecognized property: ' + JSON.stringify(head_spec[k]));
+        }
+        */
+	for (let c of templ_children) { // Render child nodes
+	    //log('child render', render(spec[i], sub, obs, model, update));
+            var [node, sub, obs, goals] = render(c, sub, obs, model, update, goals);
+            parent.appendChild(node);
+	}
+	return [parent, sub, obs, goals]; }
+    else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
+}
+
+function render_attributes(template, parent, sub, model, obs, goals, update) {
+    for (let k in template) {
+        if (k === 'tagName') continue; // tagName already extracted explicitly in construction of parent.
+        else if (k === 'style') [obs, goals] = render_attributes(template[k], parent.style, sub, model, obs, goals, update);
+        else if (primitive(template[k])) parent[k] = template[k];
+        else if (k.substring(0,2) == 'on') { // event listeners
+            log('render', 'on', k.substring(2));
+            (k => {
+                parent.addEventListener(
+                    k.substring(2),
+                    function(e) {
+                        update(template[k](model, e));
+                    }
+                );})(k); }
+        else if (template[k] instanceof Function) {
+            let v = new LVar();
+            let g = template[k](v, model);
+            let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
+            parent[k] = s.walk(v);
+            obs = obs.cons(new PropObserver(v, parent, k));
+            log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
+            goals = goals.conj(g.filter(g => g.is_disj())); }}
+    return [obs, goals];
 }
 
 // UPDATING
@@ -456,7 +475,7 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
 logging('update');
 //logging('unify');
 //logging('init');
-//logging('render');
+logging('render');
 let app = new App(data, template);
 document.body.appendChild(app.node);
 console.log('Tests Complete');
