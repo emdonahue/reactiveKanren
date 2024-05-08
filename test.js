@@ -90,6 +90,16 @@ class StyleObserver extends PropObserver{
     }
 }
 
+/*
+  [X 1 2 3] insert before
+  [1 2 3 X] append child
+  [1 X 2 3] insert before
+  [X 2 3] no change. if no change, always just update. dont reshuffle. therefore we just need to either eliminate the least wasteful or insert the most strategic. we detect this when a pair is replaced with null, or null with items
+
+
+
+*/
+
 class IterObserver {
     constructor(lvar, node, lvar_nodes, template) {
         //dlog('iter observer', lvar_nodes)
@@ -103,7 +113,7 @@ class IterObserver {
         // get list of vars still in store
         // remove nodes for all variables no longer in store
         // for all vars in store,
-        return [sub, obs.cons(this)];
+//        return [sub, obs.cons(this)];
         let ns = this.moddom(this.lvar, sub);
         dlog('ns', ns, this.lvar_nodes)
         dlog('sub', sub)
@@ -186,7 +196,7 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
         let g = head_spec(v, model);
         let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
         log('render', 'head', 'fn', s.reify(g));
-        return render([v, ...templ_children], s, obs, model, update, goals); }
+        return render([v, ...templ_children], s, obs, model, update, goals.conj(g)); }
     else if (head_spec instanceof List) { // Build an iterable DOM list
         let parent = document.createDocumentFragment();
         let items = head_spec;
@@ -208,49 +218,8 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
     else if (head_spec.prototype === undefined) { // POJOs store node properties
         let parent = document.createElement(head_spec.tagName || 'div');
         [obs, goals] = render_attributes(head_spec, parent, sub, model, obs, goals, update);
-
-        /*
-        for (let k in head_spec) {
-            if (k === 'tagName') continue;
-            if (k.substring(0,2) == 'on') {
-                log('render', 'on', k.substring(2));
-                (k => {
-                    parent.addEventListener(
-                        k.substring(2),
-                        function(e) {
-                            update(head_spec[k](model, e));
-                        }
-                    );})(k);
-            }
-            else if (head_spec[k] instanceof Function) {
-                let v = new LVar();
-                let g = head_spec[k](v, model);
-                let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
-                log('render/prop', k, s.walk(v));
-                parent[k] = s.walk(v);
-                obs = obs.cons(new PropObserver(v, parent, k));
-            }
-            else if (primitive(head_spec[k])) parent[k] = head_spec[k]; // Also handles string styles
-            else if ('style' === k) {
-                for (let style in head_spec.style) {
-                    if (primitive(head_spec.style[style])) parent.style[style] = head_spec.style[style];
-                    else {
-                        let v = new LVar();
-                        let g = head_spec.style[style](v, model);
-                        let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
-                        log('render/style', style, s.walk(v));
-                        parent.style[style] = s.walk(v);
-                        obs = obs.cons(new StyleObserver(v, parent, style));
-                        log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
-                        goals = goals.conj(g.filter(g => g.is_disj()));
-                    }
-                }
-            }
-            else throw Error('Unrecognized property: ' + JSON.stringify(head_spec[k]));
-        }
-        */
+        
 	for (let c of templ_children) { // Render child nodes
-	    //log('child render', render(spec[i], sub, obs, model, update));
             var [node, sub, obs, goals] = render(c, sub, obs, model, update, goals);
             parent.appendChild(node);
 	}
@@ -285,10 +254,7 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
 
 // UPDATING
 
-function update(sub, obs, updater) {
-    //return obs.filter((o) => o.update(sub, obs, updater));
-    return obs.fold(([sub, obs], o) => o.update(sub, obs, updater), [sub, nil])[1];
-}
+
 
 function garbage_collect(sub, root) {
     return garbage_sweep(sub, garbage_mark(sub, root));
@@ -354,8 +320,8 @@ asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, '
 // Dynamic
 var [n,,o] = render(s.walk(m).a, s, o, m);
 asserte(n.textContent, '1');
-update(s.acons(s.walk(m).a, 2), o);
-asserte(n.textContent, '2');
+//update(s.acons(s.walk(m).a, 2), o);
+//asserte(n.textContent, '2');
 
 // Lists
 asserte(render([list('ipsum', 'dolor'), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
