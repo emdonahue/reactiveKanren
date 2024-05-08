@@ -330,15 +330,18 @@ asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v
 
 // TDList
 let data = {todos: [{title: 'get tds displaying', done: false},
-                    {title: 'streamline api', done: true}]};
+                    {title: 'streamline api', done: true}],
+            selected: {title: 'Untitled', done: false}};
 let template = ['div',
                 [(todos, m) => unify({todos: todos}, m),
                  [{style: {color: (color, todo) => conde([unify({done: true}, todo), unify(color, 'green')],
-                                                         [unify({done: false}, todo), unify(color, 'black')])},
-                   onchange: m => conde([unify({done: true}, m), setunify(m, {done: false})],
-                                        [unify({done: false}, m), setunify(m, {done: true})])},
-                  [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo)}],
-                  (title, todo) => unify({title: title}, todo)]]];
+                                                         [unify({done: false}, todo), unify(color, 'black')])}},
+                  [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo),
+                    onchange: m => conde([unify({done: true}, m), setunify(m, {done: false})],
+                                         [unify({done: false}, m), setunify(m, {done: true})])}],
+                  [{tagName: 'span',
+                    onclick: todo => succeed}, (title, todo) => unify({title: title}, todo)]]],
+                ['div', (selected, m) => unify(m, {selected: {title: selected}})]];
 
 /*
 [td_sub.walk(m).todos,
