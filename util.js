@@ -23,7 +23,7 @@ function toString(x) {
 
 
 function copy(x) {
-    return Object.assign(Object.create(Object.getPrototypeOf(x)), x);
+    return Object.assign(x, Object.create(Object.getPrototypeOf(x)));
 }
 
 export {logging, log, dlog, copy, toString}

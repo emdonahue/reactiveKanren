@@ -127,15 +127,15 @@ class Pair extends List {
         else if (primitive(y_val)) return log('update_binding', x, y, this, '->', this.extend(x_var, y_val));
 
         else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
-            let norm = copy(y_val);
+            let norm = copy(x_val);
             let s = this;
             let n;
-            for (let k in norm) {
-                if (Object.hasOwn(x_val, k)) {
+            for (let k in y_val) { // For each attr of the new value,
+                if (Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
                     s = s.update_binding(x_val[k], y_val[k], sub);
-                    norm[k] = x_val[k];
+                    //norm[k] = _val[k];
                 }
-                else {
+                else { // Otherwise, allocate new memory for the new values.
                     [n, s] = normalize2(y_val[k], s);
                     norm[k] = n;
                 }
@@ -193,9 +193,12 @@ function primitive(x) {
 
 class Goal {
     conj(x) {
+        if (succeed === x) return this;
+        if (fail === x) return fail;
         return new Conj(this, x);
     }
     disj(x) {
+        if (fail === x) return this;
         return new Disj(this, x);
     }
     filter(f) { return f(this) ? this : succeed; }
@@ -262,7 +265,7 @@ class Fresh extends Goal {
     eval(s, ctn=succeed) {
         return to_goal(this.ctn(...this.vars)).conj(ctn).suspend(s);
     }
-    toString() { return `(fresh ${this.vars})`; }
+    toString() { return `(fresh ${this.vars} ${this.ctn})`; }
 }
 
 class Unification extends Goal {
@@ -437,4 +440,4 @@ function normalize2(model, sub=nil) {
     }
 }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure, Goal};

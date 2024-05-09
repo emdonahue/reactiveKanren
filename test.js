@@ -1,7 +1,8 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
+//TODO can setunify(quote(var), val) let us arbitrarily unquote quotes?
 
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail, failure} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail, failure, Goal} from './mk.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
 function test(f, test_name) {
@@ -33,7 +34,8 @@ function asserte(a, b) {
 class App {
     constructor(model, template) {
         let [m, s] = normalize2(model);
-        this.model = m;
+        this.model = new LVar();
+        s = s.acons(this.model, m);
         let [n, s2, o, g] = render(template, s, nil, this.model, this.update.bind(this));
         console.assert(g);
         log('init', 'goals', g);
@@ -48,7 +50,9 @@ class App {
         log('update', 'goal', 'derived', this.goals);
         log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);
-        let s = this.goals.conj(g).run(1, {reify:false, substitution: this.substitution}).car.substitution;
+        let ans = this.goals.conj(g).run(1, {reify:false, substitution: this.substitution});
+        if (ans === nil) throw new Error('Update goal failed: ' + g);
+        let s = ans.car.substitution;
         s = garbage_collect(s, this.model);
         log('update', 'sub', 'updated', s);
         s = this.goals.run(1, {reify:false, substitution: s}).car.substitution;
@@ -174,14 +178,18 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
 	let node = document.createTextNode(spec);
 	return [node, sub, obs, goals]; }
     else if (spec instanceof LVar) { // Build a watched Text node
+        if (sub.walk(spec) instanceof LVar) throw new Error('Rendering free var: ' + spec); //DBG
 	var [node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
 	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent')), goals]; }
     else if (spec instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
         let g = spec(v, model);
-        let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
-        log('render/fn', s.reify(g));
-        return render(v, s, obs, model, update, goals); }
+        if (g instanceof Goal) {
+            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
+            if (failure === s) throw new Error('Derived goal failure: ' + sub.reify(g));
+            log('render', 'fn', s.reify(g), s.reify(v));
+            return render(v, s, obs, model, update, goals.conj(g)); }
+        else { return render(g, sub, obs, model, update, goals); }}
     else if (Array.isArray(spec)) return render_head(spec, sub, obs, model, update, goals);
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
 }
@@ -234,13 +242,15 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
         else if (primitive(template[k])) parent[k] = template[k];
         else if (k.substring(0,2) == 'on') { // event listeners
             log('render', 'on', k.substring(2));
-            (k => {
+            (handler => {
                 parent.addEventListener(
                     k.substring(2),
                     function(e) {
-                        update(template[k](model, e));
+                        if (handler instanceof Goal) update(handler);
+                        else if (handler instanceof Function) update(handler(model, e));
+                        else throw new Error('Unrecognized event handler type: ' + handler);
                     }
-                );})(k); }
+                );})(template[k]); }
         else if (template[k] instanceof Function) {
             let v = new LVar();
             let g = template[k](v, model);
@@ -248,7 +258,7 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
             parent[k] = s.walk(v);
             obs = obs.cons(new PropObserver(v, parent, k));
             log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
-            goals = goals.conj(g.filter(g => g.is_disj())); }}
+            goals = goals.conj(g); }} //.filter(g => g.is_disj())
     return [obs, goals];
 }
 
@@ -332,16 +342,16 @@ asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v
 let data = {todos: [{title: 'get tds displaying', done: false},
                     {title: 'streamline api', done: true}],
             selected: {title: 'Untitled', done: false}};
-let template = ['div',
-                [(todos, m) => unify({todos: todos}, m),
-                 [{style: {color: (color, todo) => conde([unify({done: true}, todo), unify(color, 'green')],
-                                                         [unify({done: false}, todo), unify(color, 'black')])}},
-                  [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo),
-                    onchange: m => conde([unify({done: true}, m), setunify(m, {done: false})],
-                                         [unify({done: false}, m), setunify(m, {done: true})])}],
-                  [{tagName: 'span',
-                    onclick: todo => succeed}, (title, todo) => unify({title: title}, todo)]]],
-                ['div', (selected, m) => unify(m, {selected: {title: selected}})]];
+let template = (_,m) => ['div',
+                         [(todos, m) => unify({todos: todos}, m),
+                          [{style: {color: (color, todo) => conde([unify({done: true}, todo), unify(color, 'green')],
+                                                                  [unify({done: false}, todo), unify(color, 'black')])}},
+                           [{tagName: 'input', type: 'checkbox', checked: (done, todo) => unify({done: done}, todo),
+                             onchange: m => conde([unify({done: true}, m), setunify(m, {done: false})], //TODO make goals directly returnable?
+                                                  [unify({done: false}, m), setunify(m, {done: true})])}],
+                           [{tagName: 'span',
+                             onclick: setunify(m, {selected: {title: 'TITLE'}})}, (title, todo) => unify({title: title.name('selected.title/set')}, todo)]]],
+                         ['div', (selected, todo) => unify(todo, {selected: {title: selected.name('selected.title/get')}})]];
 
 /*
 [td_sub.walk(m).todos,
@@ -429,7 +439,7 @@ asserte(fresh((x,y,z) => [unify(x,cons(y,z)), setunify(x, cons(1,2))]).run(), Li
 asserte(fresh((x) => [unify(x,1), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]]));
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
-asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{b:3}, 1, 3]]));
+asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{a:1, b:3}, 1, 3]]));
 asserte(fresh((x,y) => [unify(x.name('x'),1), unify(y.name('y'),2), setunify(x, y), setunify(y,x)]).run(), List.fromTree([[2, 1]]));
 
 asserte(fresh((w,x,y,z) => [unify(x,cons(1, y)), unify(y,cons(2, nil)), unify(x,w),unify(x,cons(1, z)), setunify(w, z)]).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
