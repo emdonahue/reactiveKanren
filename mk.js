@@ -113,10 +113,6 @@ class Pair extends List {
     update_substitution(s2, s=s2) { // Called on the updates substitution with the normal substitution as a parameter.
         return this.cdr.update_substitution(s2.update_binding(this.caar(), this.cdar(), s), s);
     }
-
-    //quote x val => walk quote
-    //val x quote => replace
-    //quote x quote = replace
     
     update_binding(x, y, sub) {
         if (primitive(x)) return this;
@@ -192,6 +188,7 @@ class LVar {
     unify(x) {
         return new Unification(this, x);
     }
+    eq(x) { return this.unify(x); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
 }
@@ -343,6 +340,9 @@ function fresh(f) {
     return new Fresh(List.repeat(f.length, () => new LVar()), f);
 }
 
+function quote(q) {
+    return new QuotedVar(q);
+}
 
 // Streams
 class Stream {
@@ -457,4 +457,4 @@ function normalize2(model, sub=nil) {
     }
 }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure, Goal, QuotedVar};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure, Goal, quote};
