@@ -184,6 +184,13 @@ class LVar {
         return new Unification(this, x);
     }
     name(n) { this.label = n; return this; }
+    quote() { return new QuotedVar(this); }
+}
+
+class QuotedVar {
+    constructor(lvar) {
+        this.lvar = lvar;
+    }
 }
 
 // Goals
@@ -440,4 +447,4 @@ function normalize2(model, sub=nil) {
     }
 }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure, Goal};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure, Goal, QuotedVar};

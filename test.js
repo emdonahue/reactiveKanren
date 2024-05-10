@@ -2,7 +2,7 @@
 //TODO can we quote vars to preserve references?
 //TODO can setunify(quote(var), val) let us arbitrarily unquote quotes?
 
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail, failure, Goal} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail, failure, Goal, QuotedVar} from './mk.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
 function test(f, test_name) {
@@ -341,7 +341,7 @@ asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v
 // TDList
 let data = {todos: [{title: 'get tds displaying', done: false},
                     {title: 'streamline api', done: true}],
-            selected: {title: 'Untitled', done: false}};
+            selected: new QuotedVar({title: 'Untitled', done: false})};
 let template = (_,m) => ['div',
                          [(todos, m) => unify({todos: todos}, m),
                           [{style: {color: (color, todo) => conde([unify({done: true}, todo), unify(color, 'green')],
@@ -350,8 +350,10 @@ let template = (_,m) => ['div',
                              onchange: m => conde([unify({done: true}, m), setunify(m, {done: false})], //TODO make goals directly returnable?
                                                   [unify({done: false}, m), setunify(m, {done: true})])}],
                            [{tagName: 'span',
-                             onclick: setunify(m, {selected: {title: 'TITLE'}})}, (title, todo) => unify({title: title.name('selected.title/set')}, todo)]]],
-                         ['div', (selected, todo) => unify(todo, {selected: {title: selected.name('selected.title/get')}})]];
+                             onclick: todo => setunify(m, {selected: todo.quote()})},
+                            (title, todo) => unify({title: title.name('selected.title/set')}, todo)]]],
+                         [{onclick: setunify(m, {selected: new QuotedVar({title: 'SETTITLE'})})}, (selected, todo) => fresh(sel => [unify(todo, {selected: sel.quote()}),
+                                                                   unify(sel, {title: selected.name('selected.title/get')})])]];
 
 /*
 [td_sub.walk(m).todos,
