@@ -88,27 +88,30 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
         List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]]));
 
 
-asserte(new App(null, "lorem").node.textContent, 'lorem');
+// Static templates
+asserte(new App(null, 'lorem').node.textContent, 'lorem');
 
-asserte(new App(null, ['div', "lorem"]).node.tagName, 'DIV');
-asserte(new App(null, ['div', "lorem"]).node.textContent, 'lorem');
+asserte(new App(null, ['div', 'lorem']).node.tagName, 'DIV');
+asserte(new App(null, ['div', 'lorem']).node.textContent, 'lorem');
 
-asserte(new App(null, [{tagName: 'div'}, "lorem"]).node.tagName, 'DIV');
-asserte(new App(null, [{tagName: 'div'}, "lorem"]).node.textContent, 'lorem');
+asserte(new App(null, [{tagName: 'div'}, 'lorem']).node.tagName, 'DIV');
+asserte(new App(null, [{tagName: 'div'}, 'lorem']).node.textContent, 'lorem');
 
-asserte(new App(null, [{tagName: 'div', name: 'ipsum'}, "lorem"]).node.name, 'ipsum');
+asserte(new App(null, [{tagName: 'div', name: 'ipsum'}, 'lorem']).node.name, 'ipsum');
 
-asserte(new App(null, [{tagName: 'div', style: {color: 'purple'}}, "lorem"]).node.style.color, 'purple');
+asserte(new App(null, [{tagName: 'div', style: {color: 'purple'}}, 'lorem']).node.style.color, 'purple');
 
-asserte(new App(null, ['div', ['div', "lorem"]]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, ['div', ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [[null, null], "lorem"]]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [[null, null], "lorem"]]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, ['div', [[null, null], 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [[null, null], 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [list(null, null), "lorem"]]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [list(null, null), "lorem"]]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-
+// Functions
+asserte(new App(null, x => 'lorem').node.textContent, 'lorem');
+asserte(new App(null, [x => 'div', 'lorem']).node.tagName, 'DIV');
 /*
 // Static
 

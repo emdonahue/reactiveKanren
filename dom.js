@@ -168,13 +168,18 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
     let head_spec = sub.walk(templ_head);
     if (Array.isArray(head_spec)) return render_head([list(...head_spec), ...templ_children], sub, obs, model, update, goals); // Convert arrays to lists
     else if (typeof head_spec == 'string'){ // Strings are tagNames
-        return render([{tagName:head_spec}, ...templ_children], sub, obs, model, update, goals); } //TODO redirect recursions to head reander
+        return render_head([{tagName:head_spec}, ...templ_children], sub, obs, model, update, goals); } //TODO redirect recursions to head reander
     else if (head_spec instanceof Function) { // Dynamic head node
+        return render_fn(head_spec, sub, model, (r, s, g) => render_head([r, ...templ_children], s, obs, model, update, goals.conj(g)));
+        /*
         let v = new LVar();
         let g = head_spec(v, model);
+//        if (g instanceof Goal) {
         let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
         log('render', 'head', 'fn', s.reify(g));
-        return render([v, ...templ_children], s, obs, model, update, goals.conj(g)); }
+        return render_head([v, ...templ_children], s, obs, model, update, goals.conj(g)); }
+        */
+    }
     else if (head_spec instanceof List) { // Build an iterable DOM list
         let parent = document.createDocumentFragment();
         let items = head_spec;
@@ -231,6 +236,17 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
             goals = goals.conj(g); }} //.filter(g => g.is_disj())
     return [obs, goals];
 }
+
+function render_fn(templ, sub, model, rndr) {
+    let v = new LVar();
+    let g = templ(v, model);
+    if (g instanceof Goal) {
+        let ss = g.run(1, {reify: false, substitution: sub});
+        if (nil === ss) throw new Error('Derived goal failure: ' + sub.reify(g));
+        log('render', 'fn', 'goal', s.reify(g), s.reify(v));
+        return rndr(v, ss.car.substitution, g); }
+    else { return rndr(g, sub, succeed); }}
+
 
 // UPDATING
 
