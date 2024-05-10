@@ -352,8 +352,9 @@ let template = (_,m) => ['div',
                            [{tagName: 'span',
                              onclick: todo => setunify(m, {selected: todo.quote()})},
                             (title, todo) => unify({title: title.name('selected.title/set')}, todo)]]],
-                         [{onclick: setunify(m, {selected: new QuotedVar({title: 'SETTITLE'})})}, (selected, todo) => fresh(sel => [unify(todo, {selected: sel.quote()}),
-                                                                   unify(sel, {title: selected.name('selected.title/get')})])]];
+                         [{onclick: setunify(m, {selected: {title: 'SETTITLE'}})},
+                          (selected, todo) => fresh(sel => [unify(todo, {selected: sel.quote()}),
+                                                            unify(sel, {title: selected.name('selected.title/get')})])]];
 
 /*
 [td_sub.walk(m).todos,

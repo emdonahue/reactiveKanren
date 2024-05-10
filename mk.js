@@ -113,18 +113,27 @@ class Pair extends List {
     update_substitution(s2, s=s2) { // Called on the updates substitution with the normal substitution as a parameter.
         return this.cdr.update_substitution(s2.update_binding(this.caar(), this.cdar(), s), s);
     }
+
+    //quote x val => walk quote
+    //val x quote => replace
+    //quote x quote = replace
+    
     update_binding(x, y, sub) {
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = sub.walk_binding(x);
         let {car: y_var, cdr: y_val} = sub.walk_binding(y);
 
-        if (primitive(x_val)) { // New prim values can just be dropped in over top of old values.
+        if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
+            return this.update_binding(x_val.lvar, y_val, sub);
+        }
+        
+        else if (primitive(x_val)) { // New prim values can just be dropped in over top of old values.
             let [n, s] = normalize2(y_val, this);
             return log('update_binding', x, y, this, '->', s.extend(x_var, n));
         }
 
         // Old prim values dont need to be reconciled, so just create new storage and update the new value.
-        else if (primitive(y_val)) return log('update_binding', x, y, this, '->', this.extend(x_var, y_val));
+        else if (primitive(y_val) || y_val instanceof QuotedVar) return log('update_binding', x, y, this, '->', this.extend(x_var, y_val));
 
         else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
             let norm = copy(x_val);
@@ -191,6 +200,7 @@ class QuotedVar {
     constructor(lvar) {
         this.lvar = lvar;
     }
+    toString() { return `"${this.lvar}"`; };
 }
 
 // Goals
@@ -429,7 +439,7 @@ const failure = new Failure;
 // RRP
 
 function normalize2(model, sub=nil) {
-    if (primitive(model) || model instanceof LVar) return [model, sub];
+    if (primitive(model) || model instanceof LVar || model instanceof QuotedVar) return [model, sub];
     else if (Array.isArray(model)) { return normalize2(list(...model), sub); }
     else {
         let m = Object.create(Object.getPrototypeOf(model));
