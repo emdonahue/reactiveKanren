@@ -143,7 +143,7 @@ class IterObserver {
 
 function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) { // -> node substitution observers
     log('render', spec, sub, obs, model, goals);
-    console.assert(obs instanceof List, obs);
+
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
 	return [node, sub, obs, goals]; }

@@ -18,7 +18,7 @@ function dlog(...args) {
 }
 
 function toString(x) {
-    return x.toString && x.toString === Object.prototype.toString ? JSON.stringify(x) : x.toString();
+    return !x || (x.toString && x.toString === Object.prototype.toString) ? JSON.stringify(x) : x.toString();
 }
 
 

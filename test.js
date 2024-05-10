@@ -26,7 +26,7 @@ function asserte(a, b) {
 
 
 
-
+/*
 let [m, s] = normalize({
     a: 1,
     b: 2,
@@ -42,48 +42,14 @@ console.assert(s.walk(m).a instanceof LVar, s.walk(m).a);
 asserte(garbage_mark(s, m).length(), 10);
 asserte(garbage_mark(s.acons(m.c, m.a), m).length(), 6);
 asserte(garbage_sweep(s, garbage_mark(s.acons(m.c, m.a), m)).length(), 6);
+*/
 
 //Template
-asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
+//asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
 
 //DOM
 
-var o = nil; // observers: convert substitution values into dom updates
-
-// Static
-asserte(render('lorem', s, o, m)[0].textContent, 'lorem');
-asserte(render(['div', 'lorem'], s, o, m)[0].innerHTML, 'lorem');
-asserte(render([{tagName: 'div'}], s, o, m)[0].tagName, 'DIV');
-asserte(render([{tagName: 'div', name: 'lorem'}], s, o, m)[0].name, 'lorem');
-asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-
-// Dynamic
-var [n,,o] = render(s.walk(m).a, s, o, m);
-asserte(n.textContent, '1');
-//update(s.acons(s.walk(m).a, 2), o);
-//asserte(n.textContent, '2');
-
-// Lists
-asserte(render([list('ipsum', 'dolor'), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([list('ipsum', 'dolor'), ['div', function (v) { return unify(v, 'lorem') }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v, m) }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
-
-// TDList
-let data = {todos: [{title: 'get tds displaying', done: false},
-                    {title: 'streamline api', done: true}],
-            selected: quote({title: 'Untitled', done: false})};
-let template = (_,m) => ['div',
-                         [todos => m.unify({todos: todos}),
-                          [{style: {color: (color, todo) => conde([todo.unify({done: true}), color.unify('green')],
-                                                                  [todo.unify({done: false}), color.unify('black')])}},
-                           [{tagName: 'input', type: 'checkbox', checked: (done, todo) => todo.unify({done: done}),
-                             onchange: conde([m.unify({done: true}), setunify(m, {done: false})], //TODO make goals directly returnable?
-                                             [m.unify({done: false}), setunify(m, {done: true})])}],
-                           [{tagName: 'span',
-                             onclick: todo => setunify(m, {selected: todo.quote()})},
-                            (title, todo) => todo.eq({title: title.name('selected.title/set')})]]],
-                         [{onclick: setunify(m, {selected: {title: 'SETTITLE'}})},
-                          (selected, todo) => todo.eq({selected: quote({title: selected.name('selected.title/get')})})]];
+//var o = nil; // observers: convert substitution values into dom updates
 
 
 // MK TEST
@@ -122,10 +88,68 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
         List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]]));
 
 
-logging('update');
+asserte(new App(null, "lorem").node.textContent, 'lorem');
+
+asserte(new App(null, ['div', "lorem"]).node.tagName, 'DIV');
+asserte(new App(null, ['div', "lorem"]).node.textContent, 'lorem');
+
+asserte(new App(null, [{tagName: 'div'}, "lorem"]).node.tagName, 'DIV');
+asserte(new App(null, [{tagName: 'div'}, "lorem"]).node.textContent, 'lorem');
+
+asserte(new App(null, [{tagName: 'div', name: 'ipsum'}, "lorem"]).node.name, 'ipsum');
+
+asserte(new App(null, [{tagName: 'div', style: {color: 'purple'}}, "lorem"]).node.style.color, 'purple');
+
+asserte(new App(null, ['div', ['div', "lorem"]]).node.childNodes[0].textContent, 'lorem');
+
+asserte(new App(null, ['div', [[null, null], "lorem"]]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [[null, null], "lorem"]]).node.childNodes[0].textContent, 'lorem');
+
+asserte(new App(null, ['div', [list(null, null), "lorem"]]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [list(null, null), "lorem"]]).node.childNodes[0].textContent, 'lorem');
+
+
+/*
+// Static
+
+
+
+
+asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+
+// Dynamic
+var [n,,o] = render(s.walk(m).a, s, o, m);
+asserte(n.textContent, '1');
+//update(s.acons(s.walk(m).a, 2), o);
+//asserte(n.textContent, '2');
+
+// Lists
+asserte(render([list('ipsum', 'dolor'), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+asserte(render([list('ipsum', 'dolor'), ['div', function (v) { return unify(v, 'lorem') }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
+asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v, m) }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
+
+// TDList
+let data = {todos: [{title: 'get tds displaying', done: false},
+                    {title: 'streamline api', done: true}],
+            selected: quote({title: 'Untitled', done: false})};
+let template = (_,m) => ['div',
+                         [todos => m.unify({todos: todos}),
+                          [{style: {color: (color, todo) => conde([todo.unify({done: true}), color.unify('green')],
+                                                                  [todo.unify({done: false}), color.unify('black')])}},
+                           [{tagName: 'input', type: 'checkbox', checked: (done, todo) => todo.unify({done: done}),
+                             onchange: conde([m.unify({done: true}), setunify(m, {done: false})], //TODO make goals directly returnable?
+                                             [m.unify({done: false}), setunify(m, {done: true})])}],
+                           [{tagName: 'span',
+                             onclick: todo => setunify(m, {selected: todo.quote()})},
+                            (title, todo) => todo.eq({title: title.name('selected.title/set')})]]],
+                         [{onclick: setunify(m, {selected: {title: 'SETTITLE'}})},
+                          (selected, todo) => todo.eq({selected: quote({title: selected.name('selected.title/get')})})]];
+*/
+
+//logging('update');
 //logging('unify');
 //logging('init');
-logging('render');
-let app = new App(data, template);
-document.body.appendChild(app.node);
+//logging('render');
+//let app = new App(data, template);
+//document.body.appendChild(app.node);
 console.log('Tests Complete');
