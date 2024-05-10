@@ -1,8 +1,7 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
-//TODO can setunify(quote(var), val) let us arbitrarily unquote quotes?
 
-import {normalize2, nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, setunify} from './mk.js'
+import {normalize, nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, setunify} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
@@ -28,7 +27,7 @@ function asserte(a, b) {
 
 
 
-let [m, s] = normalize2({
+let [m, s] = normalize({
     a: 1,
     b: 2,
     c: [3, 4],

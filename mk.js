@@ -124,7 +124,7 @@ class Pair extends List {
         }
         
         else if (primitive(x_val)) { // New prim values can just be dropped in over top of old values.
-            let [n, s] = normalize2(y_val, this);
+            let [n, s] = normalize(y_val, this);
             return log('update_binding', x, y, this, '->', s.extend(x_var, n));
         }
 
@@ -141,7 +141,7 @@ class Pair extends List {
                     //norm[k] = _val[k];
                 }
                 else { // Otherwise, allocate new memory for the new values.
-                    [n, s] = normalize2(y_val[k], s);
+                    [n, s] = normalize(y_val[k], s);
                     norm[k] = n;
                 }
             }
@@ -438,9 +438,9 @@ const failure = new Failure;
 
 // RRP
 
-function normalize2(model, sub=nil) {
+function normalize(model, sub=nil) {
     if (primitive(model) || model instanceof LVar || model instanceof QuotedVar) return [model, sub];
-    else if (Array.isArray(model)) { return normalize2(list(...model), sub); }
+    else if (Array.isArray(model)) { return normalize(list(...model), sub); }
     else {
         let m = Object.create(Object.getPrototypeOf(model));
         let n;
@@ -448,7 +448,7 @@ function normalize2(model, sub=nil) {
             if ((model[k] instanceof LVar)) { m[k] = model[k]; }
             else {
                 let v = new LVar();
-                [n,sub] = normalize2(model[k], sub);
+                [n,sub] = normalize(model[k], sub);
                 sub = sub.extend(v, n);
                 m[k] = v;
             }
@@ -457,4 +457,4 @@ function normalize2(model, sub=nil) {
     }
 }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize2, reunify, failure, Goal, quote};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize, reunify, failure, Goal, quote};

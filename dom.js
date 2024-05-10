@@ -1,9 +1,9 @@
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize2, succeed, fail, failure, Goal, quote} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, normalize, succeed, fail, failure, Goal, quote} from './mk.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
 class App {
     constructor(model, template) {
-        let [m, s] = normalize2(model);
+        let [m, s] = normalize(model);
         this.model = new LVar();
         s = s.acons(this.model, m);
         let [n, s2, o, g] = render(template, s, nil, this.model, this.update.bind(this));
