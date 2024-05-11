@@ -89,11 +89,11 @@ class IterObserver {
         // for all vars in store,
 //        return [sub, obs.cons(this)];
         let ns = this.moddom(this.lvar, sub);
-        dlog('ns', ns, this.lvar_nodes)
-        dlog('sub', sub)
+        //dlog('ns', ns, this.lvar_nodes)
+        //dlog('sub', sub)
         this.lvar_nodes = this.lvar_nodes.filter(b => {
             if (ns.member(b.car)) return true;
-            dlog('removing', b.car)
+            //dlog('removing', b.car)
             b.cdr.remove();
             return false;
         }).append(ns.filter(v => !this.lvar_nodes.assoc(v)).map(v => {
@@ -102,7 +102,7 @@ class IterObserver {
             this.node.parentNode.insertBefore(node, this.node);
             return cons(v, node);
         }));
-        dlog('lvar nodes', this.lvar_nodes);
+        //dlog('lvar nodes', this.lvar_nodes);
                     /*
         this.lvar_nodes = this.lvar_nodes.filter(
             function ({car:v, cdr:n}) {
@@ -152,17 +152,9 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
 	var [node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
 	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent')), goals]; }
     else if (spec instanceof Function) { // Build a dynamic node using the model
-        let v = new LVar();
-        let g = spec(v, model);
-        if (g instanceof Goal) {
-            let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
-            if (failure === s) throw new Error('Derived goal failure: ' + sub.reify(g));
-            log('render', 'fn', s.reify(g), s.reify(v));
-            return render(v, s, obs, model, update, goals.conj(g)); }
-        else { return render(g, sub, obs, model, update, goals); }}
+        return render_fn(spec, sub, model, goals, (r, s, g) => render(r, s, obs, model, update, g)); }
     else if (Array.isArray(spec)) return render_head(spec, sub, obs, model, update, goals);
-    else throw Error('Unrecognized render spec: ' + JSON.stringify(spec));
-}
+    else throw Error('Unrecognized render spec: ' + JSON.stringify(spec)); }
 
 function render_head([templ_head, ...templ_children], sub, obs, model, update, goals) { //Render DOM tree
     let head_spec = sub.walk(templ_head);
@@ -170,16 +162,7 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
     else if (typeof head_spec == 'string'){ // Strings are tagNames
         return render_head([{tagName:head_spec}, ...templ_children], sub, obs, model, update, goals); } //TODO redirect recursions to head reander
     else if (head_spec instanceof Function) { // Dynamic head node
-        return render_fn(head_spec, sub, model, (r, s, g) => render_head([r, ...templ_children], s, obs, model, update, goals.conj(g)));
-        /*
-        let v = new LVar();
-        let g = head_spec(v, model);
-//        if (g instanceof Goal) {
-        let s = g.run(1, {reify: false, substitution: sub}).car.substitution;
-        log('render', 'head', 'fn', s.reify(g));
-        return render_head([v, ...templ_children], s, obs, model, update, goals.conj(g)); }
-        */
-    }
+        return render_fn(head_spec, sub, model, goals, (r, s, g) => render_head([r, ...templ_children], s, obs, model, update, g)); }
     else if (head_spec instanceof List) { // Build an iterable DOM list
         let parent = document.createDocumentFragment();
         let items = head_spec;
@@ -194,21 +177,17 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
             parent.appendChild(node);
             vars_nodes.push(cons(linkvar, node));
             linkvar = items.cdr;
-            items = sub.walk(linkvar);
-        }
-        return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals];
-    }
+            items = sub.walk(linkvar); }
+        return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals]; }
     else if (head_spec.prototype === undefined) { // POJOs store node properties
         let parent = document.createElement(head_spec.tagName || 'div');
         [obs, goals] = render_attributes(head_spec, parent, sub, model, obs, goals, update);
         
 	for (let c of templ_children) { // Render child nodes
             var [node, sub, obs, goals] = render(c, sub, obs, model, update, goals);
-            parent.appendChild(node);
-	}
+            parent.appendChild(node); }
 	return [parent, sub, obs, goals]; }
-    else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec));
-}
+    else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec)); }
 
 function render_attributes(template, parent, sub, model, obs, goals, update) {
     for (let k in template) {
@@ -237,15 +216,15 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
     return [obs, goals];
 }
 
-function render_fn(templ, sub, model, rndr) {
+function render_fn(templ, sub, model, goals, rndr) {
+    log('render', 'fn', templ);
     let v = new LVar();
     let g = templ(v, model);
     if (g instanceof Goal) {
         let ss = g.run(1, {reify: false, substitution: sub});
         if (nil === ss) throw new Error('Derived goal failure: ' + sub.reify(g));
-        log('render', 'fn', 'goal', s.reify(g), s.reify(v));
-        return rndr(v, ss.car.substitution, g); }
-    else { return rndr(g, sub, succeed); }}
+        return rndr(v, ss.car.substitution, goals.conj(g)); }
+    else { return rndr(g, sub, goals); }}
 
 
 // UPDATING
