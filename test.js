@@ -114,7 +114,14 @@ asserte(new App(null, x => 'lorem').node.textContent, 'lorem');
 asserte(new App(null, [x => 'div', 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [x => ({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [{name: x => 'ipsum'}, 'lorem']).node.name, 'ipsum');
+asserte(new App(null, [{style: {color: x => 'purple'}}, 'lorem']).node.style.color, 'purple');
+asserte(new App(null, ['div', x => ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
+asserte(new App(null, ['div', [x => [null, null], 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [x => [null, null], 'lorem']]).node.childNodes[0].textContent, 'lorem');
+
+asserte(new App(null, ['div', [x => list(null, null), 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [x => list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
 /*
 // Static
 

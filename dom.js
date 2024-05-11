@@ -54,16 +54,6 @@ class PropObserver {
     toString() { return `(${this.lvar} ${this.attr})` }
 }
 
-class StyleObserver extends PropObserver{
-    update(sub, obs) {
-        let val = sub.walk(this.lvar);
-        log('update', 'style', this.attr, this.lvar, val);
-        if (val instanceof LVar) return [sub, obs];
-	this.node.style[this.attr] = val;
-        return [sub, obs.cons(this)];
-    }
-}
-
 /*
   [X 1 2 3] insert before
   [1 2 3 X] append child
