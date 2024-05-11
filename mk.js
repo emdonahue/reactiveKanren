@@ -195,6 +195,7 @@ class LVar {
         return new Unification(this, x);
     }
     eq(x) { return this.unify(x); }
+    set(x) { return new UnifyUpdate(this, x); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
 }

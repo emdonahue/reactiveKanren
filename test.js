@@ -114,6 +114,7 @@ asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes[0].t
 asserte(new App(null, x => 'lorem').node.textContent, 'lorem');
 asserte(new App(null, [x => 'div', 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [x => ({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
+//asserte(new App(null, [{tagName: x => 'div'}, 'lorem']).node.tagName, 'DIV'); //TODO enable fn/goal for tagname
 asserte(new App(null, [{name: x => 'ipsum'}, 'lorem']).node.name, 'ipsum');
 asserte(new App(null, [{style: {color: x => 'purple'}}, 'lorem']).node.style.color, 'purple');
 asserte(new App(null, ['div', x => ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
@@ -138,6 +139,10 @@ asserte(new App(null, ['div', [x => x.eq([null, null]), 'lorem']]).node.childNod
 asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes.length, 3);
 asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
+// Model
+
+asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
+asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
 
 
 /*

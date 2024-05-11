@@ -16,6 +16,7 @@ class App {
         this.update(succeed);
     }
     update(g) {
+        if (g instanceof Function) return this.update(g(this.model));
         log('update', 'goal', 'setunify', g);
         log('update', 'goal', 'derived', this.goals);
         log('update', 'model', this.model);
@@ -33,6 +34,7 @@ class App {
         log('update', 'observers', o);
         this.substitution = garbage_collect(s, this.model);
         this.observers = o;
+        return this;
     }
 }
 
