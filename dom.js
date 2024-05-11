@@ -180,6 +180,7 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
             items = sub.walk(linkvar); }
         return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals]; }
     else if (head_spec.prototype === undefined) { // POJOs store node properties
+        if (head_spec.tagName && typeof head_spec.tagName != 'string') throw new Error('tagName must be a string: ' + head_spec.tagName);
         let parent = document.createElement(head_spec.tagName || 'div');
         [obs, goals] = render_attributes(head_spec, parent, sub, model, obs, goals, update);
         
@@ -206,13 +207,17 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
                     }
                 );})(template[k]); }
         else if (template[k] instanceof Function) {
+            let v;
+            [v, sub, goals] = render_fn(template[k], sub, model, goals, (r, s, g) => [r, s, g]);
+            parent[k] = sub.walk(v);
+            /*
             let v = new LVar();
             let g = template[k](v, model);
             let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
             parent[k] = s.walk(v);
             obs = obs.cons(new PropObserver(v, parent, k));
             log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
-            goals = goals.conj(g); }} //.filter(g => g.is_disj())
+            goals = goals.conj(g);*/ }} //.filter(g => g.is_disj())
     return [obs, goals];
 }
 

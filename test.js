@@ -113,8 +113,8 @@ asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes[0].t
 asserte(new App(null, x => 'lorem').node.textContent, 'lorem');
 asserte(new App(null, [x => 'div', 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [x => ({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
-asserte(new App(null, [{tagName: x => 'div'}, 'lorem']).node.name, 'DIV');
-//asserte(new App(null, [{tagName: 'div', name: x => 'ipsum'}, 'lorem']).node.name, 'ipsum');
+asserte(new App(null, [{name: x => 'ipsum'}, 'lorem']).node.name, 'ipsum');
+
 /*
 // Static
 
