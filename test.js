@@ -56,6 +56,7 @@ asserte(garbage_sweep(s, garbage_mark(s.acons(m.c, m.a), m)).length(), 6);
 
 asserte(succeed.run(), list(nil));
 asserte(fresh((x) => unify(x, 1)).run(), List.fromTree([[1]]));
+asserte(fresh((x) => unify(x, [1,2])).run(), list(list([1,2])));
 asserte(fresh((x, y) => [x.unify(1), y.unify(2)]).run(), List.fromTree([[1, 2]]));
 asserte(fresh((x) => [x.unify(1), x.unify(2)]).run(), nil);
 asserte(fresh((x, y) => unify(cons(x,y), cons(1,2))).run(), List.fromTree([[1, 2]]));
@@ -122,6 +123,23 @@ asserte(new App(null, ['div', [x => [null, null], 'lorem']]).node.childNodes[0].
 
 asserte(new App(null, ['div', [x => list(null, null), 'lorem']]).node.childNodes.length, 3);
 asserte(new App(null, ['div', [x => list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+
+// Goals
+asserte(new App(null, x => x.eq('lorem')).node.textContent, 'lorem');
+asserte(new App(null, [x => x.eq('div'), 'lorem']).node.tagName, 'DIV');
+asserte(new App(null, [x => x.eq({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
+asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum');
+asserte(new App(null, [{style: {color: x => x.eq('purple')}}, 'lorem']).node.style.color, 'purple');
+asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div></div>');
+
+asserte(new App(null, ['div', [x => x.eq([null, null]), 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [x => x.eq([null, null]), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+
+asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+
+
+
 /*
 // Static
 

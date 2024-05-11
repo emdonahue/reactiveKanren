@@ -132,15 +132,18 @@ class IterObserver {
 // RENDERING
 
 function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) { // -> node substitution observers
-    log('render', spec, sub, obs, model, goals);
+    log('render', spec, Array.isArray(spec) ? 'array' : typeof spec, sub, obs, model, goals);
 
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
 	let node = document.createTextNode(spec);
+        log('render', 'text', spec, node);
 	return [node, sub, obs, goals]; }
     else if (spec instanceof LVar) { // Build a watched Text node
+        log('render', 'var', spec);
         if (sub.walk(spec) instanceof LVar) throw new Error('Rendering free var: ' + spec); //DBG
 	var [node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
-	return [node, sub, obs.cons(new PropObserver(spec, node, 'textContent')), goals]; }
+        log('render', 'var', spec, node.outerHTML);
+	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent')) : obs, goals]; }
     else if (spec instanceof Function) { // Build a dynamic node using the model
         return render_fn(spec, sub, model, goals, (r, s, g) => render(r, s, obs, model, update, g)); }
     else if (Array.isArray(spec)) return render_head(spec, sub, obs, model, update, goals);
@@ -148,6 +151,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
 
 function render_head([templ_head, ...templ_children], sub, obs, model, update, goals) { //Render DOM tree
     let head_spec = sub.walk(templ_head);
+    log('render', 'head', head_spec);
     if (Array.isArray(head_spec)) return render_head([list(...head_spec), ...templ_children], sub, obs, model, update, goals); // Convert arrays to lists
     else if (typeof head_spec == 'string'){ // Strings are tagNames
         return render_head([{tagName:head_spec}, ...templ_children], sub, obs, model, update, goals); } //TODO redirect recursions to head reander
@@ -170,17 +174,20 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
             items = sub.walk(linkvar); }
         return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals]; }
     else if (head_spec.prototype === undefined) { // POJOs store node properties
-        if (head_spec.tagName && typeof head_spec.tagName != 'string') throw new Error('tagName must be a string: ' + head_spec.tagName);
+        if (head_spec.tagName && typeof head_spec.tagName != 'string') throw new Error('tagName must be a string: ' + head_spec.tagName); //TODO make tagName accept fns and goals
         let parent = document.createElement(head_spec.tagName || 'div');
         [obs, goals] = render_attributes(head_spec, parent, sub, model, obs, goals, update);
         
 	for (let c of templ_children) { // Render child nodes
             var [node, sub, obs, goals] = render(c, sub, obs, model, update, goals);
-            parent.appendChild(node); }
+            log('render', 'child', c, node.outerHTML);
+            parent.appendChild(node);
+            log('render', 'parent', parent.outerHTML); }
 	return [parent, sub, obs, goals]; }
     else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec)); }
 
 function render_attributes(template, parent, sub, model, obs, goals, update) {
+    log('render', 'attributes', template);
     for (let k in template) {
         if (k === 'tagName') continue; // tagName already extracted explicitly in construction of parent.
         else if (k === 'style') [obs, goals] = render_attributes(template[k], parent.style, sub, model, obs, goals, update);
@@ -218,6 +225,7 @@ function render_fn(templ, sub, model, goals, rndr) {
     if (g instanceof Goal) {
         let ss = g.run(1, {reify: false, substitution: sub});
         if (nil === ss) throw new Error('Derived goal failure: ' + sub.reify(g));
+        log('render', 'fn', templ, ss.car.substitution.walk(v));
         return rndr(v, ss.car.substitution, goals.conj(g)); }
     else { return rndr(g, sub, goals); }}
 

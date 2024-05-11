@@ -1,5 +1,10 @@
 import {logging, log, dlog, toString, copy} from './util.js';
 
+// Util
+function equals(x, y) {
+    return (x == y) || (Array.isArray(x) && Array.isArray(y) && x.length == y.length && x.every((e,i) => equals(e, y[i])));
+}
+
 // Lists
 class List {
     static fromTree(a) {
@@ -47,6 +52,7 @@ class List {
         let v = this.walk(lvar);
         if (v instanceof LVar || primitive(v)) return v;
         if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
+        if (Array.isArray(v)) return v.map(e => this.reify(e));
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
     }
     walk_path(lvar, prop, ...path) {
