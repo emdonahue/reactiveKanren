@@ -94,6 +94,11 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
 
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
 
+console.log(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(y, x)])).run(1, {reify:false}).car.substitution + '')
+
+logging('reunify')
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // delete link
+
 // x = (1 . y), y = (2)
 // x->1, x->2   
 // x'->y, y'->x  both x and y are at prev timestep

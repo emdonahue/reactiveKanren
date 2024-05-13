@@ -120,22 +120,26 @@ class Pair extends List {
         return this.cdr.update_substitution(s2.update_binding(this.caar(), this.cdar(), s), s);
     }
     
-    update_binding(x, y, sub) {
+    update_binding(x, y, sub) {        
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = sub.walk_binding(x);
         let {car: y_var, cdr: y_val} = sub.walk_binding(y);
-
+        log('reunify', 'lookup', x_var, x_val, y_var, y_val, sub);
+        
         if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
             return this.update_binding(x_val.lvar, y_val, sub);
         }
         
         else if (primitive(x_val)) { // New prim values can just be dropped in over top of old values.
             let [n, s] = normalize(y_val, this);
-            return log('update_binding', x, y, this, '->', s.extend(x_var, n));
+            log('reunify', 'x prim', x_var, n);
+            return s.extend(x_var, n);
         }
 
         // Old prim values dont need to be reconciled, so just create new storage and update the new value.
-        else if (primitive(y_val) || y_val instanceof QuotedVar) return log('update_binding', x, y, this, '->', this.extend(x_var, y_val));
+        else if (primitive(y_val) || y_val instanceof QuotedVar) {
+            log('reunify', 'y prim', x_var, y_val);
+            return this.extend(x_var, y_val); }
 
         else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
             let norm = copy(x_val);
@@ -151,7 +155,8 @@ class Pair extends List {
                     norm[k] = n;
                 }
             }
-            return log('update_binding', x, y, this, '->', s.extend(x_var, norm));
+            log('reunify', 'complex', x_var, norm);
+            return s.extend(x_var, norm); //TODO we dont have to extend if we don't add any properties
         }
     }
     _toString() {
@@ -446,13 +451,16 @@ const failure = new Failure;
 // RRP
 
 function normalize(model, sub=nil) {
-    if (primitive(model) || model instanceof LVar || model instanceof QuotedVar) return [model, sub];
+    if (primitive(model) || model instanceof QuotedVar) return [model, sub];
+    else if (model instanceof LVar) return new LVar();
     else if (Array.isArray(model)) { return normalize(list(...model), sub); }
     else {
         let m = Object.create(Object.getPrototypeOf(model));
         let n;
         for (let k in model) {
-            if ((model[k] instanceof LVar)) { m[k] = model[k]; }
+            if ((model[k] instanceof LVar)) {
+                m[k] = new LVar();
+                sub = sub.extend(m[k], sub.walk(model[k])); }
             else {
                 let v = new LVar();
                 [n,sub] = normalize(model[k], sub);
