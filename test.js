@@ -24,6 +24,9 @@ function asserte(a, b) {
 
 
 
+// walk all update vars first to normalize checking if a var will be updated? dont have to worry about vars shared between two terms as subterm bc physical storage is a tree
+// update all children halting with any children who will get their own updates. as we walk x, check each var against current set of updates
+
 
 
 /*
@@ -70,23 +73,36 @@ asserte(fresh(x => [conde(unify(x,1), unify(x,1)), unify(x,1)]).run(), List.from
 
 asserte(fresh((x) => [unify(x, 1), reunify(x, 2)]).run(), List.fromTree([[2]]));
 
-asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]]));
-asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]]));
-asserte(fresh((x) => [unify(x,cons(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]]));
-asserte(fresh((x,y,z) => [unify(x,cons(y,z)), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]]));
-asserte(fresh((x) => [unify(x,1), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]]));
-asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]]));
-asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]]));
-asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{a:1, b:3}, 1, 3]]));
-asserte(fresh((x,y) => [unify(x.name('x'),1), unify(y.name('y'),2), setunify(x, y), setunify(y,x)]).run(), List.fromTree([[2, 1]]));
+asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]])); // free -> prim
+asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]])); // prim -> prim
+asserte(fresh((x) => [unify(x,cons(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]])); // obj -> prim
+asserte(fresh((x,y,z) => [unify(x,cons(y,z)), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]])); // obj -> obj
+asserte(fresh((x) => [unify(x,1), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]])); // prim -> obj
+asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]])); // normalized obj -> obj
+asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]])); // obj -> new prop
+asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{a:1, b:3}, 1, 3]])); // obj -> update prop
+asserte(fresh((x,y) => [unify(x,1), unify(y,2), setunify(x, y), setunify(y,x)]).run(), List.fromTree([[2, 1]])); // swap from prev timestep
 
-asserte(fresh((w,x,y,z) => [unify(x,cons(1, y)), unify(y,cons(2, nil)), unify(x,w),unify(x,cons(1, z)), setunify(w, z)]).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:())
+asserte(fresh((w,x,y,z) => [unify(x,cons(1, y)), unify(y,cons(2, nil)), unify(x,w),unify(x,cons(1, z)), setunify(w, z)]).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
 
 asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
                                 unify(c, {prop: d}), unify(d,2),
                                 unify(x,cons(a, y)), unify(y,cons(c, nil)),
                                 setunify(x, y)]).run(),
-        List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]]));
+        List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]])); // delete link, update objects
+
+
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
+
+// x = (1 . y), y = (2)
+// x->1, x->2   
+// x'->y, y'->x  both x and y are at prev timestep
+// x(1 . y:(2)), x->y this is deletion. y at prev timestep
+// x(1 . y:(2)), y->x    (1 1 2) duplicates, but probably not super useful
+// x(1 . y:(2)), y->x, x->y    this wants to set y to car and to a pair (1 . ...) CONFLICT
+// x(1 . y:(2 . z:())), x->y, y->z
+
+
 
 
 // Static templates
