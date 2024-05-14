@@ -23,7 +23,13 @@ function toString(x) {
 
 
 function copy(x) {
-    return Object.assign(x, Object.create(Object.getPrototypeOf(x)));
+    return Object.assign(Object.create(Object.getPrototypeOf(x)), x);
 }
 
-export {logging, log, dlog, copy, toString}
+function equals(x, y) {
+    return (x == y)
+        || (Array.isArray(x) && Array.isArray(y) && x.length == y.length && x.every((e,i) => equals(e, y[i])))
+        || (x.constructor === y.constructor && Object.keys(x).length === Object.keys(y).length && equals(Object.keys(x).map(k => x[k]), Object.keys(x).map(k => y[k])));
+}
+
+export {logging, log, dlog, copy, toString, equals}

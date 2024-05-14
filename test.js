@@ -3,7 +3,7 @@
 
 import {normalize, nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, setunify} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
-import {logging, log, dlog, copy, toString} from './util.js'
+import {logging, log, dlog, copy, toString, equals} from './util.js'
 
 function test(f, test_name) {
     try {
@@ -14,9 +14,6 @@ function test(f, test_name) {
     }
 }
 
-function equals(a, b) {
-    return JSON.stringify(a) == JSON.stringify(b);
-}
 
 function asserte(a, b) {
     if (!equals(a, b)) throw Error(toString(a) + ' != ' + toString(b));
@@ -76,10 +73,12 @@ asserte(fresh((x) => [unify(x, 1), reunify(x, 2)]).run(), List.fromTree([[2]]));
 asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]])); // free -> prim
 asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]])); // prim -> prim
 asserte(fresh((x) => [unify(x,cons(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]])); // obj -> prim
+
 asserte(fresh((x,y,z) => [unify(x,cons(y,z)), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]])); // obj -> obj
 asserte(fresh((x) => [unify(x,1), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]])); // prim -> obj
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]])); // normalized obj -> obj
 asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]])); // obj -> new prop
+
 asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{a:1, b:3}, 1, 3]])); // obj -> update prop
 asserte(fresh((x,y) => [unify(x,1), unify(y,2), setunify(x, y), setunify(y,x)]).run(), List.fromTree([[2, 1]])); // swap from prev timestep
 
@@ -94,9 +93,6 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
 
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
 
-console.log(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(y, x)])).run(1, {reify:false}).car.substitution + '')
-
-logging('reunify')
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // delete link
 
 // x = (1 . y), y = (2)

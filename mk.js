@@ -1,9 +1,4 @@
-import {logging, log, dlog, toString, copy} from './util.js';
-
-// Util
-function equals(x, y) {
-    return (x == y) || (Array.isArray(x) && Array.isArray(y) && x.length == y.length && x.every((e,i) => equals(e, y[i])));
-}
+import {logging, log, dlog, toString, copy, equals} from './util.js';
 
 // Lists
 class List {
@@ -129,12 +124,15 @@ class Pair extends List {
         if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
             return this.update_binding(x_val.lvar, y_val, sub);
         }
-        
+
+        /*
         else if (primitive(x_val)) { // New prim values can just be dropped in over top of old values.
             let [n, s] = normalize(y_val, this);
             log('reunify', 'x prim', x_var, n);
+            if (!primitive(y_val)) s = this.update_binding();
             return s.extend(x_var, n);
         }
+        */
 
         // Old prim values dont need to be reconciled, so just create new storage and update the new value.
         else if (primitive(y_val) || y_val instanceof QuotedVar) {
@@ -142,17 +140,19 @@ class Pair extends List {
             return this.extend(x_var, y_val); }
 
         else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
-            let norm = copy(x_val);
+            let norm = copy(y_val); //TODO should be type of y_val
+            if (!primitive(x_val)) Object.assign(norm, x_val);
             let s = this;
             let n;
             for (let k in y_val) { // For each attr of the new value,
-                if (Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
+                if (!primitive(x_val) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
                     s = s.update_binding(x_val[k], y_val[k], sub);
                     //norm[k] = _val[k];
                 }
                 else { // Otherwise, allocate new memory for the new values.
-                    [n, s] = normalize(y_val[k], s);
-                    norm[k] = n;
+                    //[n, s] = normalize(y_val[k], s);
+                    norm[k] = new LVar();
+                    s = s.update_binding(norm[k], y_val[k], sub);
                 }
             }
             log('reunify', 'complex', x_var, norm);
