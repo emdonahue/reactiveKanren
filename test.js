@@ -1,7 +1,7 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
 
-import {normalize, nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, setunify} from './mk.js'
+import {nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, setunify} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 

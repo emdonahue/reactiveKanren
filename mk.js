@@ -115,7 +115,7 @@ class Pair extends List {
         return this.cdr.update_substitution(s2.update_binding(this.caar(), this.cdar(), s), s);
     }
     
-    update_binding(x, y, sub) {        
+    update_binding(x, y, sub=nil) {        
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = sub.walk_binding(x);
         let {car: y_var, cdr: y_val} = sub.walk_binding(y);
@@ -448,28 +448,4 @@ const fail = new Fail;
 const succeed = new Succeed;
 const failure = new Failure;
 
-// RRP
-
-function normalize(model, sub=nil) {
-    if (primitive(model) || model instanceof QuotedVar) return [model, sub];
-    else if (model instanceof LVar) return new LVar();
-    else if (Array.isArray(model)) { return normalize(list(...model), sub); }
-    else {
-        let m = Object.create(Object.getPrototypeOf(model));
-        let n;
-        for (let k in model) {
-            if ((model[k] instanceof LVar)) {
-                m[k] = new LVar();
-                sub = sub.extend(m[k], sub.walk(model[k])); }
-            else {
-                let v = new LVar();
-                [n,sub] = normalize(model[k], sub);
-                sub = sub.extend(v, n);
-                m[k] = v;
-            }
-        }
-        return [m, sub];
-    }
-}
-
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, normalize, reunify, failure, Goal, quote};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, reunify, failure, Goal, quote};
