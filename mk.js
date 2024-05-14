@@ -57,7 +57,7 @@ class List {
     }
     toString() {
         return '(' + this._toString() + ')';
-    }    
+    }
     unify(x_var, y_var) { //DOC unifier has to be very lazy about preserving variable paths and not updating to latest value
         let x = this.walk(x_var);
         let y = this.walk(y_var);
@@ -84,7 +84,7 @@ class Pair extends List {
     caar() { return this.car.car; }
     cdar() { return this.car.cdr; }
     toArray() {
-        return [this.car].concat((this.cdr instanceof List) ? this.cdr.toArray() : [this.cdr]);            
+        return [this.car].concat((this.cdr instanceof List) ? this.cdr.toArray() : [this.cdr]);
     }
     assoc(key) {
         if (this.car instanceof Pair && this.car.car == key) {
@@ -111,18 +111,20 @@ class Pair extends List {
     append(xs) {
         return new Pair(this.car, this.cdr.append(xs));
     }
-    update_substitution(s2, s=s2) { // Called on the updates substitution with the normal substitution as a parameter.
-        return this.cdr.update_substitution(s2.update_binding(this.caar(), this.cdar(), s), s);
+    update_substitution(curr, prev=curr, next=this) { // Called on the updates substitution with the normal substitution as a parameter.
+        return this.cdr.update_substitution(curr.update_binding(this.caar(), this.cdar(), prev, next), prev, next);
     }
-    
-    update_binding(x, y, sub=nil) {        
+
+    update_binding(x, y, prev, next) {
         if (primitive(x)) return this;
-        let {car: x_var, cdr: x_val} = sub.walk_binding(x);
-        let {car: y_var, cdr: y_val} = sub.walk_binding(y);
-        log('reunify', 'lookup', x_var, x_val, y_var, y_val, sub);
-        
+        let {car: x_var, cdr: x_val} = prev.walk_binding(x);
+        let {car: y_var, cdr: y_val} = prev.walk_binding(y);
+        log('reunify', 'lookup', x_var, x_val, y_var, y_val, prev);
+
+        //if (next.assoc(x_var)) return this;
+
         if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
-            return this.update_binding(x_val.lvar, y_val, sub);
+            return this.update_binding(x_val.lvar, y_val, prev, next);
         }
 
         /*
@@ -146,13 +148,13 @@ class Pair extends List {
             let n;
             for (let k in y_val) { // For each attr of the new value,
                 if (!primitive(x_val) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
-                    s = s.update_binding(x_val[k], y_val[k], sub);
+                    s = s.update_binding(x_val[k], y_val[k], prev, next);
                     //norm[k] = _val[k];
                 }
                 else { // Otherwise, allocate new memory for the new values.
                     //[n, s] = normalize(y_val[k], s);
                     norm[k] = new LVar();
-                    s = s.update_binding(norm[k], y_val[k], sub);
+                    s = s.update_binding(norm[k], y_val[k], prev, next);
                 }
             }
             log('reunify', 'complex', x_var, norm);
@@ -168,7 +170,7 @@ class Empty extends List {
     toArray() {
         return [];
     }
-    
+
     assoc(key) {
         return false;
     }
@@ -230,7 +232,7 @@ class Goal {
     filter(f) { return f(this) ? this : succeed; }
     run(n=1, {reify=true, substitution=nil}={}) {
         return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
-        
+
     }
     cont(s) { return s === failure ? failure : this.eval(s); }
     suspend(s) { return new Suspended(s, this) }
