@@ -112,10 +112,10 @@ class Pair extends List {
         return new Pair(this.car, this.cdr.append(xs));
     }
     update_substitution(curr, prev=curr, next=this) { // Called on the updates substitution with the normal substitution as a parameter.
-        return this.cdr.update_substitution(curr.update_binding(this.caar(), this.cdar(), prev, next), prev, next);
+        return curr.update_binding(this.caar(), this.cdar(), prev, next, this.cdr);
     }
 
-    update_binding(x, y, prev, next) {
+    update_binding(x, y, prev, next, updates=nil) {
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = prev.walk_binding(x);
         let {car: y_var, cdr: y_val} = prev.walk_binding(y);
@@ -124,7 +124,7 @@ class Pair extends List {
         //if (next.assoc(x_var)) return this;
 
         if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
-            return this.update_binding(x_val.lvar, y_val, prev, next);
+            return this.update_binding(x_val.lvar, y_val, prev, next, updates);
         }
 
         /*
@@ -139,7 +139,7 @@ class Pair extends List {
         // Old prim values dont need to be reconciled, so just create new storage and update the new value.
         else if (primitive(y_val) || y_val instanceof QuotedVar) {
             log('reunify', 'y prim', x_var, y_val);
-            return this.extend(x_var, y_val); }
+            return updates.update_substitution(this.extend(x_var, y_val), prev, next); }
 
         else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
             let norm = copy(y_val); //TODO should be type of y_val
@@ -148,17 +148,17 @@ class Pair extends List {
             let n;
             for (let k in y_val) { // For each attr of the new value,
                 if (!primitive(x_val) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
-                    s = s.update_binding(x_val[k], y_val[k], prev, next);
-                    //norm[k] = _val[k];
+                    //s = s.update_binding(x_val[k], y_val[k], prev, next);
+                    updates = updates.acons(x_val[k], y_val[k]);
                 }
                 else { // Otherwise, allocate new memory for the new values.
-                    //[n, s] = normalize(y_val[k], s);
                     norm[k] = new LVar();
-                    s = s.update_binding(norm[k], y_val[k], prev, next);
+                    updates = updates.acons(norm[k], y_val[k]);
+                    //s = s.update_binding(norm[k], y_val[k], prev, next);
                 }
             }
             log('reunify', 'complex', x_var, norm);
-            return s.extend(x_var, norm); //TODO we dont have to extend if we don't add any properties
+            return updates.update_substitution(s.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
         }
     }
     _toString() {
