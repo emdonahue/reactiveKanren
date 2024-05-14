@@ -93,13 +93,16 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
 
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
 
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // delete link
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // duplicate list
+
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(x, y), setunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at previous timestep BEFORE value transfer
 
 // x = (1 . y), y = (2)
 // x->1, x->2   
 // x'->y, y'->x  both x and y are at prev timestep
 // x(1 . y:(2)), x->y this is deletion. y at prev timestep
 // x(1 . y:(2)), y->x    (1 1 2) duplicates, but probably not super useful
+
 // x(1 . y:(2)), y->x, x->y    this wants to set y to car and to a pair (1 . ...) CONFLICT
 // x(1 . y:(2 . z:())), x->y, y->z
 
