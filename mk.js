@@ -23,6 +23,7 @@ class List {
     member(e) {
         return this.memp((x) => x == e);
     }
+    sort(f) { return list(...this.toArray().sort(f)); }
     static repeat(n, f) {
         return nil.repeat(n, f);
     }
@@ -102,6 +103,10 @@ class Pair extends List {
         if (p(this.car)) return this.cdr.filter(p).cons(this.car);
         return this.cdr.filter(p);
     }
+    remove(x) {
+        if (this.car == x) return this.cdr;
+        return this.cdr.remove(x).cons(this.car);
+    }
     map(f) {
         return this.cdr.map(f).cons(f(this.car));
     }
@@ -115,13 +120,36 @@ class Pair extends List {
         return curr.update_binding(this.caar(), this.cdar(), prev, next, this.cdr);
     }
 
+    // x->1, y->2     
+
     update_binding(x, y, prev, next, updates=nil) {
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = prev.walk_binding(x);
         let {car: y_var, cdr: y_val} = prev.walk_binding(y);
         log('reunify', 'lookup', x_var, x_val, y_var, y_val, prev);
 
-        //if (next.assoc(x_var)) return this;
+        
+        //if (next.assoc(y_var)) { //TODO need to walk repeatedly until exhausted
+        let y_update = next.assoc(y_var);
+        //log('reunify', 'occurs-check', 'x_var', x_var, 'y_var', y_var, 'y_update', y_update, 'occurs', occurs_check(x_var, y_var, prev), 'prev', prev);
+        if (y_update && occurs_check(x_var, y_var, prev)) {
+            log('reunify', 'occurs', 'x_var', x_var, 'y_var', y_var, 'y_val', y_val, 'y_update', y_update.cdr, 'curr', this, 'updates', updates);
+            y_val = prev.walk(y_update.cdr);
+            updates = updates.remove(y_update);
+        }
+        //}
+
+        
+        /*
+        if (!next.assoc(y_var)) { //TODO need to walk repeatedly until exhausted
+            let y_update = updates.assoc(y_var);
+            if (y_update) {
+                log('reunify', 'occurs', 'x_var', x_var, 'y_var', y_var, 'y_val', y_val, 'y_update', y_update.cdr, 'curr', this, 'updates', updates);
+                y_val = y_update.cdr;
+                updates = updates.remove(y_update);
+            }
+        }
+        */
 
         if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
             return this.update_binding(x_val.lvar, y_val, prev, next, updates);
@@ -147,6 +175,18 @@ class Pair extends List {
             let s = this;
             let n;
             for (let k in y_val) { // For each attr of the new value,
+
+                /*
+                if (!next.assoc(y_var)) { //TODO need to walk repeatedly until exhausted
+                    let y_update = updates.assoc(y_var);
+                    if (y_update) {
+                        log('reunify', 'occurs', 'x_var', x_var, 'y_var', y_var, 'y_val', y_val, 'y_update', y_update.cdr, 'curr', this, 'updates', updates);
+                        y_val = y_update.cdr;
+                        updates = updates.remove(y_update);
+                    }
+                }
+                */
+                
                 if (!primitive(x_val) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
                     //s = s.update_binding(x_val[k], y_val[k], prev, next);
                     updates = updates.acons(x_val[k], y_val[k]);
@@ -181,6 +221,7 @@ class Empty extends List {
     update_binding(x, y) { return this.extend(x, y); }
     append(xs) { return xs; }
     fold(f, x) { return x; }
+    remove(x) { return this; }
     _toString() { return ''; }
 }
 
@@ -410,6 +451,28 @@ class State extends Stream {
         return s;
     }
 }
+
+
+function descendant_order(x,y,s) { // Descendants go first, so -1 if x is a descendant of y
+    if (occurs_check(y, x, s)) return -1; //TODO delete fn
+    else if (occurs_check(x, y, s)) return 1;
+    return 0;
+}
+
+function occurs_check(x,y,s) { // Check if y occurs in x
+    if (primitive(x)) return false;
+
+    else if (!(x instanceof LVar)) {
+        for (let k in x) {
+            if (occurs_check(x[k], y, s)) return true;
+        }
+    }
+    else if (x == y) return true;
+    let b = s.assoc(x);
+    if (b) return occurs_check(b.cdr,y,s);
+    return false;
+}
+    
 
 class Suspended extends Stream {
     constructor(s, g) {

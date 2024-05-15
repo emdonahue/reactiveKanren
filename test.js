@@ -93,9 +93,12 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
 
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
 
+
+//x:(w:1 y:(z:2 n:nil)) -> x:(w:1 y:(z:1 n:(a:2 b:nil)))   y=x, z=w, n=(a . b), a=z, b=n. conflict fram a=z, z=w
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // duplicate list
 
-//asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(x, y), setunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at previous timestep BEFORE value transfer
+logging('reunify')
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(x, y), setunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at previous timestep BEFORE value transfer
 
 // x = (1 . y), y = (2)
 // x->1, x->2   

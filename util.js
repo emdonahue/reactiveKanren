@@ -22,7 +22,7 @@ function toString(x) {
 }
 
 
-function copy(x) {
+function copy(x) {//TODO convert to structuredclone?
     return Object.assign(Object.create(Object.getPrototypeOf(x)), x);
 }
 
