@@ -1,4 +1,4 @@
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, succeed, fail, failure, Goal, quote} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, succeed, fail, failure, Goal, quote, QuotedVar} from './mk.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
 class App {
@@ -46,7 +46,7 @@ class PropObserver {
     }
 
     update(sub, obs) {
-        let val = sub.walk(this.lvar);
+        let val = sub.reify(this.lvar);
         log('update', 'attr', this.attr, this.lvar, val);
         if (val instanceof LVar) return [sub, obs];
 	this.node[this.attr] = val;
@@ -139,6 +139,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
 	let node = document.createTextNode(spec);
         log('render', 'text', spec, node);
 	return [node, sub, obs, goals]; }
+    else if (spec instanceof QuotedVar) return render(spec.lvar, sub, obs, model, update, goals);
     else if (spec instanceof LVar) { // Build a watched Text node
         log('render', 'var', spec);
         if (sub.walk(spec) instanceof LVar) throw new Error('Rendering free var: ' + spec); //DBG

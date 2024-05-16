@@ -513,4 +513,4 @@ const fail = new Fail;
 const succeed = new Succeed;
 const failure = new Failure;
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, reunify, failure, Goal, quote};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, reunify, failure, Goal, quote, QuotedVar};

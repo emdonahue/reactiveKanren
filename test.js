@@ -97,8 +97,8 @@ asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify
 //x:(w:1 y:(z:2 n:nil)) -> x:(w:1 y:(z:1 n:(a:2 b:nil)))   y=x, z=w, n=(a . b), a=z, b=n. conflict fram a=z, z=w
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // duplicate list
 
-logging('reunify')
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(x, y), setunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at previous timestep BEFORE value transfer
+
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(x, y), setunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer
 
 // x = (1 . y), y = (2)
 // x->1, x->2   
@@ -150,6 +150,8 @@ asserte(new App(null, ['div', [x => list(null, null), 'lorem']]).node.childNodes
 
 // Goals
 asserte(new App(null, x => x.eq('lorem')).node.textContent, 'lorem');
+asserte(new App(null, x => fresh(y => [x.eq(y), y.eq('lorem')])).node.textContent, 'lorem');
+asserte(new App(null, x => fresh(y => [x.eq(quote(y)), y.eq('lorem')])).node.textContent, 'lorem');
 asserte(new App(null, [x => x.eq('div'), 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [x => x.eq({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum');
