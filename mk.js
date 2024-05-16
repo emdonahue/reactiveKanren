@@ -47,6 +47,7 @@ class List {
         if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr)));
         let v = this.walk(lvar);
         if (v instanceof LVar || primitive(v)) return v;
+        if (v instanceof QuotedVar) return this.reify(v.lvar);
         if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
         if (Array.isArray(v)) return v.map(e => this.reify(e));
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
