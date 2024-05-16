@@ -276,6 +276,11 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
 
     }
+    reunify_substitution(sub) {
+        let r = this.run(-1, {reify: false});
+        let updates = r.map(st => st.updates).fold((ups, up) => up.append(ups), nil);
+        return updates.update_substitution(sub);
+    }
     cont(s) { return s === failure ? failure : this.eval(s); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
@@ -392,6 +397,7 @@ class Stream {
     mplus(s) { return s._mplus(this); }
     _mplus(s) { return new MPlus(this, s); }
     take(n) {
+        if (0 === n) return nil;
         let s = this;
         while (s.isIncomplete()) { s = s.step(); }
         if (failure == s) return nil;
