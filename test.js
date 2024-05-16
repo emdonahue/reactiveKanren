@@ -1,7 +1,7 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
 
-import {nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify} from './mk.js'
+import {nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 
@@ -70,9 +70,16 @@ asserte(fresh((x,y) => [unify(x,cons(1, y)), unify(y,cons(2, nil))]).run(), List
 asserte(fresh(x => [conde(unify(x,1), unify(x,1)), unify(x,1)]).run(), List.fromTree([[1], [1]]));
 asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
-// Reunify
-asserte(fresh((x) => reunify(x, 1)).run(), List.fromTree([[1]])); // free -> prim
-asserte(fresh((x) => [unify(x,2), reunify(x, 1)]).run(), List.fromTree([[1]])); // prim -> prim
+
+{ // Reunify
+    let x = new LVar();
+    let y = new LVar();
+    asserte(reunify(x, 1).reunify_substitution(nil).reify(x), 1); // free -> prim
+    asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil).reify(x), 1); // prim -> prim
+    asserte(conde(reunify(x, 1), reunify(y, 2)).reunify_substitution(nil).reify([x, y]), [1, 2]); // prim -> prim
+}
+
+
 asserte(fresh((x) => [unify(x,cons(1,2)), reunify(x, 1)]).run(), List.fromTree([[1]])); // obj -> prim
 asserte(fresh((x,y,z) => [unify(x,cons(y,z)), reunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]])); // obj -> obj
 asserte(fresh((x) => [unify(x,1), reunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]])); // prim -> obj

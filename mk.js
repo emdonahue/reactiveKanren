@@ -219,7 +219,7 @@ class Empty extends List {
     filter(p) { return this; };
     map(f) { return this; };
     update_substitution(s) { return s; }
-    update_binding(x, y) { return this.extend(x, y); }
+    update_binding(x, y, prev, next, updates=nil) { return updates.update_substitution(this.extend(x, y), prev, next); }
     append(xs) { return xs; }
     fold(f, x) { return x; }
     remove(x) { return this; }
@@ -278,7 +278,8 @@ class Goal {
     }
     reunify_substitution(sub) {
         let r = this.run(-1, {reify: false});
-        let updates = r.map(st => st.updates).fold((ups, up) => up.append(ups), nil);
+        let updates = r.map(st => st.updates).fold((ups, up) => up.append(ups), nil); //TODO may need to walk_binding the reunifications so theyre not dependent on transient state that will be thrown away. also, what happens if setting free vars?
+        log('reunify', 'updates', updates, sub);
         return updates.update_substitution(sub);
     }
     cont(s) { return s === failure ? failure : this.eval(s); }
@@ -369,6 +370,10 @@ function conde(...condes) {
     return condes.reduceRight((cs, c) => to_goal(c).disj(to_goal(cs)));
 }
 
+function conj(...conjs) {
+    return conjs.reduceRight((cs, c) => to_goal(c).conj(to_goal(cs)));
+}
+
 function unify(x, y) {
     return new Unification(x, y);
 }
@@ -440,7 +445,7 @@ class State extends Stream {
     _mplus(s) { return new Answers(this, s); }
     update_substitution() {
         log('update_substitution', this.substitution, this.updates);
-        let s = new State(this.updates.update_substitution(this.substitution));
+        let s = new State(this.updates.update_substitution(this.substitution), this.updates);
         log('updated_substitution', s.substitution);
         return s;
     }
@@ -507,4 +512,4 @@ const fail = new Fail;
 const succeed = new Succeed;
 const failure = new Failure;
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj};
