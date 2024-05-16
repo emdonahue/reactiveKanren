@@ -1,7 +1,7 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
 
-import {nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, setunify} from './mk.js'
+import {nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 
@@ -71,25 +71,24 @@ asserte(fresh(x => [conde(unify(x,1), unify(x,1)), unify(x,1)]).run(), List.from
 asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
 // Reunify
-asserte(fresh((x) => [unify(x, 1), reunify(x, 2)]).run(), List.fromTree([[2]]));
-asserte(fresh((x) => setunify(x, 1)).run(), List.fromTree([[1]])); // free -> prim
-asserte(fresh((x) => [unify(x,2), setunify(x, 1)]).run(), List.fromTree([[1]])); // prim -> prim
-asserte(fresh((x) => [unify(x,cons(1,2)), setunify(x, 1)]).run(), List.fromTree([[1]])); // obj -> prim
-asserte(fresh((x,y,z) => [unify(x,cons(y,z)), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]])); // obj -> obj
-asserte(fresh((x) => [unify(x,1), setunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]])); // prim -> obj
-asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]])); // normalized obj -> obj
-asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), setunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]])); // obj -> new prop
-asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), setunify(x, {b:3})]).run(), List.fromTree([[{a:1, b:3}, 1, 3]])); // obj -> update prop
-asserte(fresh((x,y) => [unify(x,1), unify(y,2), setunify(x, y), setunify(y,x)]).run(), List.fromTree([[2, 1]])); // swap from prev timestep
-asserte(fresh((w,x,y,z) => [unify(x,cons(1, y)), unify(y,cons(2, nil)), unify(x,w),unify(x,cons(1, z)), setunify(w, z)]).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
+asserte(fresh((x) => reunify(x, 1)).run(), List.fromTree([[1]])); // free -> prim
+asserte(fresh((x) => [unify(x,2), reunify(x, 1)]).run(), List.fromTree([[1]])); // prim -> prim
+asserte(fresh((x) => [unify(x,cons(1,2)), reunify(x, 1)]).run(), List.fromTree([[1]])); // obj -> prim
+asserte(fresh((x,y,z) => [unify(x,cons(y,z)), reunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]])); // obj -> obj
+asserte(fresh((x) => [unify(x,1), reunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]])); // prim -> obj
+asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), reunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]])); // normalized obj -> obj
+asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), reunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]])); // obj -> new prop
+asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), reunify(x, {b:3})]).run(), List.fromTree([[{a:1, b:3}, 1, 3]])); // obj -> update prop
+asserte(fresh((x,y) => [unify(x,1), unify(y,2), reunify(x, y), reunify(y,x)]).run(), List.fromTree([[2, 1]])); // swap from prev timestep
+asserte(fresh((w,x,y,z) => [unify(x,cons(1, y)), unify(y,cons(2, nil)), unify(x,w),unify(x,cons(1, z)), reunify(w, z)]).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
 asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
                                 unify(c, {prop: d}), unify(d,2),
                                 unify(x,cons(a, y)), unify(y,cons(c, nil)),
-                                setunify(x, y)]).run(),
+                                reunify(x, y)]).run(),
         List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]])); // delete link, update objects
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), setunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // duplicate list //x:(w:1 y:(z:2 n:nil)) -> x:(w:1 y:(z:1 n:(a:2 b:nil)))   y=x, z=w, n=(a . b), a=z, b=n. conflict fram a=z, z=w
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), setunify(x, y), setunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), reunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // duplicate list //x:(w:1 y:(z:2 n:nil)) -> x:(w:1 y:(z:1 n:(a:2 b:nil)))   y=x, z=w, n=(a . b), a=z, b=n. conflict fram a=z, z=w
+asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(x, y), reunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer
 
 // x = (1 . y), y = (2)
 // x->1, x->2   
@@ -189,12 +188,12 @@ let template = (_,m) => ['div',
                           [{style: {color: (color, todo) => conde([todo.unify({done: true}), color.unify('green')],
                                                                   [todo.unify({done: false}), color.unify('black')])}},
                            [{tagName: 'input', type: 'checkbox', checked: (done, todo) => todo.unify({done: done}),
-                             onchange: conde([m.unify({done: true}), setunify(m, {done: false})], //TODO make goals directly returnable?
-                                             [m.unify({done: false}), setunify(m, {done: true})])}],
+                             onchange: conde([m.unify({done: true}), reunify(m, {done: false})], //TODO make goals directly returnable?
+                                             [m.unify({done: false}), reunify(m, {done: true})])}],
                            [{tagName: 'span',
-                             onclick: todo => setunify(m, {selected: todo.quote()})},
+                             onclick: todo => reunify(m, {selected: todo.quote()})},
                             (title, todo) => todo.eq({title: title.name('selected.title/set')})]]],
-                         [{onclick: setunify(m, {selected: {title: 'SETTITLE'}})},
+                         [{onclick: reunify(m, {selected: {title: 'SETTITLE'}})},
                           (selected, todo) => todo.eq({selected: quote({title: selected.name('selected.title/get')})})]];
 */
 

@@ -1,4 +1,4 @@
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, setunify, reunify, succeed, fail, failure, Goal, quote, QuotedVar} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, reunify, succeed, fail, failure, Goal, quote, QuotedVar} from './mk.js'
 import {logging, log, dlog, copy, toString} from './util.js'
 
 class App {
@@ -16,7 +16,7 @@ class App {
     }
     update(g) {
         if (g instanceof Function) return this.update(g(this.model));
-        log('update', 'goal', 'setunify', g);
+        log('update', 'goal', 'reunify', g);
         log('update', 'goal', 'derived', this.goals);
         log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);

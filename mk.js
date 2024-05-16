@@ -244,7 +244,7 @@ class LVar {
         return new Unification(this, x);
     }
     eq(x) { return this.unify(x); }
-    set(x) { return new UnifyUpdate(this, x); }
+    set(x) { return new Reunification(this, x); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
 }
@@ -350,7 +350,7 @@ class Unification extends Goal {
     toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
 
-class UnifyUpdate extends Goal {
+class Reunification extends Goal {
     constructor(lhs, rhs) {
         super();
         this.lhs = lhs;
@@ -358,15 +358,6 @@ class UnifyUpdate extends Goal {
     }
     toString() { return `(${toString(this.lhs)} =!= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this.lhs, this.rhs)); }
-}
-
-class Reunification extends Goal {
-    constructor(lhs, rhs) {
-        super();
-        this.lhs = lhs;
-        this.rhs = rhs;
-    }
-    eval(s, ctn=succeed) { return ctn.cont(s.extend(this.lhs, this.rhs)); }
 }
 
 function conde(...condes) {
@@ -379,10 +370,6 @@ function unify(x, y) {
 
 function reunify(x, y) {
     return new Reunification(x, y);
-}
-
-function setunify(x, y) {
-    return new UnifyUpdate(x, y);
 }
 
 function to_goal(g) {
@@ -514,4 +501,4 @@ const fail = new Fail;
 const succeed = new Succeed;
 const failure = new Failure;
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, setunify, reunify, failure, Goal, quote, QuotedVar};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar};
