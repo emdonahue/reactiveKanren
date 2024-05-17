@@ -20,7 +20,7 @@ class App {
         log('update', 'goal', 'derived', this.goals);
         log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);
-        let ans = this.goals.conj(g).run(1, {reify:false, substitution: this.substitution});
+        let ans = this.goals.run(1, {reify:false, substitution: g.reunify_substitution(this.substitution)});
         if (ans === nil) throw new Error('Update goal failed: ' + g);
         let s = ans.car.substitution;
         s = garbage_collect(s, this.model);
