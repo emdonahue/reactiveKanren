@@ -72,22 +72,29 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
 
 { // Reunify
-    let x = new LVar();
-    let y = new LVar();
-    asserte(reunify(x, 1).reunify_substitution(nil).reify(x), 1); // free -> prim
-    asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil).reify(x), 1); // prim -> prim
-    asserte(conde(reunify(x, 1), reunify(y, 2)).reunify_substitution(nil).reify([x, y]), [1, 2]); // prim -> prim
+    let w = new LVar().name('w');
+    let x = new LVar().name('x');
+    let y = new LVar().name('y');
+    let z = new LVar().name('z');
+    
+    asserte(reunify(x, 1).reunify_substitution(nil.acons(x,0)).reify(x), 1); // free -> prim
+    asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 1); // prim -> prim
+    asserte(conde(reunify(x, 1), reunify(y, 2)).reunify_substitution(list(cons(x,0), cons(y,0))).reify([x, y]), [1, 2]); // prim -> prim x2
+    asserte(reunify(x, 1).reunify_substitution(nil.acons(x,cons(1,2))).reify(x), 1); // obj -> prim        
+    asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,cons(y,z))).reify(x), cons(1, 2)); // obj -> obj
+    asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,1)).reify(x), cons(1, 2)); // prim -> obj
+    asserte(reunify(x, {a:1,b:3}).reunify_substitution(list(cons(x,(x,{a:y,b:z})), cons(y,1), cons(z,2))).reify([x,y,z]), [{a:1,b:3}, 1, 3]); // normalized obj -> obj
+    asserte(reunify(x, {a:1,b:3}).reunify_substitution(list(cons(x,{a:y}), cons(y,1))).reify([x,y]), [{a:1,b:3}, 1]); // obj -> new prop
+    asserte(reunify(x, {b:3}).reunify_substitution(list(cons(x,{a:y,b:z}), cons(y,1), cons(z,2))).reify([x,y,z]), [{a:1, b:3}, 1, 3]); // obj -> update prop
+    asserte(conj(reunify(x,y), reunify(y,x)).reunify_substitution(list(cons(x,1), cons(y,2))).reify([x,y]), [2, 1]); // swap from prev timestep
+    logging('reunify');
+    asserte(conj(reunify(w, z), unify(w,x), unify(z,y)).reunify_substitution(list(cons(x,cons(1, y)), cons(y,cons(2, nil)))).reify([x,y]), [list(2), nil]); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
+
+    logging(false)
 }
 
 
-asserte(fresh((x) => [unify(x,cons(1,2)), reunify(x, 1)]).run(), List.fromTree([[1]])); // obj -> prim
-asserte(fresh((x,y,z) => [unify(x,cons(y,z)), reunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2), 1, 2]])); // obj -> obj
-asserte(fresh((x) => [unify(x,1), reunify(x, cons(1,2))]).run(), List.fromTree([[cons(1, 2)]])); // prim -> obj
-asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), reunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1, 3]])); // normalized obj -> obj
-asserte(fresh((x,y) => [unify(x,{a:y}), unify(y,1), reunify(x, {a:1,b:3})]).run(), List.fromTree([[{a:1,b:3}, 1]])); // obj -> new prop
-asserte(fresh((x,y,z) => [unify(x,{a:y,b:z}), unify(y,1), unify(z,2), reunify(x, {b:3})]).run(), List.fromTree([[{a:1, b:3}, 1, 3]])); // obj -> update prop
-asserte(fresh((x,y) => [unify(x,1), unify(y,2), reunify(x, y), reunify(y,x)]).run(), List.fromTree([[2, 1]])); // swap from prev timestep
-asserte(fresh((w,x,y,z) => [unify(x,cons(1, y)), unify(y,cons(2, nil)), unify(x,w),unify(x,cons(1, z)), reunify(w, z)]).run(), List.fromTree([[[1], [1], [], []]])); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
+
 asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
                                 unify(c, {prop: d}), unify(d,2),
                                 unify(x,cons(a, y)), unify(y,cons(c, nil)),
