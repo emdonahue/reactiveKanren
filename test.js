@@ -76,6 +76,7 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
     let x = new LVar().name('x');
     let y = new LVar().name('y');
     let z = new LVar().name('z');
+    let n = new LVar().name('n');
 
 
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
@@ -96,15 +97,13 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
                             unify(z, {prop: d}), unify(d,2),
                             reunify(x, y)]).reunify_substitution(list(cons(x,cons(w,y)), cons(y,cons(z,nil)))).reify([x,y]),
             [list({prop:2}), nil]); // delete link, update objects
+    asserte(reunify(x, y).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), list(2)); // delete link
+    asserte(reunify(y,x).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), list(1, 1, 2)); // duplicate list
+
+    logging('reunify')
+    asserte(conj(reunify(x, y), reunify(y,n)).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), nil); // simultaneous delete link
     
 }
-
-
-/*
-  
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), reunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // duplicate list //x:(w:1 y:(z:2 n:nil)) -> x:(w:1 y:(z:1 n:(a:2 b:nil)))   y=x, z=w, n=(a . b), a=z, b=n. conflict fram a=z, z=w
-*/
 
 
 //asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(x, y), reunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer

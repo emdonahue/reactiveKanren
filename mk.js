@@ -126,7 +126,14 @@ class Pair extends List {
     update_binding(x, y, prev, next, updates=nil) {
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = prev.walk_binding(x);
+        
         let {car: y_var, cdr: y_val} = prev.walk_binding(y);
+        /*
+        if (next.assoc(x_var)) {            
+            y_val = next.assoc(x_var).cdr;
+            log('reunify', 'subterm', x_var, y_val, next);
+        }
+        */
         log('reunify', 'lookup', x_var, x_val, y_var, y_val, prev);
 
 
@@ -246,8 +253,7 @@ class Goal {
     }
     reunify_substitution(sub) {
         let r = this.run(-1, {reify: false, substitution: sub});
-        let updates = r.map(st => st.updates.map(u =>
-            log('reunify', 'reify', u, cons(st.walk_binding(u.car).car, st.reify(u.cdr))))).fold((ups, up) => up.append(ups), nil); //TODO may need to walk_binding the reunifications so theyre not dependent on transient state that will be thrown away. also, what happens if setting free vars?
+        let updates = r.map(st => st.reify_updates()).fold((ups, up) => up.append(ups), nil); //TODO may need to walk_binding the reunifications so theyre not dependent on transient state that will be thrown away. also, what happens if setting free vars?
         log('reunify', 'updates', updates, sub);
         return updates.update_substitution(sub);
     }
@@ -381,13 +387,13 @@ class Stream {
 }
 
 class Failure extends Stream {
-    unify() { return this };
-    reify(x) { return x };
-    eval(x) { return this };
-    mplus(s) { return s };
-    _mplus(s) { return s };
-    isIncomplete() { return false }
-    step() { return this }
+    unify() { return this; };
+    reify(x) { return x; };
+    eval(x) { return this; };
+    mplus(s) { return s; };
+    _mplus(s) { return s; };
+    isIncomplete() { return false; }
+    step() { return this; }
 }
 
 class State extends Stream {
@@ -403,6 +409,22 @@ class State extends Stream {
         log('unify', x, y, this.substitution, '->', s);
         if (s == failure) return s;
         return new State(s, this.updates); }
+    reify_updates() {
+        return this.updates.map(u =>
+            log('reunify', 'reify', u, cons(this.walk_binding(u.car).car, this.reify_update(u.cdr, this.walk_binding(u.car).car)))); }
+    reify_update(lvar, parent) {
+        let {car: vr, cdr: v} = this.substitution.walk_binding(lvar);
+        log('reunify', 'skipreify', parent, lvar, vr, v);
+        if (vr != parent && occurs_check(parent, vr, this.substitution) && this.updates.assoc(vr)) {
+            console.log('skipping')
+            return this.reify_update(this.updates.assoc(vr).cdr, parent);
+        }
+        if (v instanceof LVar || primitive(v)) return v;
+        if (v instanceof QuotedVar) return this.reify(v.lvar);
+        if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
+        if (Array.isArray(v)) return v.map(e => this.reify(e));
+        return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
+    }
     update(x, y) {
         return new State(this.substitution, this.updates.acons(x, y)); }
     extend(x, y) { return new State(this.substitution.extend(x, y), this.updates); }
