@@ -80,8 +80,10 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
     asserte(reunify(x, 1).reunify_substitution(nil.acons(x,0)).reify(x), 1); // prim -> prim
+    asserte(reunify(x, 1).reunify_substitution(nil).reify(x), 1); // free -> prim
     asserte(conj(unify(x,y), reunify(y, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 1); // bound -> prim
     asserte(conde(reunify(x, 1), reunify(y, 2)).reunify_substitution(list(cons(x,0), cons(y,0))).reify([x, y]), [1, 2]); // prim -> prim x2
+    asserte(reunify(x, cons(1,2)).reunify_substitution(nil).reify(x), cons(1,2)); // free -> obj
     asserte(reunify(x, 1).reunify_substitution(nil.acons(x,cons(1,2))).reify(x), 1); // obj -> prim        
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,cons(y,z))).reify(x), cons(1, 2)); // obj -> obj
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,1)).reify(x), cons(1, 2)); // prim -> obj
@@ -89,11 +91,7 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
     asserte(reunify(x, {a:1,b:3}).reunify_substitution(list(cons(x,{a:y}), cons(y,1))).reify([x,y]), [{a:1,b:3}, 1]); // obj -> new prop
     asserte(reunify(x, {b:3}).reunify_substitution(list(cons(x,{a:y,b:z}), cons(y,1), cons(z,2))).reify([x,y,z]), [{a:1, b:3}, 1, 3]); // obj -> update prop
     asserte(conj(reunify(x,y), reunify(y,x)).reunify_substitution(list(cons(x,1), cons(y,2))).reify([x,y]), [2, 1]); // swap from prev timestep
-
-        logging('reunify')
-    asserte(conj(reunify(w, z), unify(w,x), unify(z,y)).reunify_substitution(list(cons(x,cons(1, y)), cons(y,cons(2, nil)))).reify([x,y]), [list(2), nil]); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
-
-
+    asserte(fresh((a,b) => [reunify(a, b), unify(a,x), unify(b,y)]).reunify_substitution(list(cons(x,cons(w, y)), cons(w,1), cons(y,cons(2, nil)))).reify([x,y]), [list(2), nil]); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
     asserte(fresh((b,d) => [unify(w, {prop: b}), unify(b,1),
                             unify(z, {prop: d}), unify(d,2),
                             reunify(x, y)]).reunify_substitution(list(cons(x,cons(w,y)), cons(y,cons(z,nil)))).reify([x,y]),

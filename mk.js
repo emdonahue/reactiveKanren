@@ -146,7 +146,7 @@ class Pair extends List {
         */
 
         // Old prim values dont need to be reconciled, so just create new storage and update the new value.
-        if (primitive(y_val) || y_val instanceof QuotedVar) {
+        if (primitive(y_val) || y_val instanceof QuotedVar || x_val instanceof LVar) {
             log('reunify', 'y prim', x_var, y_val);
             return updates.update_substitution(this.extend(x_var, y_val), prev, next); }
 
