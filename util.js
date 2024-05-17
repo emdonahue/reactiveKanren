@@ -29,7 +29,7 @@ function copy(x) {//TODO convert to structuredclone?
 function equals(x, y) {
     return (x == y)
         || (Array.isArray(x) && Array.isArray(y) && x.length == y.length && x.every((e,i) => equals(e, y[i])))
-        || (x.constructor === y.constructor && Object.keys(x).length === Object.keys(y).length && Object.entries(x).every(([k,v]) => equals(v, y[k])));
+        || (Object.prototype.toString.call(x) !== '[object String]' && x.constructor === y.constructor  && Object.keys(x).length === Object.keys(y).length && Object.entries(x).every(([k,v]) => equals(v, y[k])));
 }
 
 export {logging, log, dlog, copy, toString, equals}

@@ -241,12 +241,13 @@ class Goal {
     }
     filter(f) { return f(this) ? this : succeed; }
     run(n=1, {reify=true, substitution=nil}={}) {
-        return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? s.reify(nil) : s);
+        return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
     reunify_substitution(sub) {
-        let r = this.run(-1, {reify: false});
-        let updates = r.map(st => st.updates).fold((ups, up) => up.append(ups), nil); //TODO may need to walk_binding the reunifications so theyre not dependent on transient state that will be thrown away. also, what happens if setting free vars?
+        let r = this.run(-1, {reify: false, substitution: sub});
+        let updates = r.map(st => st.updates.map(u =>
+            log('reunify', 'reify', u, cons(st.walk_binding(u.car).car, st.reify(u.cdr))))).fold((ups, up) => up.append(ups), nil); //TODO may need to walk_binding the reunifications so theyre not dependent on transient state that will be thrown away. also, what happens if setting free vars?
         log('reunify', 'updates', updates, sub);
         return updates.update_substitution(sub);
     }
@@ -304,7 +305,7 @@ class Fresh extends Goal {
         this.ctn = ctn;
     }
     run(n=1, {reify=true, substitution=nil}={}) {
-        return this.eval(new State(substitution)).take(n).map(s => s.update_substitution()).map(s => reify ? log('run', s.substitution).reify(this.vars) : s);
+        return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', s.substitution).reify(this.vars) : s);
     }
     eval(s, ctn=succeed) {
         return to_goal(this.ctn(...this.vars)).conj(ctn).suspend(s);
@@ -412,11 +413,13 @@ class State extends Stream {
     mplus(s) { return new Answers(this, s); }
     _mplus(s) { return new Answers(this, s); }
     update_substitution() {
+        console.assert(false)
         log('update_substitution', this.substitution, this.updates);
         let s = new State(this.updates.update_substitution(this.substitution), this.updates);
         log('updated_substitution', s.substitution);
         return s;
     }
+    walk_binding(lvar) { return this.substitution.walk_binding(lvar); }
 }
 
 
