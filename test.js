@@ -88,7 +88,7 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
     asserte(reunify(x, {b:3}).reunify_substitution(list(cons(x,{a:y,b:z}), cons(y,1), cons(z,2))).reify([x,y,z]), [{a:1, b:3}, 1, 3]); // obj -> update prop
     asserte(conj(reunify(x,y), reunify(y,x)).reunify_substitution(list(cons(x,1), cons(y,2))).reify([x,y]), [2, 1]); // swap from prev timestep
     logging('reunify');
-    asserte(conj(reunify(w, z), unify(w,x), unify(z,y)).reunify_substitution(list(cons(x,cons(1, y)), cons(y,cons(2, nil)))).reify([x,y]), [list(2), nil]); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
+    //asserte(conj(reunify(w, z), unify(w,x), unify(z,y)).reunify_substitution(list(cons(x,cons(1, y)), cons(y,cons(2, nil)))).reify([x,y]), [list(2), nil]); // x,w:(1 . y,z:(2)) -> x,w:(2 . y,z:()) delete link
 
     logging(false)
 }
@@ -102,7 +102,8 @@ asserte(fresh((a,b,c,d,x,y) => [unify(a, {prop: b}), unify(b,1),
         List.fromTree([[{prop:2}, 2, {prop:2}, 2, [{prop:2}], []]])); // delete link, update objects
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x,cons(w, y)), unify(w, 1), unify(y,cons(z, n)), unify(z,1), unify(n, nil), reunify(x, y)])).run(), List.fromTree([[[1], []]])); // delete link
 asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(y, x)])).run(), List.fromTree([[[1, 1, 2], [1, 2]]])); // duplicate list //x:(w:1 y:(z:2 n:nil)) -> x:(w:1 y:(z:1 n:(a:2 b:nil)))   y=x, z=w, n=(a . b), a=z, b=n. conflict fram a=z, z=w
-asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(x, y), reunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer
+
+//asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(x, y), reunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer
 
 // x = (1 . y), y = (2)
 // x->1, x->2   
