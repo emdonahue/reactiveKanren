@@ -416,7 +416,6 @@ class State extends Stream {
         let {car: vr, cdr: v} = this.substitution.walk_binding(lvar);
         log('reunify', 'skipreify', parent, lvar, vr, v);
         if (vr != parent && occurs_check(parent, vr, this.substitution) && this.updates.assoc(vr)) {
-            console.log('skipping')
             return this.reify_update(this.updates.assoc(vr).cdr, parent);
         }
         if (v instanceof LVar || primitive(v)) return v;

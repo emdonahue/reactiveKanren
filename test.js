@@ -1,5 +1,6 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
+//TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
 import {nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
@@ -100,9 +101,10 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
     asserte(reunify(x, y).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), list(2)); // delete link
     asserte(reunify(y,x).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), list(1, 1, 2)); // duplicate list
 
-    logging('reunify')
     asserte(conj(reunify(x, y), reunify(y,n)).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), nil); // simultaneous delete link
-    
+
+
+    //TODO does recursive skip work if some vars are free, so it cant check recursive order?
 }
 
 
@@ -142,19 +144,19 @@ asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes.leng
 asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
 // Functions
-asserte(new App(null, x => 'lorem').node.textContent, 'lorem');
-asserte(new App(null, [x => 'div', 'lorem']).node.tagName, 'DIV');
-asserte(new App(null, [x => ({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
-//asserte(new App(null, [{tagName: x => 'div'}, 'lorem']).node.tagName, 'DIV'); //TODO enable fn/goal for tagname
-asserte(new App(null, [{name: x => 'ipsum'}, 'lorem']).node.name, 'ipsum');
-asserte(new App(null, [{style: {color: x => 'purple'}}, 'lorem']).node.style.color, 'purple');
-asserte(new App(null, ['div', x => ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, () => 'lorem').node.textContent, 'lorem');
+asserte(new App(null, [() => 'div', 'lorem']).node.tagName, 'DIV');
+asserte(new App(null, [() => ({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
+//asserte(new App(null, [{tagName: () => 'div'}, 'lorem']).node.tagName, 'DIV'); //TODO enable fn/goal for tagname
+asserte(new App(null, [{name: () => 'ipsum'}, 'lorem']).node.name, 'ipsum');
+asserte(new App(null, [{style: {color: () => 'purple'}}, 'lorem']).node.style.color, 'purple');
+asserte(new App(null, ['div', () => ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [x => [null, null], 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [x => [null, null], 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, ['div', [() => [null, null], 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [() => [null, null], 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [x => list(null, null), 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [x => list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, ['div', [() => list(null, null), 'lorem']]).node.childNodes.length, 3);
+asserte(new App(null, ['div', [() => list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
 // Goals
 asserte(new App(null, x => x.eq('lorem')).node.textContent, 'lorem');
@@ -174,9 +176,13 @@ asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.chil
 
 // Model
 
+asserte(new App('lorem', (x,m) => m).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
+asserte(new App('lorem', (x,m) => m).update(m => m.set('ipsum')).node.textContent, 'ipsum');
 asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
-
+asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
+asserte(new App('lorem', (x,m) => ['div', m]).update(m => m.set('ipsum')).node.textContent, 'ipsum');
+asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).node.name, 'lorem');
 
 /*
 // Static

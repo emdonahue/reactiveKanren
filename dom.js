@@ -205,18 +205,14 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
                         else throw new Error('Unrecognized event handler type: ' + handler);
                     }
                 );})(template[k]); }
+        else if (template[k] instanceof LVar) {
+            obs = obs.cons(new PropObserver(template[k], parent, k));
+            parent[k] = sub.walk(template[k]);
+        }
         else if (template[k] instanceof Function) {
             let v;
             [v, sub, goals] = render_fn(template[k], sub, model, goals, (r, s, g) => [r, s, g]);
-            parent[k] = sub.walk(v);
-            /*
-            let v = new LVar();
-            let g = template[k](v, model);
-            let s = g.filter(g => !g.is_disj()).run(1, {reify: false, substitution: sub}).car.substitution;
-            parent[k] = s.walk(v);
-            obs = obs.cons(new PropObserver(v, parent, k));
-            log('render', 'goals', g, '=>', g.filter(g => g.is_disj()));
-            goals = goals.conj(g);*/ }} //.filter(g => g.is_disj())
+            parent[k] = sub.walk(v); }}
     return [obs, goals];
 }
 
