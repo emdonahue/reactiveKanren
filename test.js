@@ -174,15 +174,22 @@ asserte(new App(null, ['div', [x => x.eq([null, null]), 'lorem']]).node.childNod
 asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes.length, 3);
 asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-// Model
+// Model Vars
 
 asserte(new App('lorem', (x,m) => m).node.textContent, 'lorem');
-asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => m).update(m => m.set('ipsum')).node.textContent, 'ipsum');
-asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
-asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
+asserte(new App('lorem', (x,m) => ['div', m]).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => ['div', m]).update(m => m.set('ipsum')).node.textContent, 'ipsum');
 asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).node.name, 'lorem');
+asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
+asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).node.style.color, 'red');
+asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
+asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, (_,e) => e]).node.textContent, 'loremipsum');
+//asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.textContent, 'loremipsumdolor');
+
+asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
+asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
+asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
 
 /*
 // Static

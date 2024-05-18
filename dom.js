@@ -1,5 +1,5 @@
 import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, reunify, succeed, fail, failure, Goal, quote, QuotedVar} from './mk.js'
-import {logging, log, dlog, copy, toString} from './util.js'
+import {logging, log, dlog, copy, toString, is_string} from './util.js'
 
 class App {
     constructor(model, template) {
@@ -176,9 +176,8 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
             items = sub.walk(linkvar); }
         return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals]; }
     else if (head_spec.prototype === undefined) { // POJOs store node properties
-        if (head_spec.tagName && typeof head_spec.tagName != 'string') throw new Error('tagName must be a string: ' + head_spec.tagName); //TODO make tagName accept fns and goals
-        let parent = document.createElement(head_spec.tagName || 'div');
-        [obs, goals] = render_attributes(head_spec, parent, sub, model, obs, goals, update);
+        let parent;
+        [parent, obs, goals] = render_node(head_spec, sub, model, obs, goals, update);
         
 	for (let c of templ_children) { // Render child nodes
             var [node, sub, obs, goals] = render(c, sub, obs, model, update, goals);
@@ -187,6 +186,14 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
             log('render', 'parent', parent.outerHTML); }
 	return [parent, sub, obs, goals]; }
     else throw Error('Unrecognized render spec head: ' + JSON.stringify(head_spec)); }
+
+
+function render_node(template, sub, model, obs, goals, update) {
+    if (is_string(template)) return render_node({tagName: template}, sub, model, obs, goals, update);
+    if (template.tagName && !is_string(template.tagName)) throw new Error('tagName must be a string: ' + template.tagName); //TODO make tagName accept fns and goals
+    let parent = document.createElement(template.tagName || 'div');
+    return [parent, ...render_attributes(template, parent, sub, model, obs, goals, update)];
+}
 
 function render_attributes(template, parent, sub, model, obs, goals, update) {
     log('render', 'attributes', template);
