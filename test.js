@@ -137,11 +137,11 @@ asserte(new App(null, [{tagName: 'div', style: {color: 'purple'}}, 'lorem']).nod
 
 asserte(new App(null, ['div', ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [[null, null], 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [[null, null], 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, [[null, null], 'div', 'lorem']).node.childNodes.length, 2);
+asserte(new App(null, [[null, null], 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, [list(null, null), 'div', 'lorem']).node.childNodes.length, 2);
+asserte(new App(null, [list(null, null), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
 // Functions
 asserte(new App(null, () => 'lorem').node.textContent, 'lorem');
@@ -152,11 +152,11 @@ asserte(new App(null, [{name: () => 'ipsum'}, 'lorem']).node.name, 'ipsum');
 asserte(new App(null, [{style: {color: () => 'purple'}}, 'lorem']).node.style.color, 'purple');
 asserte(new App(null, ['div', () => ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [() => [null, null], 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [() => [null, null], 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, [() => [null, null], 'div', 'lorem']).node.childNodes.length, 2);
+asserte(new App(null, [() => [null, null], 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [() => list(null, null), 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [() => list(null, null), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, [() => list(null, null), 'div', 'lorem']).node.childNodes.length, 2);
+asserte(new App(null, [() => list(null, null), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
 // Goals
 asserte(new App(null, x => x.eq('lorem')).node.textContent, 'lorem');
@@ -168,11 +168,11 @@ asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum')
 asserte(new App(null, [{style: {color: x => x.eq('purple')}}, 'lorem']).node.style.color, 'purple');
 asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div></div>');
 
-asserte(new App(null, ['div', [x => x.eq([null, null]), 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [x => x.eq([null, null]), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes.length, 2);
+asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes.length, 3);
-asserte(new App(null, ['div', [x => x.eq(list(null, null)), 'lorem']]).node.childNodes[0].textContent, 'lorem');
+asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes.length, 2);
+asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
 // Model Vars
 
@@ -184,7 +184,7 @@ asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).node.name, 'lorem
 asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
 asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).node.style.color, 'red');
 asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
-asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, (_,e) => e]).node.textContent, 'loremipsum');
+asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.innerHTML, 'loremipsum');
 //asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.textContent, 'loremipsumdolor');
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');

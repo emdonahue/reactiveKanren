@@ -90,7 +90,7 @@ class IterObserver {
         }).append(ns.filter(v => !this.lvar_nodes.assoc(v)).map(v => {
             let node;
             [node, sub, obs] = render(this.template, sub, nil, sub.walk(v).car, () => {});
-            this.node.parentNode.insertBefore(node, this.node);
+            this.node.appendChild(node);
             return cons(v, node);
         }));
         //dlog('lvar nodes', this.lvar_nodes);
@@ -160,7 +160,8 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
     else if (head_spec instanceof Function) { // Dynamic head node
         return render_fn(head_spec, sub, model, goals, (r, s, g) => render_head([r, ...templ_children], s, obs, model, update, g)); }
     else if (head_spec instanceof List) { // Build an iterable DOM list
-        let parent = document.createDocumentFragment();
+        let parent;
+        [parent, obs, goals] = render_node(templ_children[0], sub, model, obs, goals, update);
         let items = head_spec;
         let linkvar = templ_head;
         let listvar = templ_head; //TODO in simple static list cases this may not be a var
@@ -169,12 +170,12 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
         let vars_nodes = [];
 
         while (items instanceof Pair) { //TODO deal with lvar tailed improper lists
-            var [node, sub, obs, goals] = render(templ_children[0], sub, obs, items.car, update, goals);
+            var [node, sub, obs, goals] = render(templ_children[1], sub, obs, items.car, update, goals);
             parent.appendChild(node);
             vars_nodes.push(cons(linkvar, node));
             linkvar = items.cdr;
             items = sub.walk(linkvar); }
-        return [parent.appendChild(listnode) && parent, sub, obs.cons(new IterObserver(listvar, listnode, list(...vars_nodes), templ_children[0])), goals]; }
+        return [parent, sub, obs.cons(new IterObserver(listvar, parent, list(...vars_nodes), templ_children[0])), goals]; }
     else if (head_spec.prototype === undefined) { // POJOs store node properties
         let parent;
         [parent, obs, goals] = render_node(head_spec, sub, model, obs, goals, update);
