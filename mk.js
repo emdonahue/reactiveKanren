@@ -123,7 +123,7 @@ class Pair extends List {
 
     // x->1, y->2     
 
-    update_binding(x, y, prev, next, updates=nil) {
+    update_binding(x, y, prev=nil, next=nil, updates=nil) {
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = prev.walk_binding(x);
         

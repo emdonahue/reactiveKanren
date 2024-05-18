@@ -86,9 +86,11 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
     asserte(conj(unify(x,y), reunify(y, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 1); // bound -> prim
     asserte(conde(reunify(x, 1), reunify(y, 2)).reunify_substitution(list(cons(x,0), cons(y,0))).reify([x, y]), [1, 2]); // prim -> prim x2
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil).reify(x), cons(1,2)); // free -> obj
+    asserte(reunify(x, cons(1,2)).reunify_substitution(nil).length(), 3); // prim -> obj normalized
     asserte(reunify(x, 1).reunify_substitution(nil.acons(x,cons(1,2))).reify(x), 1); // obj -> prim        
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,cons(y,z))).reify(x), cons(1, 2)); // obj -> obj
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,1)).reify(x), cons(1, 2)); // prim -> obj
+    asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,1)).length(), 3); // prim -> obj normalized
     asserte(reunify(x, {a:1,b:3}).reunify_substitution(list(cons(x,(x,{a:y,b:z})), cons(y,1), cons(z,2))).reify([x,y,z]), [{a:1,b:3}, 1, 3]); // normalized obj -> obj
     asserte(reunify(x, {a:1,b:3}).reunify_substitution(list(cons(x,{a:y}), cons(y,1))).reify([x,y]), [{a:1,b:3}, 1]); // obj -> new prop
     asserte(reunify(x, {b:3}).reunify_substitution(list(cons(x,{a:y,b:z}), cons(y,1), cons(z,2))).reify([x,y,z]), [{a:1, b:3}, 1, 3]); // obj -> update prop
@@ -185,7 +187,14 @@ asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).update(m => m.set
 asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).node.style.color, 'red');
 asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
 asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.innerHTML, 'loremipsum');
-//asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.textContent, 'loremipsumdolor');
+
+logging('init')
+logging('reunify')
+console.log(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).substitution + '')
+logging(false)
+asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.innerHTML, 'loremipsumdolor');
+
+
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');

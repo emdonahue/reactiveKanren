@@ -5,6 +5,7 @@ class App {
     constructor(model, template) {
         this.model = new LVar();
         let s = nil.update_binding(this.model, model);
+        log('init', 'normalize', s, model);
         let [n, s2, o, g] = render(template, s, nil, this.model, this.update.bind(this));
         console.assert(g);
         log('init', 'goals', g);
