@@ -75,6 +75,60 @@ class List {
         }
         return s;
     }
+    update_binding(x, y, prev=nil, next=nil, updates=nil) {
+        if (primitive(x)) return this;
+        let {car: x_var, cdr: x_val} = prev.walk_binding(x);
+        
+        let {car: y_var, cdr: y_val} = prev.walk_binding(y);
+        /*
+        if (next.assoc(x_var)) {            
+            y_val = next.assoc(x_var).cdr;
+            log('reunify', 'subterm', x_var, y_val, next);
+        }
+        */
+        log('reunify', 'lookup', x_var, x_val, y_var, y_val, prev);
+
+
+        /*
+        //if (next.assoc(y_var)) { //TODO need to walk repeatedly until exhausted
+        let y_update = next.assoc(y_var);
+        //log('reunify', 'occurs-check', 'x_var', x_var, 'y_var', y_var, 'y_update', y_update, 'occurs', occurs_check(x_var, y_var, prev), 'prev', prev);
+        if (y_update && occurs_check(x_var, y_var, prev)) {
+            log('reunify', 'occurs', 'x_var', x_var, 'y_var', y_var, 'y_val', y_val, 'y_update', y_update.cdr, 'curr', this, 'updates', updates);
+            y_val = prev.walk(y_update.cdr);
+            updates = updates.remove(y_update);
+        }
+
+        if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
+            return this.update_binding(x_val.lvar, y_val, prev, next, updates);
+        }
+        */
+
+        // Old prim values dont need to be reconciled, so just create new storage and update the new value.
+        if (primitive(y_val) || y_val instanceof QuotedVar) {
+            log('reunify', 'y prim', x_var, y_val);
+            return updates.update_substitution(this.extend(x_var, y_val), prev, next); }
+
+        else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
+            let norm = copy(y_val); //TODO should be type of y_val
+            if (!primitive(x_val) && !(x_val instanceof LVar)) Object.assign(norm, x_val);
+            let s = this;
+            let n;
+            for (let k in y_val) { // For each attr of the new value,                
+                if (!primitive(x_val) && !(x_val instanceof LVar) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
+                    //s = s.update_binding(x_val[k], y_val[k], prev, next);
+                    updates = updates.acons(x_val[k], y_val[k]);
+                }
+                else { // Otherwise, allocate new memory for the new values.
+                    norm[k] = new LVar();
+                    updates = updates.acons(norm[k], y_val[k]);
+                    //s = s.update_binding(norm[k], y_val[k], prev, next);
+                }
+            }
+            log('reunify', 'complex', x_var, norm);
+            return updates.update_substitution(s.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
+        }
+    }
 }
 
 class Pair extends List {
@@ -123,60 +177,7 @@ class Pair extends List {
 
     // x->1, y->2     
 
-    update_binding(x, y, prev=nil, next=nil, updates=nil) {
-        if (primitive(x)) return this;
-        let {car: x_var, cdr: x_val} = prev.walk_binding(x);
-        
-        let {car: y_var, cdr: y_val} = prev.walk_binding(y);
-        /*
-        if (next.assoc(x_var)) {            
-            y_val = next.assoc(x_var).cdr;
-            log('reunify', 'subterm', x_var, y_val, next);
-        }
-        */
-        log('reunify', 'lookup', x_var, x_val, y_var, y_val, prev);
-
-
-        /*
-        //if (next.assoc(y_var)) { //TODO need to walk repeatedly until exhausted
-        let y_update = next.assoc(y_var);
-        //log('reunify', 'occurs-check', 'x_var', x_var, 'y_var', y_var, 'y_update', y_update, 'occurs', occurs_check(x_var, y_var, prev), 'prev', prev);
-        if (y_update && occurs_check(x_var, y_var, prev)) {
-            log('reunify', 'occurs', 'x_var', x_var, 'y_var', y_var, 'y_val', y_val, 'y_update', y_update.cdr, 'curr', this, 'updates', updates);
-            y_val = prev.walk(y_update.cdr);
-            updates = updates.remove(y_update);
-        }
-
-        if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
-            return this.update_binding(x_val.lvar, y_val, prev, next, updates);
-        }
-        */
-
-        // Old prim values dont need to be reconciled, so just create new storage and update the new value.
-        if (primitive(y_val) || y_val instanceof QuotedVar || x_val instanceof LVar) {
-            log('reunify', 'y prim', x_var, y_val);
-            return updates.update_substitution(this.extend(x_var, y_val), prev, next); }
-
-        else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
-            let norm = copy(y_val); //TODO should be type of y_val
-            if (!primitive(x_val)) Object.assign(norm, x_val);
-            let s = this;
-            let n;
-            for (let k in y_val) { // For each attr of the new value,                
-                if (!primitive(x_val) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
-                    //s = s.update_binding(x_val[k], y_val[k], prev, next);
-                    updates = updates.acons(x_val[k], y_val[k]);
-                }
-                else { // Otherwise, allocate new memory for the new values.
-                    norm[k] = new LVar();
-                    updates = updates.acons(norm[k], y_val[k]);
-                    //s = s.update_binding(norm[k], y_val[k], prev, next);
-                }
-            }
-            log('reunify', 'complex', x_var, norm);
-            return updates.update_substitution(s.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
-        }
-    }
+    
     _toString() {
         return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + toString(this.cdr)}`;
     }
@@ -194,7 +195,6 @@ class Empty extends List {
     filter(p) { return this; };
     map(f) { return this; };
     update_substitution(s) { return s; }
-    update_binding(x, y, prev, next, updates=nil) { return updates.update_substitution(this.extend(x, y), prev, next); }
     append(xs) { return xs; }
     fold(f, x) { return x; }
     remove(x) { return this; }
@@ -433,13 +433,6 @@ class State extends Stream {
     step() { return failure; }
     mplus(s) { return new Answers(this, s); }
     _mplus(s) { return new Answers(this, s); }
-    update_substitution() {
-        console.assert(false)
-        log('update_substitution', this.substitution, this.updates);
-        let s = new State(this.updates.update_substitution(this.substitution), this.updates);
-        log('updated_substitution', s.substitution);
-        return s;
-    }
     walk_binding(lvar) { return this.substitution.walk_binding(lvar); }
 }
 
