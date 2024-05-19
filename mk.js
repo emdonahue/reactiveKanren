@@ -61,10 +61,12 @@ class List {
         return '(' + this._toString() + ')';
     }
     unify(x_var, y_var) { //DOC unifier has to be very lazy about preserving variable paths and not updating to latest value
-        let x = this.walk(x_var);
-        let y = this.walk(y_var);
+        let {car: x_bnd, cdr: x} = this.walk_binding(x_var);
+        let {car: y_bnd, cdr: y} = this.walk_binding(y_var);
         log('unify', x, y);
-        if (x == y) return this;
+        if (x == y) {
+            if (x_bnd instanceof SVar) return this.extend(y_bnd, x_bnd);
+            return this; }
         if (x instanceof LVar) return this.extend(x, y_var);
         if (y instanceof LVar) return this.extend(y, x_var);
         if (primitive(x) || primitive(y)) return failure;
@@ -222,6 +224,10 @@ class LVar {
     set(x) { return new Reunification(this, x); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
+}
+
+class SVar extends LVar {
+    
 }
 
 class QuotedVar {
@@ -497,4 +503,4 @@ const fail = new Fail;
 const succeed = new Succeed;
 const failure = new Failure;
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar};

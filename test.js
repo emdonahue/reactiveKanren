@@ -2,7 +2,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj} from './mk.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 
@@ -73,11 +73,13 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
 
 { // Reunify
-    let w = new LVar().name('w');
-    let x = new LVar().name('x');
-    let y = new LVar().name('y');
-    let z = new LVar().name('z');
-    let n = new LVar().name('n');
+    let a = new LVar().name('a');
+    let b = new LVar().name('b');
+    let w = new SVar().name('w');
+    let x = new SVar().name('x');
+    let y = new SVar().name('y');
+    let z = new SVar().name('z');
+    let n = new SVar().name('n');
 
 
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
@@ -86,8 +88,6 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
     asserte(conj(unify(x,y), reunify(y, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 1); // bound -> prim
     asserte(conde(reunify(x, 1), reunify(y, 2)).reunify_substitution(list(cons(x,0), cons(y,0))).reify([x, y]), [1, 2]); // prim -> prim x2
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil).reify(x), cons(1,2)); // free -> obj
-
-    logging('reunify')
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil).length(), 3); // prim -> obj normalized
     asserte(reunify(x, 1).reunify_substitution(nil.acons(x,cons(1,2))).reify(x), 1); // obj -> prim        
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,cons(y,z))).reify(x), cons(1, 2)); // obj -> obj
@@ -106,6 +106,8 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
     asserte(reunify(y,x).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), list(1, 1, 2)); // duplicate list
 
     asserte(conj(reunify(x, y), reunify(y,n)).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), nil); // simultaneous delete link
+
+    asserte(conj(a.unify(1), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2);
 
 
     //TODO does recursive skip work if some vars are free, so it cant check recursive order?
@@ -189,11 +191,6 @@ asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).update(m => m.set
 asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).node.style.color, 'red');
 asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
 asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.innerHTML, 'loremipsum');
-
-logging('init')
-logging('reunify')
-console.log(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).substitution + '')
-logging(false)
 asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.innerHTML, 'loremipsumdolor');
 
 

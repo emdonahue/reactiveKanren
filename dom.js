@@ -176,7 +176,7 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
             vars_nodes.push(cons(linkvar, node));
             linkvar = items.cdr;
             items = sub.walk(linkvar); }
-        return [parent, sub, obs.cons(new IterObserver(listvar, parent, list(...vars_nodes), templ_children[0])), goals]; }
+        return [parent, sub, obs.cons(new IterObserver(listvar, parent, list(...vars_nodes), templ_children[1])), goals]; }
     else if (head_spec.prototype === undefined) { // POJOs store node properties
         let parent;
         [parent, obs, goals] = render_node(head_spec, sub, model, obs, goals, update);
