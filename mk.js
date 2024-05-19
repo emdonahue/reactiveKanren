@@ -132,6 +132,9 @@ class List {
             return updates.update_substitution(s.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
         }
     }
+    equiv_svars(v) {
+        return list(v)
+    }
 }
 
 class Pair extends List {
@@ -418,7 +421,8 @@ class State extends Stream {
         return new State(s, this.updates); }
     reify_updates() {
         return this.updates.map(u =>
-            log('reunify', 'reify', u, cons(this.walk_binding(u.car).car, this.reify_update(u.cdr, this.walk_binding(u.car).car)))); }
+            this.substitution.equiv_svars(this.walk_binding(u.car).car).map(v => cons(v, this.reify_update(u.cdr, this.walk_binding(u.car).car))))
+            .fold((x,y) => x.append(y), nil); }
     reify_update(lvar, parent) {
         let {car: vr, cdr: v} = this.substitution.walk_binding(lvar);
         log('reunify', 'skipreify', parent, lvar, vr, v);
