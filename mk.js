@@ -66,8 +66,9 @@ class List {
         log('unify', x, y);
         if (x == y) {
             if (x_bnd instanceof SVar) return this.extend(y_bnd, x_bnd);
+            else if (y_bnd instanceof SVar) return this.extend(x_bnd, y_bnd);
             return this; }
-        if (x instanceof LVar) return this.extend(x, y_var);
+        if (x instanceof LVar) return this.extend(x, y_var); // Never true for SVar, which is always bound
         if (y instanceof LVar) return this.extend(y, x_var);
         if (primitive(x) || primitive(y)) return failure;
         let s = this;
