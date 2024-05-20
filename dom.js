@@ -1,9 +1,9 @@
-import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, reunify, succeed, fail, failure, Goal, quote, QuotedVar} from './mk.js'
+import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, reunify, succeed, fail, failure, Goal, quote, QuotedVar, SVar} from './mk.js'
 import {logging, log, dlog, copy, toString, is_string} from './util.js'
 
 class App {
     constructor(model, template) {
-        this.model = new LVar();
+        this.model = new SVar();
         let s = nil.update_binding(this.model, model);
         log('init', 'normalize', s, model);
         let [n, s2, o, g] = render(template, s, nil, this.model, this.update.bind(this));
@@ -17,8 +17,7 @@ class App {
     }
     update(g) {
         if (g instanceof Function) return this.update(g(this.model));
-        log('update', 'goal', 'reunify', g);
-        log('update', 'goal', 'derived', this.goals);
+        log('update', 'goal', g, this.goals);
         log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);
         let ans = this.goals.run(1, {reify:false, substitution: g.reunify_substitution(this.substitution)});
@@ -40,14 +39,19 @@ class App {
 
 // RRP
 class PropObserver {
-    constructor(lvar, node, attr) {
+    constructor(lvar, node, attr, goal=succeed) {
         this.lvar = lvar;
 	this.node = node;
 	this.attr = attr;
+        this.goal = goal;
     }
 
     update(sub, obs) {
-        let val = sub.reify(this.lvar);
+        let ss = this.goal.run(1, {reify: false, substitution: sub});
+        if (nil === ss) {
+            delete this.node[this.attribute];
+            return [sub, obs.cons(this)]; }
+        let val = ss.car.reify(this.lvar);
         log('update', 'attr', this.attr, this.lvar, val);
         if (val instanceof LVar) return [sub, obs];
 	this.node[this.attr] = val;
@@ -133,7 +137,7 @@ class IterObserver {
 
 // RENDERING
 
-function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) { // -> node substitution observers
+function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, goal=succeed) { // -> node substitution observers
     log('render', spec, Array.isArray(spec) ? 'array' : typeof spec, sub, obs, model, goals);
 
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
@@ -146,9 +150,17 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed) 
         if (sub.walk(spec) instanceof LVar) throw new Error('Rendering free var: ' + spec); //DBG
 	var [node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
         log('render', 'var', spec, node.outerHTML);
-	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent')) : obs, goals]; }
+	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent', goal)) : obs, goals]; }
     else if (spec instanceof Function) { // Build a dynamic node using the model
-        return render_fn(spec, sub, model, goals, (r, s, g) => render(r, s, obs, model, update, g)); }
+        let v = new LVar();
+        let g = spec(v, model);
+        if (g instanceof Goal) {
+            let ss = g.run(1, {reify: false, substitution: sub});
+            if (nil === ss) throw new Error('Derived goal failure: ' + sub.reify(g));
+            return render(v, ss.car.substitution, obs, model, update, goals, g); }
+        else { return render(g, sub, obs, model, update, goals); }
+        //return render_fn(spec, sub, model, goals, (r, s, g) => render(r, s, obs, model, update, g));
+    }
     else if (Array.isArray(spec)) return render_head(spec, sub, obs, model, update, goals);
     else throw Error('Unrecognized render spec: ' + JSON.stringify(spec)); }
 

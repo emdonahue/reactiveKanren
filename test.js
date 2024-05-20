@@ -107,11 +107,16 @@ asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
     asserte(conj(reunify(x, y), reunify(y,n)).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), nil); // simultaneous delete link
 
-    asserte(conj(a.unify(1), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // storage == bound
-    asserte(conj(a.unify(1), a.unify(x), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // bound == storage
-    //asserte(conj(x.unify(y), y.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
-    //asserte(conj(x.unify(y), x.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
-
+    asserte(conj(a.unify(1), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // storage == bound!
+    asserte(conj(a.unify(1), a.unify(x), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // bound! == storage
+    asserte(conj(a.unify(1), x.unify(a), x.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // storage! == bound
+    asserte(conj(a.unify(1), a.unify(x), x.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // bound == storage!
+    asserte(conj(x.unify(y), y.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
+    asserte(conj(x.unify(y), x.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
+    asserte(conj(a.unify(1), b.unify(1), b.unify(a), x.unify(a), b.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound! == bound2 == storage
+    asserte(conj(a.unify(1), b.unify(1), b.unify(a), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound == bound2! == storage
+    asserte(conj(a.unify(1), b.unify(1), a.unify(b), x.unify(a), b.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2! == bound == storage
+    asserte(conj(a.unify(1), b.unify(1), a.unify(b), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2 == bound! == storage
 
     //TODO does recursive skip work if some vars are free, so it cant check recursive order?
 }
@@ -184,7 +189,6 @@ asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childN
 asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
 // Model Vars
-
 asserte(new App('lorem', (x,m) => m).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => m).update(m => m.set('ipsum')).node.textContent, 'ipsum');
 asserte(new App('lorem', (x,m) => ['div', m]).node.textContent, 'lorem');
@@ -195,7 +199,6 @@ asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).node.styl
 asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
 asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.innerHTML, 'loremipsum');
 asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.innerHTML, 'loremipsumdolor');
-
 
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');

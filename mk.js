@@ -61,16 +61,17 @@ class List {
         return '(' + this._toString() + ')';
     }
     unify(x_var, y_var) { //DOC unifier has to be very lazy about preserving variable paths and not updating to latest value
-        let {car: x_bnd, cdr: x} = this.walk_binding(x_var);
-        let {car: y_bnd, cdr: y} = this.walk_binding(y_var);
-        log('unify', x, y);
-        if (x == y) {
-            if (x_bnd instanceof SVar) return this.extend(y_bnd, x_bnd);
-            else if (y_bnd instanceof SVar) return this.extend(x_bnd, y_bnd);
-            return this; }
-        if (x instanceof LVar) return this.extend(x, y_var); // Never true for SVar, which is always bound
+        let x, y;
+        ({car: x_var, cdr: x} = this.walk_binding(x_var));
+        ({car: y_var, cdr: y} = this.walk_binding(y_var));
+        log('unify', x_var, x, y_var, y);
+        if (x === y) {
+            if (x instanceof LVar || x_var === y_var) return this; // Vars already in same equivalence class: share lowest variable or just ground terms.
+            else if (x_var instanceof LVar) return this.extend(x_var, y_var); // Align vars to same equivalence class
+            else return this.extend(y_var, x_var); }
+        if (x instanceof LVar) return this.extend(x, y_var); // Align to equivalence class, not bound value.
         if (y instanceof LVar) return this.extend(y, x_var);
-        if (primitive(x) || primitive(y)) return failure;
+        if (primitive(x) || primitive(y)) return failure; // Primitives but not ===
         let s = this;
         for (let k of Object.keys(x).filter(k => Object.hasOwn(y, k))) {
             s = s.unify(x[k], y[k]);
@@ -123,7 +124,7 @@ class List {
                     updates = updates.acons(x_val[k], y_val[k]);
                 }
                 else { // Otherwise, allocate new memory for the new values.
-                    norm[k] = new LVar();
+                    norm[k] = new SVar();
                     updates = updates.acons(norm[k], y_val[k]);
                     //s = s.update_binding(norm[k], y_val[k], prev, next);
                 }
@@ -132,8 +133,10 @@ class List {
             return updates.update_substitution(s.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
         }
     }
-    equiv_svars(v) {
-        return list(v)
+    equiv_svars(v) { // Find all svars that point to the same svar as v in this substitution.
+        let equiv = this.filter(b => b.cdr === v).map(b => this.equiv_svars(b.car)).fold((x,y) => x.append(y), nil)
+        if (v instanceof SVar) return equiv.cons(v);
+        return equiv;
     }
 }
 
@@ -231,7 +234,7 @@ class LVar {
 }
 
 class SVar extends LVar {
-    
+    toString() { return `[${this.label}${this.label ? ':' : ''}${this.id}]`; }
 }
 
 class QuotedVar {
