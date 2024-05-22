@@ -242,8 +242,12 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
             
             let v = new LVar();
             let g = template[k](v, model);
-            if (g instanceof Goal) {
-                let o = new PropObserver(v, parent, k);
+            if (g instanceof LVar) {
+                let o = new PropObserver(g, parent, k);
+                [sub, obs] = o.update(sub, obs);
+            }
+            else if (g instanceof Goal) {
+                let o = new PropObserver(v, parent, k, g);
                 [sub, obs] = o.update(sub, obs);
             }
             else parent[k] = g;

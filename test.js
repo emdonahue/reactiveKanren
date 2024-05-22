@@ -208,7 +208,7 @@ asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
 
 asserte(new App('lorem', (x,m) => [{name: () => m}]).node.name, 'lorem');
 asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
-asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, 'lorem');
+asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, undefined);
 
 /*
 // Static
