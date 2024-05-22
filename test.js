@@ -2,7 +2,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj} from './mk.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 
@@ -193,17 +193,22 @@ asserte(new App('lorem', (x,m) => m).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => m).update(m => m.set('ipsum')).node.textContent, 'ipsum');
 asserte(new App('lorem', (x,m) => ['div', m]).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => ['div', m]).update(m => m.set('ipsum')).node.textContent, 'ipsum');
-asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).node.name, 'lorem');
-asserte(new App('lorem', (x,m) => [{tagName: 'div', name: m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
-asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).node.style.color, 'red');
-asserte(new App('red', (x,m) => [{tagName: 'div', style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
+asserte(new App('lorem', (x,m) => [{name: m}]).node.name, 'lorem');
+asserte(new App('lorem', (x,m) => [{name: m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
+asserte(new App('red', (x,m) => [{style: {color: m}}]).node.style.color, 'red');
+asserte(new App('red', (x,m) => [{style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
 asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.innerHTML, 'loremipsum');
 asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.innerHTML, 'loremipsumdolor');
 
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
+//asserte(new App('lorem', (x,m) => conj(x.eq('ipsum'), x.eq(m))).node.textContent, '');
 asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
+
+asserte(new App('lorem', (x,m) => [{name: () => m}]).node.name, 'lorem');
+asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
+asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, 'lorem');
 
 /*
 // Static

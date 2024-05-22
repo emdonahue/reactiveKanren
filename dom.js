@@ -148,7 +148,8 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
     else if (spec instanceof LVar) { // Build a watched Text node
         log('render', 'var', spec);
         if (sub.walk(spec) instanceof LVar) throw new Error('Rendering free var: ' + spec); //DBG
-	var [node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
+        let node;
+	[node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
         log('render', 'var', spec, node.outerHTML);
 	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent', goal)) : obs, goals]; }
     else if (spec instanceof Function) { // Build a dynamic node using the model
@@ -156,7 +157,6 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
         let g = spec(v, model);
         if (g instanceof Goal) {
             let ss = g.run(1, {reify: false, substitution: sub});
-            if (nil === ss) throw new Error('Derived goal failure: ' + sub.reify(g));
             return render(v, ss.car.substitution, obs, model, update, goals, g); }
         else { return render(g, sub, obs, model, update, goals); }
         //return render_fn(spec, sub, model, goals, (r, s, g) => render(r, s, obs, model, update, g));
@@ -231,9 +231,25 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
             parent[k] = sub.walk(template[k]);
         }
         else if (template[k] instanceof Function) {
-            let v;
-            [v, sub, goals] = render_fn(template[k], sub, model, goals, (r, s, g) => [r, s, g]);
-            parent[k] = sub.walk(v); }}
+            /*
+            let v = new LVar();
+            let g = template(v, model);
+            if (g instanceof Goal) {
+                let ss = g.run(1, {reify: false, substitution: sub});
+                if (nil === ss) throw new Error('Derived goal failure: ' + sub.reify(g));
+                return rndr(v, ss.car.substitution, goals.conj(g)); }
+            else { return rndr(g, sub, goals); }*/
+            
+            let v = new LVar();
+            let g = template[k](v, model);
+            if (g instanceof Goal) {
+                let o = new PropObserver(v, parent, k);
+                [sub, obs] = o.update(sub, obs);
+            }
+            else parent[k] = g;
+            //[v, sub, goals] = render_fn(template[k], sub, model, goals, (r, s, g) => [r, s, g]);
+            //if (v instanceof LVar) obs = obs.cons(new PropObserver(v, parent, k));
+             }}
     return [obs, goals];
 }
 
