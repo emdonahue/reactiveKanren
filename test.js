@@ -1,3 +1,4 @@
+"use strict"
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
@@ -180,7 +181,7 @@ asserte(new App(null, [x => x.eq('div'), 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [x => x.eq({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum');
 asserte(new App(null, [{style: {color: x => x.eq('purple')}}, 'lorem']).node.style.color, 'purple');
-asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div></div>');
+asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div><!----></div>');
 
 asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes.length, 2);
 asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
@@ -202,6 +203,8 @@ asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(
 
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
+logging('update')
+logging('render')
 asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
 
 //asserte(new App('lorem', (x,m) => conj(x.eq('ipsum'), x.eq(m))).node.textContent, '');

@@ -1,3 +1,4 @@
+"use strict"
 import {logging, log, dlog, toString, copy, equals} from './util.js';
 //TODO let query variables be added manually not just extracted from fresh
 

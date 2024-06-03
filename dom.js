@@ -1,3 +1,4 @@
+"use strict"
 import {nil, cons, list, Pair, List, LVar, primitive, fresh, conde, unify, reunify, succeed, fail, failure, Goal, quote, QuotedVar, SVar} from './mk.js'
 import {logging, log, dlog, copy, toString, is_string} from './util.js'
 
@@ -18,6 +19,8 @@ class App {
     update(g) {
         if (g instanceof Function) return this.update(g(this.model));
         log('update', 'goal', g, this.goals);
+        log('update', 'node', this.node);
+        console.log(this.node)
         log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);
         log('update', 'observers', 'old', this.observers);
@@ -72,13 +75,25 @@ class DynamicNode {
     }
 
     render(sub) { // -> node substitution observers goals
+        let f = this.render_nodes(sub);
+        f.appendChild(this.comment);
+        return f;
+    }
+
+    render_nodes(sub) {
         this.nodes = this.goal.run(-1, {reify: false, substitution: sub}).map(s => [s,s.reify(this.lvar)]).map(([s,r]) => render(r, s.substitution, nil, this.model, this.updater, succeed)[0]);
-        return this.nodes.fold((d,n) => d.appendChild(n), document.createDocumentFragment());
-            //return render(v, ss.car.substitution, obs, model, update, goals, g);
+        let f = document.createDocumentFragment();
+        this.nodes.map(n => f.appendChild(n));
+        return f;
     }
 
     update(sub, obs) {
-        console.log('test')
+        log('update', 'dynamic', this.comment.parentNode.outerHTML);
+        console.log(this.comment.parentNode)
+        this.nodes.map(n => n.remove());
+        console.log(this.comment.parentNode)
+        //this.render(sub)
+        this.comment.parentNode.insertBefore(this.render_nodes(sub), this.comment);
         return [sub, obs.cons(this)];
         /*
         let ss = this.goal.run(1, {reify: false, substitution: sub});
