@@ -61,15 +61,18 @@ class PropObserver {
 }
 
 class DynamicNode {
-    constructor(model, goal) {
+    constructor(lvar, model, goal) {
+        this.lvar = lvar;
         this.goal = goal;
         this.model = model;
         this.comment = document.createComment('');
 	
     }
 
-    render() {
-
+    render(sub) { // -> node substitution observers goals
+        let ss = this.goal.run(-1, {reify: false, substitution: sub}).map(s => [s,s.reify(this.lvar)]).fold((d,[s,r]) => d.appendChild(render(r, s.substitution, nil, this.model, () => 3, succeed)[0]), document.createDocumentFragment());
+        return ss;
+            //return render(v, ss.car.substitution, obs, model, update, goals, g);
     }
 
     update(sub, obs) {
@@ -163,7 +166,7 @@ class IterObserver {
 
 // RENDERING
 
-function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, goal=succeed) { // -> node substitution observers
+function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, goal=succeed) { // -> node substitution observers goals
     log('render', spec, Array.isArray(spec) ? 'array' : typeof spec, sub, obs, model, goals);
 
     if (typeof spec == 'string' || typeof spec == 'number') { // Simple Text nodes
@@ -177,14 +180,17 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
         let node;
 	[node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
         log('render', 'var', spec, node.outerHTML);
-	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent', goal)) : obs, goals]; }
+	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent', goal)) : obs, goals]; } //TODO whats this string special case
     else if (spec instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
         let g = spec(v, model);
-        if (g instanceof Goal) { // Must be a template because no templates supplied for child nodes
-            let d = new DynamicNode(model, g);
-            let ss = g.run(1, {reify: false, substitution: sub});
-            return render(v, ss.car.substitution, obs, model, update, goals, g); }
+        if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
+            let d = new DynamicNode(v, model, g);
+            let n = d.render(sub);
+            return [n, sub, obs, goals];
+            //let ss = g.run(1, {reify: false, substitution: sub});
+            //return render(v, ss.car.substitution, obs, model, update, goals, g);
+        }
         else { return render(g, sub, obs, model, update, goals); }
         //return render_fn(spec, sub, model, goals, (r, s, g) => render(r, s, obs, model, update, g));
     }
