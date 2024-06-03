@@ -13,13 +13,14 @@ class App {
         this.observers = o;
         this.node = n;
         this.goals = g;
-        this.update(succeed);
+        //this.update(succeed);
     }
     update(g) {
         if (g instanceof Function) return this.update(g(this.model));
         log('update', 'goal', g, this.goals);
         log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);
+        log('update', 'observers', 'old', this.observers);
         let ans = this.goals.run(1, {reify:false, substitution: g.reunify_substitution(this.substitution)});
         if (ans === nil) throw new Error('Update goal failed: ' + g);
         let s = ans.car.substitution;
@@ -27,10 +28,10 @@ class App {
         log('update', 'sub', 'updated', s);
         s = this.goals.run(1, {reify:false, substitution: s}).car.substitution;
         log('update', 'sub', 'derived', s);
-        if (2 === failure) throw Error('Update goal failed' + to_string(g));
+        if (2 === failure) throw Error('Update goal failed' + to_string(g));        
         let o;
         [s, o] = this.observers.fold(([sub, obs], o) => o.update(sub, obs), [s, nil]);
-        log('update', 'observers', o);
+        log('update', 'observers', 'new', o);
         this.substitution = garbage_collect(s, this.model);
         this.observers = o;
         return this;
@@ -61,21 +62,25 @@ class PropObserver {
 }
 
 class DynamicNode {
-    constructor(lvar, model, goal) {
+    constructor(lvar, model, goal, updater) {
         this.lvar = lvar;
         this.goal = goal;
         this.model = model;
         this.comment = document.createComment('');
-	
+        this.nodes = nil;
+	this.updater = updater;
     }
 
     render(sub) { // -> node substitution observers goals
-        let ss = this.goal.run(-1, {reify: false, substitution: sub}).map(s => [s,s.reify(this.lvar)]).fold((d,[s,r]) => d.appendChild(render(r, s.substitution, nil, this.model, () => 3, succeed)[0]), document.createDocumentFragment());
-        return ss;
+        this.nodes = this.goal.run(-1, {reify: false, substitution: sub}).map(s => [s,s.reify(this.lvar)]).map(([s,r]) => render(r, s.substitution, nil, this.model, this.updater, succeed)[0]);
+        return this.nodes.fold((d,n) => d.appendChild(n), document.createDocumentFragment());
             //return render(v, ss.car.substitution, obs, model, update, goals, g);
     }
 
     update(sub, obs) {
+        console.log('test')
+        return [sub, obs.cons(this)];
+        /*
         let ss = this.goal.run(1, {reify: false, substitution: sub});
         if (nil === ss) {
             delete this.node[this.attribute];
@@ -85,8 +90,9 @@ class DynamicNode {
         if (val instanceof LVar) return [sub, obs];
 	this.node[this.attr] = val;
         return [sub, obs.cons(this)];
+        */
     }
-    toString() { return `(${this.lvar} ${this.attr})` }
+    toString() { return `(Dyn ${this.lvar} ${this.goal})` }
 }
 
 /*
@@ -185,9 +191,9 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
         let v = new LVar();
         let g = spec(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let d = new DynamicNode(v, model, g);
+            let d = new DynamicNode(v, model, g, update);
             let n = d.render(sub);
-            return [n, sub, obs, goals];
+            return [n, sub, obs.cons(d), goals];
             //let ss = g.run(1, {reify: false, substitution: sub});
             //return render(v, ss.car.substitution, obs, model, update, goals, g);
         }

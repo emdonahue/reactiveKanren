@@ -203,6 +203,7 @@ asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
 asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
+
 //asserte(new App('lorem', (x,m) => conj(x.eq('ipsum'), x.eq(m))).node.textContent, '');
 asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
 
