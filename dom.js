@@ -60,6 +60,32 @@ class PropObserver {
     toString() { return `(${this.lvar} ${this.attr})` }
 }
 
+class DynamicNode {
+    constructor(model, goal) {
+        this.goal = goal;
+        this.model = model;
+        this.comment = document.createComment('');
+	
+    }
+
+    render() {
+
+    }
+
+    update(sub, obs) {
+        let ss = this.goal.run(1, {reify: false, substitution: sub});
+        if (nil === ss) {
+            delete this.node[this.attribute];
+            return [sub, obs.cons(this)]; }
+        let val = ss.car.reify(this.lvar);
+        log('update', 'attr', this.attr, this.lvar, val);
+        if (val instanceof LVar) return [sub, obs];
+	this.node[this.attr] = val;
+        return [sub, obs.cons(this)];
+    }
+    toString() { return `(${this.lvar} ${this.attr})` }
+}
+
 /*
   [X 1 2 3] insert before
   [1 2 3 X] append child
@@ -155,7 +181,8 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
     else if (spec instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
         let g = spec(v, model);
-        if (g instanceof Goal) {
+        if (g instanceof Goal) { // Must be a template because no templates supplied for child nodes
+            let d = new DynamicNode(model, g);
             let ss = g.run(1, {reify: false, substitution: sub});
             return render(v, ss.car.substitution, obs, model, update, goals, g); }
         else { return render(g, sub, obs, model, update, goals); }

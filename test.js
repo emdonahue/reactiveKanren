@@ -210,6 +210,49 @@ asserte(new App('lorem', (x,m) => [{name: () => m}]).node.name, 'lorem');
 asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
 asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, undefined);
 
+
+/*
+function treelist(x,m) {
+    return fresh((a,b,e) =>
+        [membero(m, e),
+         conde([e.isPairo(), x.eq(['div', treelist()])],
+               [e.isStringo(), x.eq(e)])];
+    );
+}
+
+
+asserte(new App(list(list('1a', '1b'), list('2a', '2b')), (x,m) => x.eq(['div', ])).node.innerHTML, 'lorem');
+*/
+
+// 0 or bare
+// string -> text node
+// list -> text node of appended
+// object -> object props, no children
+// goal -> ERR
+// fn -> string -> textnode
+// fn -> list -> textnode
+// fn -> goal -> fail -> comment node
+// fn -> goal -> string -> dynamic (text)
+// fn -> goal -> list -> dynamic (text)
+// fn -> goal -> array -> ????
+// fn -> goal -> multi -> ???
+
+// 1 child
+// string -> parent tag name
+// obj -> parent props
+// list -> ERR
+// goal -> fail -> comment
+// goal -> succeed -> swap in child
+// fn -> string -> parent tag name
+// fn -> object -> parent props
+// fn -> list -> static iterate with new models
+// fn -> goal -> fail -> comment
+// fn -> goal -> value -> rebuild child with new model (only need rebuild if binding variable changes)
+// 
+
+
+
+
 /*
 // Static
 
