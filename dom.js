@@ -225,7 +225,19 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
     else if (typeof head_spec == 'string'){ // Strings are tagNames
         return render_head([{tagName:head_spec}, ...templ_children], sub, obs, model, update, goals); } //TODO redirect recursions to head reander
     else if (head_spec instanceof Function) { // Dynamic head node
-        return render_fn(head_spec, sub, model, goals, (r, s, g) => render_head([r, ...templ_children], s, obs, model, update, g)); }
+        let v = new LVar();
+        let g = head_spec(v, model);
+        if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
+            throw new Error()
+            let d = new DynamicNode(v, model, g, update);
+            let n = d.render(sub);
+            return [n, sub, obs.cons(d), goals];
+            //let ss = g.run(1, {reify: false, substitution: sub});
+            //return render(v, ss.car.substitution, obs, model, update, goals, g);
+        }
+        else { return render_head([g, ...templ_children], sub, obs, model, update, goals); }
+               //return render_fn(head_spec, sub, model, goals, (r, s, g) => render_head([r, ...templ_children], s, obs, model, update, g));
+    }
     else if (head_spec instanceof List) { // Build an iterable DOM list
         let parent;
         [parent, obs, goals] = render_node(templ_children[0], sub, model, obs, goals, update);

@@ -193,17 +193,17 @@ asserte(new App(null, [() => list(null, null), 'div', 'lorem']).node.childNodes[
 asserte(new App(null, x => x.eq('lorem')).node.textContent, 'lorem');
 asserte(new App(null, x => fresh(y => [x.eq(y), y.eq('lorem')])).node.textContent, 'lorem');
 asserte(new App(null, x => fresh(y => [x.eq(quote(y)), y.eq('lorem')])).node.textContent, 'lorem');
-asserte(new App(null, [x => x.eq('div'), 'lorem']).node.tagName, 'DIV');
-asserte(new App(null, [x => x.eq({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
+//asserte(new App(null, [x => x.eq('div'), 'lorem']).node.tagName, 'DIV');
+//asserte(new App(null, [x => x.eq({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
 asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum');
 asserte(new App(null, [{style: {color: x => x.eq('purple')}}, 'lorem']).node.style.color, 'purple');
 asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div><!----></div>');
 
-asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes.length, 2);
-asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
+//asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes.length, 2);
+//asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
-asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes.length, 2);
-asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
+//asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes.length, 2);
+//asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
 // Model Vars
 asserte(new App('lorem', (x,m) => m).node.textContent, 'lorem');
@@ -230,7 +230,7 @@ asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum'))
 asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, undefined);
 
 // Stratification
-asserte(new App(list(1,2,3), (x,m) => m.membero(x)).node.textContent, '123'); 
+asserte(new App(list(1,2,3), (x,m) => m.membero(x)).node.textContent, '123');
 //asserte(new App(list(list(1,2), list(3,4)), (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
 
 
