@@ -97,7 +97,7 @@ class DynamicNode {
 }
 
 class ModelNode {
-    constructor(lvar, model, goal, updater, template) {
+    constructor(lvar, model, goal, updater, template=lvar) {
         this.lvar = lvar;
         this.goal = goal;
         this.model = model;
@@ -226,7 +226,7 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
         let v = new LVar();
         let g = spec(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let d = new DynamicNode(v, model, g, update);
+            let d = new ModelNode(v, model, g, update);
             let n = d.render(sub);
             return [n, sub, obs.cons(d), goals];
             //let ss = g.run(1, {reify: false, substitution: sub});
