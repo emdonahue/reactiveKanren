@@ -223,24 +223,56 @@ asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.text
 
 //asserte(new App('lorem', (x,m) => conj(x.eq('ipsum'), x.eq(m))).node.textContent, '');
 asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
+asserte(new App('lorem', (x,m) => fresh(y => [y.eq(m), x.eq(['div', y])])).node.firstChild.outerHTML, '<div>lorem</div>');
 
 asserte(new App('lorem', (x,m) => [{name: () => m}]).node.name, 'lorem');
 asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
 asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, undefined);
 
+// Stratification
+asserte(new App(list(1,2,3), (x,m) => m.membero(x)).node.textContent, '123'); 
+//asserte(new App(list(list(1,2), list(3,4)), (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
+
 
 /*
 function treelist(x,m) {
-    return fresh((a,b,e) =>
-        [membero(m, e),
-         conde([e.isPairo(), x.eq(['div', treelist()])],
-               [e.isStringo(), x.eq(e)])];
+    return fresh((e,y) =>
+        conde([m.isPairo(), x.eq(['div', (x2,m2) => [m2.membero(x2), treelist])])],
+              [m.isStringo(), x.eq(m)])]
+    );
+}
+*/
+
+/*
+function treelist(x,m) {
+    return fresh((e,y) =>
+        [m.membero(e),
+         conde([e.isPairo(), treelist(y,e), x.eq(['div', y])],
+               [e.isStringo(), x.eq(e)])]
+    );
+}
+
+function treelist(x,m) {
+    return fresh((e,y) =>
+        [m.membero(e),
+         conde([e.isPairo(), x.eq(['div', [e.membero(y), treelist]])],
+               [e.isStringo(), x.eq(e)])]
     );
 }
 
 
-asserte(new App(list(list(1, 2), 3), (x,m) => x.eq(['div', ])).node.innerHTML, 'lorem');
+
+
+logging('render')
+let app = new App(list(list(1, 2), 3), treelist);
+console.log(app.node)
+asserte(app.node.textContent, 'lorem')
 */
+
+//asserte(new App(list(list(1, 2), 3), treelist).node.innerHTML, 'lorem');
+
+//asserte(new App(list(list(1, 2), 3), (x,m) => [m.membero(x), treelist]).node.innerHTML, 'lorem');
+
 
 // 0 or bare
 // string -> text node

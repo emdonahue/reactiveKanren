@@ -18,6 +18,7 @@ function dlog(...args) {
 }
 
 function toString(x) {
+    if (x instanceof Node) return x;
     return !x || (x.toString && x.toString === Object.prototype.toString) ? JSON.stringify(x) : x.toString();
 }
 

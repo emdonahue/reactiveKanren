@@ -75,6 +75,7 @@ class DynamicNode {
 
     render(sub) { // -> doc frag XX -> node substitution observers goals
         let f = this.render_nodes(sub);
+        log('render', 'nodes', ...this.nodes);
         f.appendChild(this.comment);
         return f;
     }
@@ -82,7 +83,7 @@ class DynamicNode {
     render_nodes(sub) {
         this.nodes = this.goal.run(-1, {reify: false, substitution: sub}).map(s => [s,s.reify(this.lvar)]).map(([s,r]) => render(r, s.substitution, nil, this.model, this.updater, succeed)[0]);
         let f = document.createDocumentFragment();
-        this.nodes.map(n => f.appendChild(n));
+        this.nodes.every(n => f.appendChild(n));
         return f;
     }
 
@@ -213,7 +214,9 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
         //return render_fn(spec, sub, model, goals, (r, s, g) => render(r, s, obs, model, update, g));
     }
     else if (Array.isArray(spec)) return render_head(spec, sub, obs, model, update, goals);
-    else throw Error('Unrecognized render spec: ' + JSON.stringify(spec)); }
+    else {
+        console.error('Unrecognized render spec', spec);
+        throw Error('Unrecognized render spec: ' + toString(spec)); }}
 
 function render_head([templ_head, ...templ_children], sub, obs, model, update, goals) { //Render DOM tree
     let head_spec = sub.walk(templ_head);

@@ -185,6 +185,10 @@ class Pair extends List {
     update_substitution(curr, prev=curr, next=this) { // Called on the updates substitution with the normal substitution as a parameter.
         return curr.update_binding(this.caar(), this.cdar(), prev, next, this.cdr);
     }
+    every(f) {
+        f(this.car);
+        this.cdr.every(f);
+        return this; }
     isNil() { return false; }
 
     // x->1, y->2     
@@ -211,6 +215,7 @@ class Empty extends List {
     isNil() { return true; }
     fold(f, x) { return x; }
     remove(x) { return this; }
+    every(f) { return this; }
     _toString() { return ''; }
 }
 
