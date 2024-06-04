@@ -216,8 +216,8 @@ asserte(new App('lorem', (x,m) => [{name: m}]).node.name, 'lorem');
 asserte(new App('lorem', (x,m) => [{name: m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
 asserte(new App('red', (x,m) => [{style: {color: m}}]).node.style.color, 'red');
 asserte(new App('red', (x,m) => [{style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
-asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.innerHTML, 'loremipsum');
-asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.innerHTML, 'loremipsumdolor');
+asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.textContent, 'loremipsum');
+asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.textContent, 'loremipsumdolor');
 
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
@@ -225,7 +225,7 @@ asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.text
 
 //asserte(new App('lorem', (x,m) => conj(x.eq('ipsum'), x.eq(m))).node.textContent, '');
 asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
-asserte(new App('lorem', (x,m) => fresh(y => [y.eq(m), x.eq(['div', y])])).node.firstChild.outerHTML, '<div>lorem</div>');
+asserte(new App('lorem', (x,m) => fresh(y => [y.eq(m), x.eq(['div', y])])).node.firstChild.outerHTML, '<div>lorem<!----></div>');
 
 asserte(new App('lorem', (x,m) => [{name: () => m}]).node.name, 'lorem');
 asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
@@ -235,7 +235,7 @@ asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name
 
 // Stratification
 asserte(new App(list(1,2,3), (x,m) => m.membero(x)).node.textContent, '123');
-//asserte(new App(list(list(1,2), list(3,4)), (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
+asserte(new App(list(list(1,2), list(3,4)), [(x,m) => m.membero(x), (x,m) => m.membero(x)]).node.textContent, '1234');
 
 
 /*

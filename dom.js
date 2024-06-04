@@ -97,7 +97,7 @@ class DynamicNode {
 }
 
 class ModelNode {
-    constructor(lvar, model, goal, updater, template=lvar) {
+    constructor(lvar, model, goal, updater, template=null) {
         this.lvar = lvar;
         this.goal = goal;
         this.model = model;
@@ -115,7 +115,7 @@ class ModelNode {
     }
 
     render_nodes(sub) {
-        this.nodes = this.goal.run(-1, {reify: false, substitution: sub}).map(s => render(this.template, s.substitution, nil, this.lvar, this.updater, succeed)[0]);
+        this.nodes = this.goal.run(-1, {reify: false, substitution: sub}).map(s => render(this.template || s.walk(this.lvar), s.substitution, nil, this.lvar, this.updater, succeed)[0]);
         let f = document.createDocumentFragment();
         this.nodes.every(n => f.appendChild(n));
         return f;
@@ -218,10 +218,16 @@ function render(spec, sub=nil, obs=nil, model={}, update=()=>{}, goals=succeed, 
     else if (spec instanceof LVar) { // Build a watched Text node
         log('render', 'var', spec);
         if (sub.walk(spec) instanceof LVar) throw new Error('Rendering free var: ' + spec); //DBG
+        let d = new ModelNode(spec, model, succeed, update);
+        let n = d.render(sub);
+        return [n, sub, obs.cons(d), goals];
+        /*
         let node;
 	[node, sub, obs, goals] = render(sub.walk(spec), sub, obs, model, update, goals);
         log('render', 'var', spec, node.outerHTML);
-	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent', goal)) : obs, goals]; } //TODO whats this string special case
+	return [node, sub, node.nodeType == Node.TEXT_NODE ? obs.cons(new PropObserver(spec, node, 'textContent', goal)) : obs, goals];
+        */
+    } //TODO whats this string special case
     else if (spec instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
         let g = spec(v, model);
