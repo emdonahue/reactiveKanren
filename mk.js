@@ -1,5 +1,5 @@
 "use strict"
-import {logging, log, dlog, toString, copy, equals} from './util.js';
+import {logging, log, dlog, toString, copy, equals, is_string, is_number} from './util.js';
 //TODO let query variables be added manually not just extracted from fresh
 
 // Lists
@@ -235,6 +235,10 @@ class LVar {
     set(x) { return new Reunification(this, x); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
+    constraint(f, ...lvars) { return new Constraint(f, this, ...lvars); }
+    isStringo() { return this.constraint(v => is_string(v)); }
+    isNumbero() { return this.constraint(v => is_number(v)); }
+    isPairo() { return this.constraint(v => v instanceof Pair); }
 }
 
 class SVar extends LVar {
@@ -348,6 +352,19 @@ class Unification extends Goal {
     toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
 
+class Constraint extends Goal {
+    constructor(f, ...lvars) {
+        super();
+        this.lvars = [...lvars];
+        this.f = f;
+    }
+    eval(s, ctn=succeed) {
+        if (this.f.apply(null, this.lvars.map(x => s.walk(x)))) return ctn.cont(s);
+        return failure;
+    }
+    toString() { return `${this.f}(${this.lvars})`; }
+}
+
 class Reunification extends Goal {
     constructor(lhs, rhs) {
         super();
@@ -452,6 +469,7 @@ class State extends Stream {
     mplus(s) { return new Answers(this, s); }
     _mplus(s) { return new Answers(this, s); }
     walk_binding(lvar) { return this.substitution.walk_binding(lvar); }
+    walk(lvar) { return this.substitution.walk(lvar); }
 }
 
 

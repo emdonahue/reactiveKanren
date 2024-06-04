@@ -72,6 +72,14 @@ asserte(fresh((x,y) => [unify(x,cons(1, y)), unify(y,cons(2, nil))]).run(), List
 asserte(fresh(x => [conde(unify(x,1), unify(x,1)), unify(x,1)]).run(), List.fromTree([[1], [1]]));
 asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
+// Constraints
+asserte(fresh((x) => [unify(x, 1), x.isStringo()]).run(), nil);
+asserte(fresh((x) => [unify(x, 'a'), x.isStringo()]).run(), list(list('a')));
+asserte(fresh((x) => [unify(x, 1), x.isNumbero()]).run(), list(list(1)));
+asserte(fresh((x) => [unify(x, 'a'), x.isNumbero()]).run(), nil);
+asserte(fresh((x) => [unify(x, 1), x.isPairo()]).run(), nil);
+asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))));
+
 
 { // Reunify
     let a = new LVar().name('a');
@@ -203,8 +211,6 @@ asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(
 
 
 asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
-logging('update')
-logging('render')
 asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
 
 //asserte(new App('lorem', (x,m) => conj(x.eq('ipsum'), x.eq(m))).node.textContent, '');

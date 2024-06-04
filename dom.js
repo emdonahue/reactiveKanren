@@ -20,7 +20,6 @@ class App {
         if (g instanceof Function) return this.update(g(this.model));
         log('update', 'goal', g, this.goals);
         log('update', 'node', this.node);
-        console.log(this.node)
         log('update', 'model', this.model);
         log('update', 'sub', 'prev', this.substitution);
         log('update', 'observers', 'old', this.observers);
@@ -74,7 +73,7 @@ class DynamicNode {
 	this.updater = updater;
     }
 
-    render(sub) { // -> node substitution observers goals
+    render(sub) { // -> doc frag XX -> node substitution observers goals
         let f = this.render_nodes(sub);
         f.appendChild(this.comment);
         return f;
@@ -89,9 +88,7 @@ class DynamicNode {
 
     update(sub, obs) {
         log('update', 'dynamic', this.comment.parentNode.outerHTML);
-        console.log(this.comment.parentNode)
         this.nodes.map(n => n.remove());
-        console.log(this.comment.parentNode)
         //this.render(sub)
         this.comment.parentNode.insertBefore(this.render_nodes(sub), this.comment);
         return [sub, obs.cons(this)];
