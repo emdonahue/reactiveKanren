@@ -239,6 +239,7 @@ class LVar {
     isStringo() { return this.constraint(v => is_string(v)); }
     isNumbero() { return this.constraint(v => is_number(v)); }
     isPairo() { return this.constraint(v => v instanceof Pair); }
+    membero(x) { return fresh((a,b) => [this.eq(cons(a,b)), conde(a.eq(x), b.membero(x))]); }
 }
 
 class SVar extends LVar {
@@ -268,7 +269,7 @@ class Goal {
         return new Disj(this, x);
     }
     filter(f) { return f(this) ? this : succeed; }
-    run(n=1, {reify=true, substitution=nil}={}) {
+    run(n=-1, {reify=true, substitution=nil}={}) {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
@@ -331,7 +332,7 @@ class Fresh extends Goal {
         this.vars = vars;
         this.ctn = ctn;
     }
-    run(n=1, {reify=true, substitution=nil}={}) {
+    run(n=-1, {reify=true, substitution=nil}={}) {
         return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', s.substitution).reify(this.vars) : s);
     }
     eval(s, ctn=succeed) {

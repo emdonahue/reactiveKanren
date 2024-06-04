@@ -72,6 +72,13 @@ asserte(fresh((x,y) => [unify(x,cons(1, y)), unify(y,cons(2, nil))]).run(), List
 asserte(fresh(x => [conde(unify(x,1), unify(x,1)), unify(x,1)]).run(), List.fromTree([[1], [1]]));
 asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
 
+// Lists
+asserte(fresh(xs => [xs.eq(nil), xs.membero(1)]).run(), nil);
+asserte(fresh(x => fresh(xs => [xs.eq(list(1)), xs.membero(x)])).run(), list(list(1)));
+asserte(fresh(() => fresh(xs => [xs.eq(list(1)), xs.membero(2)])).run(), nil);
+asserte(fresh(() => fresh(xs => [xs.eq(list(1)), xs.membero(1)])).run(), list(list()));
+asserte(fresh(x => fresh(xs => [xs.eq(list(1, 2, 3)), xs.membero(x)])).run(), list(list(1), list(2), list(3)));
+
 // Constraints
 asserte(fresh((x) => [unify(x, 1), x.isStringo()]).run(), nil);
 asserte(fresh((x) => [unify(x, 'a'), x.isStringo()]).run(), list(list('a')));
@@ -79,6 +86,7 @@ asserte(fresh((x) => [unify(x, 1), x.isNumbero()]).run(), list(list(1)));
 asserte(fresh((x) => [unify(x, 'a'), x.isNumbero()]).run(), nil);
 asserte(fresh((x) => [unify(x, 1), x.isPairo()]).run(), nil);
 asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))));
+
 
 
 { // Reunify
@@ -231,7 +239,7 @@ function treelist(x,m) {
 }
 
 
-asserte(new App(list(list('1a', '1b'), list('2a', '2b')), (x,m) => x.eq(['div', ])).node.innerHTML, 'lorem');
+asserte(new App(list(list(1, 2), 3), (x,m) => x.eq(['div', ])).node.innerHTML, 'lorem');
 */
 
 // 0 or bare
@@ -299,11 +307,6 @@ let template = (_,m) => ['div',
                          [{onclick: reunify(m, {selected: {title: 'SETTITLE'}})},
                           (selected, todo) => todo.eq({selected: quote({title: selected.name('selected.title/get')})})]];
 */
-
-//logging('update');
-//logging('unify');
-//logging('init');
-//logging('render');
 
 //let app = new App(data, template);
 //document.body.appendChild(app.node);
