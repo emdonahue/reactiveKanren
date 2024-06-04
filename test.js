@@ -199,6 +199,8 @@ asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum')
 asserte(new App(null, [{style: {color: x => x.eq('purple')}}, 'lorem']).node.style.color, 'purple');
 asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div><!----></div>');
 
+asserte(new App(null, [x => x.eq(cons(1,2)), (x,m) => m.eq({car: x})]).node.textContent, 1);
+
 //asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes.length, 2);
 //asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
 
@@ -228,6 +230,8 @@ asserte(new App('lorem', (x,m) => fresh(y => [y.eq(m), x.eq(['div', y])])).node.
 asserte(new App('lorem', (x,m) => [{name: () => m}]).node.name, 'lorem');
 asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
 asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, undefined);
+
+
 
 // Stratification
 asserte(new App(list(1,2,3), (x,m) => m.membero(x)).node.textContent, '123');

@@ -90,20 +90,42 @@ class DynamicNode {
     update(sub, obs) {
         log('update', 'dynamic', this.comment.parentNode.outerHTML);
         this.nodes.map(n => n.remove());
-        //this.render(sub)
         this.comment.parentNode.insertBefore(this.render_nodes(sub), this.comment);
         return [sub, obs.cons(this)];
-        /*
-        let ss = this.goal.run(1, {reify: false, substitution: sub});
-        if (nil === ss) {
-            delete this.node[this.attribute];
-            return [sub, obs.cons(this)]; }
-        let val = ss.car.reify(this.lvar);
-        log('update', 'attr', this.attr, this.lvar, val);
-        if (val instanceof LVar) return [sub, obs];
-	this.node[this.attr] = val;
+    }
+    toString() { return `(Dyn ${this.lvar} ${this.goal})` }
+}
+
+class ModelNode {
+    constructor(lvar, model, goal, updater, template) {
+        this.lvar = lvar;
+        this.goal = goal;
+        this.model = model;
+        this.comment = document.createComment('');
+        this.nodes = nil;
+        this.template = template;
+	this.updater = updater;
+    }
+
+    render(sub) { // -> doc frag XX -> node substitution observers goals
+        let f = this.render_nodes(sub);
+        log('render', 'nodes', ...this.nodes);
+        f.appendChild(this.comment);
+        return f;
+    }
+
+    render_nodes(sub) {
+        this.nodes = this.goal.run(-1, {reify: false, substitution: sub}).map(s => render(this.template, s.substitution, nil, this.lvar, this.updater, succeed)[0]);
+        let f = document.createDocumentFragment();
+        this.nodes.every(n => f.appendChild(n));
+        return f;
+    }
+
+    update(sub, obs) {
+        log('update', 'dynamic', this.comment.parentNode.outerHTML);
+        this.nodes.map(n => n.remove());
+        this.comment.parentNode.insertBefore(this.render_nodes(sub), this.comment);
         return [sub, obs.cons(this)];
-        */
     }
     toString() { return `(Dyn ${this.lvar} ${this.goal})` }
 }
@@ -228,8 +250,7 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
         let v = new LVar();
         let g = head_spec(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            throw new Error()
-            let d = new DynamicNode(v, model, g, update);
+            let d = new ModelNode(v, model, g, update, templ_children[0]);
             let n = d.render(sub);
             return [n, sub, obs.cons(d), goals];
             //let ss = g.run(1, {reify: false, substitution: sub});
