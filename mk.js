@@ -338,7 +338,7 @@ class Fresh extends Goal {
         this.ctn = ctn;
     }
     run(n=-1, {reify=true, substitution=nil}={}) {
-        return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', s.substitution).reify(this.vars) : s);
+        return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(this.vars)) : s);
     }
     eval(s, ctn=succeed) {
         return to_goal(this.ctn(...this.vars)).conj(ctn).suspend(s);
@@ -417,10 +417,11 @@ class Stream {
     mplus(s) { return s._mplus(this); }
     _mplus(s) { return new MPlus(this, s); }
     take(n) {
-        if (0 === n) return nil;
+        if (0 === n || n === -5) return nil; //TODO remove -50 emergency recursion stop
         let s = this;
         while (s.isIncomplete()) { s = s.step(); }
         if (failure == s) return nil;
+        log('run', 'take', s.answer());
         return new Pair(s.answer(), s.step().take(n-1));
     }
     isIncomplete() { return true }

@@ -237,15 +237,19 @@ asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name
 asserte(new App(list(1,2,3), (x,m) => m.membero(x)).node.textContent, '123');
 asserte(new App(list(list(1,2), list(3,4)), [(x,m) => m.membero(x), (x,m) => m.membero(x)]).node.textContent, '1234');
 
+//logging('run')
+//logging('render', 'dynamic');
+asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML, '<div><div>1<!---->2<!----><!----></div><!----><div>3<!---->4<!----><!----></div><!----><!----></div>');
+//console.log(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML)
 
-/*
+
+
 function treelist(x,m) {
-    return fresh((e,y) =>
-        conde([m.isPairo(), x.eq(['div', (x2,m2) => [m2.membero(x2), treelist])])],
-              [m.isStringo(), x.eq(m)])]
-    );
+    return conde([m.isNumbero(), x.eq(m)],
+                 [m.isPairo(), x.eq(['div', [(y,m) => m.membero(y), treelist]])]);
 }
-*/
+//fresh(y => [m.membero(y), x.eq(['div', []])])
+//[m.isPairo(), x.eq(['div', (x,m) => [m.membero(x), treelist]])]
 
 /*
 function treelist(x,m) {
