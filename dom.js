@@ -82,6 +82,7 @@ class DynamicNode {
 
     render(sub) { // -> doc frag XX -> node substitution observers goals
         let f = this.render_nodes(sub);
+        this.search = this.goal.expand_run(sub);
         log('render', 'nodes', ...this.nodes);
         f.appendChild(this.comment);
         return f;
@@ -117,6 +118,7 @@ class DynamicNode {
 
 */
 
+/*
 class IterObserver {
     constructor(lvar, node, lvar_nodes, template) {
         //dlog('iter observer', lvar_nodes)
@@ -145,21 +147,6 @@ class IterObserver {
             this.node.appendChild(node);
             return cons(v, node);
         }));
-        //dlog('lvar nodes', this.lvar_nodes);
-                    /*
-        this.lvar_nodes = this.lvar_nodes.filter(
-            function ({car:v, cdr:n}) {
-                dlog('walk', v, sub.walk(v))
-                if (!(sub.walk(v) instanceof Pair)) {
-                    console.log('remove', sub.walk(v))
-                    n.remove();
-                    return false; }
-                return true;
-            });
-*/
-        //if (val instanceof Pair) return true;
-        //this.node.remove();
-        //return false;
         return [sub, obs.cons(this)];
     }
     moddom(lvar, sub) {
@@ -172,6 +159,8 @@ class IterObserver {
     }
 
 }
+*/
+
 
 
 
@@ -222,7 +211,9 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
         else { return render_head([g, ...templ_children], sub, obs, model, update, goals); }
                //return render_fn(head_spec, sub, model, goals, (r, s, g) => render_head([r, ...templ_children], s, obs, model, update, g));
     }
+    /*
     else if (head_spec instanceof List) { // Build an iterable DOM list
+        throw Error()
         let parent;
         [parent, obs, goals] = render_node(templ_children[0], sub, model, obs, goals, update);
         let items = head_spec;
@@ -239,6 +230,7 @@ function render_head([templ_head, ...templ_children], sub, obs, model, update, g
             linkvar = items.cdr;
             items = sub.walk(linkvar); }
         return [parent, sub, obs.cons(new IterObserver(listvar, parent, list(...vars_nodes), templ_children[1])), goals]; }
+    */
     else if (head_spec.prototype === undefined) { // POJOs store node properties
         let parent;
         [parent, obs, goals] = render_node(head_spec, sub, model, obs, goals, update);

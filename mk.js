@@ -305,6 +305,7 @@ class Succeed extends Goal {
         log('expand', 'return', this, g);
         return new SearchLeaf(g); }
     conj(g) { return g; }
+    expand(s, ctn, cjs) { return ctn.expand_ctn(s, cjs); }
     toString() { return 'succeed'; }
 }
 
@@ -312,6 +313,7 @@ class Fail extends Goal {
     eval(s) { return failure; }
     suspend(s) { return failure; }
     conj(g) { return fail; }
+    expand(s, ctn, cjs) { throw new Error('nyi'); }
     toString() { return 'fail'; }
 }
 
@@ -327,7 +329,7 @@ class Conj extends Goal {
         return this.lhs.eval(s, this.rhs.conj(ctn));
     }
     expand(s, ctn, cjs) {
-        log('expand', 'conj', this, ctn, cjs);
+        log('expand', 'conj', this, ctn, cjs);        
         return this.lhs.expand(s, ctn.conj(this.rhs), cjs); 
     }
     toString() { return `(${this.lhs} & ${this.rhs})`; }
@@ -396,6 +398,11 @@ class Constraint extends Goal {
     eval(s, ctn=succeed) {
         if (this.f.apply(null, this.lvars.map(x => s.walk(x)))) return ctn.cont(s);
         return failure;
+    }
+    expand(s, ctn, cjs) {
+        log('expand', 'constraint', this, ctn, cjs);
+        s = (this.f.apply(null, this.lvars.map(x => s.walk(x)))) ? s : failure;
+        return ctn.expand_ctn(s, cjs.conj(this));
     }
     toString() { return `${this.f}(${this.lvars})`; }
 }
