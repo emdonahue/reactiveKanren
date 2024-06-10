@@ -7,13 +7,14 @@ class App {
         this.model = new SVar();
         let s = nil.update_binding(this.model, model);
         log('init', 'normalize', s, model);
-        let [n, s2, o, g] = render(template, s, nil, this.model, this.update.bind(this));
+        let [n, s2, o, g, sups] = render(template, s, nil, this.model, this.update.bind(this));
         console.assert(g);
         log('init', 'goals', g);
         this.substitution = s2;
         this.observers = o;
         this.node = n;
         this.goals = g;
+        this.supervisors = sups;
         //this.update(succeed);
     }
     update(g) {
@@ -77,12 +78,12 @@ class DynamicNode {
     static render(spec, sub, obs, model, update, goals, goal=succeed, template=null) {
         let d = new this(spec, model, goal, update, template);
         let n = d.render(sub);
-        return [n, sub, obs.cons(d), goals];
+        return [n, sub, obs.cons(d), goals, goal.expand_run(sub, this.lvar)];
     }
 
     render(sub) { // -> doc frag XX -> node substitution observers goals
         let f = this.render_nodes(sub);
-        this.search = this.goal.expand_run(sub);
+        //this.search = this.goal.expand_run(sub, this.lvar);
         log('render', 'nodes', ...this.nodes);
         f.appendChild(this.comment);
         return f;

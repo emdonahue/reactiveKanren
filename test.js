@@ -3,7 +3,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail} from './mk.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render2} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 
@@ -271,6 +271,10 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
 
 }
 
+
+// FINE GRAINED
+
+asserte(render2('lorem')[0].textContent, 'lorem');
 
 
 

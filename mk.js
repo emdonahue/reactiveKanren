@@ -279,8 +279,8 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil) {
-        return this.expand(new State(s), succeed, succeed);
+    expand_run(s=nil, v) {
+        return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
         let r = this.run(-1, {reify: false, substitution: sub});
@@ -289,9 +289,9 @@ class Goal {
         return updates.update_substitution(sub);
     }
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
-    expand_ctn(s, cjs) {
+    expand_ctn(s, cjs, v) {
         log('expand', 'ctn', this, cjs);
-        return s.isFailure() ? new SearchLeaf(cjs.conj(this)) : this.expand(s, succeed, cjs); }
+        return s.isFailure() ? new SearchLeaf(cjs.conj(this), undefined) : this.expand(s, succeed, cjs, v); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
@@ -301,11 +301,11 @@ class Succeed extends Goal {
     eval(s) { return s; }
     suspend(s, ctn=succeed) { return ctn.cont(s); }
     cont(s) { return s; }
-    expand_ctn(s, g) {
+    expand_ctn(s, g, v) {
         log('expand', 'return', this, g);
-        return new SearchLeaf(g); }
+        return new SearchLeaf(g, s.reify(v)); }
     conj(g) { return g; }
-    expand(s, ctn, cjs) { return ctn.expand_ctn(s, cjs); }
+    expand(s, ctn, cjs, v) { return ctn.expand_ctn(s, cjs, v); }
     toString() { return 'succeed'; }
 }
 
@@ -313,7 +313,7 @@ class Fail extends Goal {
     eval(s) { return failure; }
     suspend(s) { return failure; }
     conj(g) { return fail; }
-    expand(s, ctn, cjs) { throw new Error('nyi'); }
+    expand(s, ctn, cjs, v) { throw new Error('nyi'); }
     toString() { return 'fail'; }
 }
 
@@ -328,9 +328,9 @@ class Conj extends Goal {
     eval(s, ctn=succeed) {
         return this.lhs.eval(s, this.rhs.conj(ctn));
     }
-    expand(s, ctn, cjs) {
+    expand(s, ctn, cjs, v) {
         log('expand', 'conj', this, ctn, cjs);        
-        return this.lhs.expand(s, ctn.conj(this.rhs), cjs); 
+        return this.lhs.expand(s, ctn.conj(this.rhs), cjs, v); 
     }
     toString() { return `(${this.lhs} & ${this.rhs})`; }
 }
@@ -345,9 +345,9 @@ class Disj extends Goal {
     eval(s, ctn=succeed) {
         return this.lhs.eval(s, ctn).mplus(this.rhs.eval(s, ctn));
     }
-    expand(s, ctn, cjs) {
+    expand(s, ctn, cjs, v) {
         log('expand', 'disj', this, ctn, cjs);
-        return new SearchBranch(cjs, this.lhs.expand(s, ctn, succeed), this.rhs.expand(s, ctn, succeed));
+        return new SearchBranch(cjs, this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v));
     }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
@@ -364,8 +364,8 @@ class Fresh extends Goal {
     eval(s, ctn=succeed) {
         return this.instantiate().conj(ctn).suspend(s);
     }
-    expand(s, ctn, cjs) {
-        return this.instantiate().expand(s, ctn, cjs);
+    expand(s, ctn, cjs, v) {
+        return this.instantiate().expand(s, ctn, cjs, v);
     }
     instantiate() { return to_goal(this.ctn(...this.vars)); }
     toString() { return `(fresh ${this.vars} ${this.ctn})`; }
@@ -380,11 +380,10 @@ class Unification extends Goal {
     eval(s, ctn=succeed) {
         return ctn.cont(s.unify(this.lhs, this.rhs));
     }
-    expand(s, ctn, cjs) {
+    expand(s, ctn, cjs, v) {
         log('expand', '==', this, ctn, cjs);
         s = s.unify(this.lhs, this.rhs);
-        //if (s.isFailure()) return new SearchLeaf(this.conj(ctn));
-        return ctn.expand_ctn(s, cjs.conj(this));
+        return ctn.expand_ctn(s, cjs.conj(this), v);
     }
     toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
@@ -399,10 +398,10 @@ class Constraint extends Goal {
         if (this.f.apply(null, this.lvars.map(x => s.walk(x)))) return ctn.cont(s);
         return failure;
     }
-    expand(s, ctn, cjs) {
+    expand(s, ctn, cjs, v) {
         log('expand', 'constraint', this, ctn, cjs);
         s = (this.f.apply(null, this.lvars.map(x => s.walk(x)))) ? s : failure;
-        return ctn.expand_ctn(s, cjs.conj(this));
+        return ctn.expand_ctn(s, cjs.conj(this), v);
     }
     toString() { return `${this.f}(${this.lvars})`; }
 }
@@ -572,10 +571,44 @@ class MPlus extends Stream {
     }
 }
 
-class SearchLeaf {
-    constructor(goal) {
-        this.goal = goal;
+// Constants
+const nil = new Empty();
+const fail = new Fail;
+const succeed = new Succeed;
+const failure = new Failure;
+
+// DOM
+
+function render(tmp, sub) {    
+    if (is_string(tmp) || is_number(tmp)) { // Simple Text nodes
+	let node = document.createTextNode(tmp);
+        log('render', 'text', tmp, node);
+	return [node, []]; }
+    /*
+    else if (tmp instanceof LVar) { // Build a dynamic node keyed to a single static model var
+        log('render', 'var', tmp);
+        return DynamicNode.render(tmp, sub, obs, model, update, goals); }*/
+    else if (tmp instanceof Function) { // Build a dynamic node using the model
+        let v = new LVar();
+        let g = tmp(v, model);
+        if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
+            let o = g.expand_run(sub, v);
+            return [o.render(), o] }
+        else { return render(g, sub); }
     }
+//    else if (Array.isArray(tmp)) return render_head(tmp, sub, obs, model, update, goals);
+    else {
+        console.error('Unrecognized render tmp', tmp);
+        throw Error('Unrecognized render tmp: ' + toString(tmp)); }}
+
+class SearchLeaf {
+    constructor(goal, value) {
+        this.goal = goal;
+        this.value = value;
+    }
+    render() {
+        if (is_string(this.value)) return document.createTextNode(this.value);
+        return document.createComment(); }
     asGoal() { return this.goal; }
 }
 
@@ -585,13 +618,11 @@ class SearchBranch {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+    render(children=document.createDocumentFragment()) {
+        children.appendChild(this.lhs.render());
+        children.appendChild(this.rhs.render());
+        return children; }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
-// Constants
-const nil = new Empty();
-const fail = new Fail;
-const succeed = new Succeed;
-const failure = new Failure;
-
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar};
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, render};
