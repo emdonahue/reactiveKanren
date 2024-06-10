@@ -137,12 +137,17 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     //TODO does recursive skip work if some vars are free, so it cant check recursive order?
 
-    asserte(x.eq(1).expand_run().goal, x.eq(1)); // succeed
-    asserte(x.eq(1).expand_run(list(cons(x,2))).goal, x.eq(1)); // fail
-    asserte(x.eq(1).conj(y.eq(2)).expand_run().goal, x.eq(1).conj(y.eq(2))); // succeed & succeed
-    asserte(x.eq(1).conj(y.eq(2)).expand_run(list(cons(y, 0))).goal, x.eq(1).conj(y.eq(2))); // succeed & fail
-    asserte(x.eq(1).conj(y.eq(2)).expand_run(list(cons(x, 0))).goal, x.eq(1).conj(y.eq(2))); // fail & succeed
-    
+    asserte(x.eq(1).expand_run().asGoal(), x.eq(1)); // succeed
+    asserte(x.eq(1).expand_run(list(cons(x,2))).asGoal(), x.eq(1)); // fail
+    asserte(x.eq(1).conj(y.eq(2)).expand_run().asGoal(), x.eq(1).conj(y.eq(2))); // succeed & succeed
+    asserte(x.eq(1).conj(y.eq(2)).expand_run(list(cons(y, 0))).asGoal(), x.eq(1).conj(y.eq(2))); // succeed & fail
+    asserte(x.eq(1).conj(y.eq(2)).expand_run(list(cons(x, 0))).asGoal(), x.eq(1).conj(y.eq(2))); // fail & succeed
+    asserte(x.eq(1).disj(y.eq(2)).expand_run().asGoal(), x.eq(1).disj(y.eq(2))); // succeed | succeed
+    asserte(x.eq(1).disj(y.eq(2)).expand_run(list(cons(x,0), cons(y,0))).asGoal(), x.eq(1).disj(y.eq(2))); // fail | fail
+
+    let f = fresh(y => x.eq(1));
+    asserte(f.expand_run().asGoal(), x.eq(1)); // fresh
+    asserte(y.eq(2).conj(f).expand_run(list(cons(y,0))).asGoal(), y.eq(2).conj(f)); // fail & fresh
 }
 
 

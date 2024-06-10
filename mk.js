@@ -343,6 +343,10 @@ class Disj extends Goal {
     eval(s, ctn=succeed) {
         return this.lhs.eval(s, ctn).mplus(this.rhs.eval(s, ctn));
     }
+    expand(s, ctn, cjs) {
+        log('expand', 'disj', this, ctn, cjs);
+        return new SearchBranch(cjs, this.lhs.expand(s, ctn, succeed), this.rhs.expand(s, ctn, succeed));
+    }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
 
@@ -356,8 +360,12 @@ class Fresh extends Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(this.vars)) : s);
     }
     eval(s, ctn=succeed) {
-        return to_goal(this.ctn(...this.vars)).conj(ctn).suspend(s);
+        return this.instantiate().conj(ctn).suspend(s);
     }
+    expand(s, ctn, cjs) {
+        return this.instantiate().expand(s, ctn, cjs);
+    }
+    instantiate() { return to_goal(this.ctn(...this.vars)); }
     toString() { return `(fresh ${this.vars} ${this.ctn})`; }
 }
 
@@ -561,6 +569,16 @@ class SearchLeaf {
     constructor(goal) {
         this.goal = goal;
     }
+    asGoal() { return this.goal; }
+}
+
+class SearchBranch {
+    constructor(goal, lhs, rhs) {
+        this.goal = goal;
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+    asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
 // Constants
