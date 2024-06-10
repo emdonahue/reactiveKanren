@@ -136,6 +136,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(conj(a.unify(1), b.unify(1), a.unify(b), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2 == bound! == storage
 
     //TODO does recursive skip work if some vars are free, so it cant check recursive order?
+
+    asserte(x.eq(1).expand_run().goal, x.eq(1));
+    asserte(x.eq(1).expand_run(list(cons(x,2))).goal, x.eq(1));
+    
 }
 
 
@@ -239,15 +243,30 @@ asserte(new App(list(list(1,2), list(3,4)), [(x,m) => m.membero(x), (x,m) => m.m
 
 //logging('run')
 //logging('render', 'dynamic');
-asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML, '<div><div>1<!---->2<!----><!----></div><!----><div>3<!---->4<!----><!----></div><!----><!----></div>');
-//console.log(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML)
-
-
 
 function treelist(x,m) {
     return conde([m.isNumbero(), x.eq(m)],
                  [m.isPairo(), x.eq(['div', [(y,m) => m.membero(y), treelist]])]);
 }
+
+asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML, '<div><div>1<!---->2<!----><!----></div><!----><div>3<!---->4<!----><!----></div><!----><!----></div>');
+//console.log(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML)
+
+{
+    let ul_template = ['ul', function ul(view, model) {
+    return conde([model.isStringo(), view.eq(['li', model])],
+                 [model.isPairo(), view.eq(['li', ['ul', [subview => model.membero(subview), ul]]])])}];
+
+
+
+    asserte(new App(list(list('1','2'), list('3','4')), ul_template).node.outerHTML, '<ul><li><ul><li><ul><li>1<!----></li><!----><li>2<!----></li><!----><!----></ul></li><!----><li><ul><li>3<!----></li><!----><li>4<!----></li><!----><!----></ul></li><!----><!----></ul></li><!----></ul>');
+
+}
+
+
+
+
+
 //fresh(y => [m.membero(y), x.eq(['div', []])])
 //[m.isPairo(), x.eq(['div', (x,m) => [m.membero(x), treelist]])]
 

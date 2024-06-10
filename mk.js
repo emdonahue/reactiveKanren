@@ -29,6 +29,7 @@ class List {
     static repeat(n, f) {
         return nil.repeat(n, f);
     }
+    isFailure() { return false; }
     repeat(n, f) {
         if (n <= 0) return this;
         return this.cons(f()).repeat(n-1, f);
@@ -77,7 +78,7 @@ class List {
         let s = this;
         for (let k of Object.keys(x).filter(k => Object.hasOwn(y, k))) {
             s = s.unify(x[k], y[k]);
-            if (s === failure) return failure;
+            if (s.isFailure()) return failure;
         }
         return s;
     }
@@ -118,8 +119,7 @@ class List {
         else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
             let norm = copy(y_val); //TODO should be type of y_val
             if (!primitive(x_val) && !(x_val instanceof LVar)) Object.assign(norm, x_val);
-            let s = this;
-            let n;
+            
             for (let k in y_val) { // For each attr of the new value,                
                 if (!primitive(x_val) && !(x_val instanceof LVar) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
                     //s = s.update_binding(x_val[k], y_val[k], prev, next);
@@ -132,7 +132,7 @@ class List {
                 }
             }
             log('reunify', 'complex', x_var, norm);
-            return updates.update_substitution(s.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
+            return updates.update_substitution(this.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
         }
     }
     equiv_svars(v) { // Find all svars that point to the same svar as v in this substitution.
@@ -236,6 +236,7 @@ class LVar {
     unify(x) {
         return new Unification(this, x);
     }
+    eq(x) { return this.unify(i); }
     eq(x) { return this.unify(x); }
     set(x) { return new Reunification(this, x); }
     name(n) { this.label = n; return this; }
@@ -278,13 +279,17 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
+    expand_run(s=nil) {
+        return this.expand(new State(s), succeed);
+    }
     reunify_substitution(sub) {
         let r = this.run(-1, {reify: false, substitution: sub});
         let updates = r.map(st => st.reify_updates()).fold((ups, up) => up.append(ups), nil); //TODO may need to walk_binding the reunifications so theyre not dependent on transient state that will be thrown away. also, what happens if setting free vars?
         log('reunify', 'updates', updates, sub);
         return updates.update_substitution(sub);
     }
-    cont(s) { return s === failure ? failure : this.eval(s); }
+    cont(s) { return s.isFailure() ? failure : this.eval(s); }
+    expand_ctn(s, g) { return s.isFailure() ? new SearchLeaf(g) : this.expand(s, g); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
@@ -294,6 +299,7 @@ class Succeed extends Goal {
     eval(s) { return s; }
     suspend(s, ctn=succeed) { return ctn.cont(s); }
     cont(s) { return s; }
+    expand_ctn(s, g) { return new SearchLeaf(g); }
     conj(g) { return g; }
     toString() { return 'succeed'; }
 }
@@ -354,6 +360,11 @@ class Unification extends Goal {
     }
     eval(s, ctn=succeed) {
         return ctn.cont(s.unify(this.lhs, this.rhs));
+    }
+    expand(s, ctn=succeed) {
+        s = s.unify(this.lhs, this.rhs);
+        //if (s.isFailure()) return new SearchLeaf(this.conj(ctn));
+        return ctn.expand_ctn(s, this);
     }
     toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
@@ -424,7 +435,8 @@ class Stream {
         log('run', 'take', s.answer());
         return new Pair(s.answer(), s.step().take(n-1));
     }
-    isIncomplete() { return true }
+    isIncomplete() { return true; }
+    isFailure() { return false; }
 }
 
 class Failure extends Stream {
@@ -435,6 +447,7 @@ class Failure extends Stream {
     _mplus(s) { return s; };
     isIncomplete() { return false; }
     step() { return this; }
+    isFailure() { return true; }
 }
 
 class State extends Stream {
@@ -531,6 +544,12 @@ class MPlus extends Stream {
     }
     step() {
         return this.lhs.step().mplus(this.rhs);
+    }
+}
+
+class SearchLeaf {
+    constructor(goal) {
+        this.goal = goal;
     }
 }
 
