@@ -139,6 +139,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     asserte(x.eq(1).expand_run().goal, x.eq(1));
     asserte(x.eq(1).expand_run(list(cons(x,2))).goal, x.eq(1));
+    asserte(x.eq(1).conj(y.eq(2)).expand_run().goal, x.eq(1).conj(y.eq(2)));
     
 }
 

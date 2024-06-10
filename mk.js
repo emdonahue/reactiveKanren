@@ -280,7 +280,7 @@ class Goal {
 
     }
     expand_run(s=nil) {
-        return this.expand(new State(s), succeed);
+        return this.expand(new State(s), succeed, succeed);
     }
     reunify_substitution(sub) {
         let r = this.run(-1, {reify: false, substitution: sub});
@@ -289,7 +289,9 @@ class Goal {
         return updates.update_substitution(sub);
     }
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
-    expand_ctn(s, g) { return s.isFailure() ? new SearchLeaf(g) : this.expand(s, g); }
+    expand_ctn(s, cjs) {
+        log('expand', 'ctn', this, cjs);
+        return s.isFailure() ? new SearchLeaf(cjs.conj(ctn)) : this.expand(s, succeed, cjs); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
@@ -299,7 +301,9 @@ class Succeed extends Goal {
     eval(s) { return s; }
     suspend(s, ctn=succeed) { return ctn.cont(s); }
     cont(s) { return s; }
-    expand_ctn(s, g) { return new SearchLeaf(g); }
+    expand_ctn(s, g) {
+        log('expand', 'return', this, g);
+        return new SearchLeaf(g); }
     conj(g) { return g; }
     toString() { return 'succeed'; }
 }
@@ -314,12 +318,17 @@ class Fail extends Goal {
 class Conj extends Goal {
     constructor(lhs, rhs) {
         super();
+        if (!lhs || !rhs) throw new Error('Conj takes 2 arguments' + lhs + rhs);
         this.lhs = lhs;
         this.rhs = rhs;
     }
     filter(f) { return this.lhs.filter(f).conj(this.rhs.filter(f)); }
     eval(s, ctn=succeed) {
         return this.lhs.eval(s, this.rhs.conj(ctn));
+    }
+    expand(s, ctn, cjs) {
+        log('expand', 'conj', this, ctn, cjs);
+        return this.lhs.expand(s, ctn.conj(this.rhs), cjs); 
     }
     toString() { return `(${this.lhs} & ${this.rhs})`; }
 }
@@ -361,10 +370,11 @@ class Unification extends Goal {
     eval(s, ctn=succeed) {
         return ctn.cont(s.unify(this.lhs, this.rhs));
     }
-    expand(s, ctn=succeed) {
+    expand(s, ctn, cjs) {
+        log('expand', '==', this, ctn, cjs);
         s = s.unify(this.lhs, this.rhs);
         //if (s.isFailure()) return new SearchLeaf(this.conj(ctn));
-        return ctn.expand_ctn(s, this);
+        return ctn.expand_ctn(s, cjs.conj(this));
     }
     toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
