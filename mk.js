@@ -291,7 +291,7 @@ class Goal {
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
     expand_ctn(s, cjs) {
         log('expand', 'ctn', this, cjs);
-        return s.isFailure() ? new SearchLeaf(cjs.conj(ctn)) : this.expand(s, succeed, cjs); }
+        return s.isFailure() ? new SearchLeaf(cjs.conj(this)) : this.expand(s, succeed, cjs); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
