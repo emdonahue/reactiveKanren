@@ -313,7 +313,7 @@ class Fail extends Goal {
     eval(s) { return failure; }
     suspend(s) { return failure; }
     conj(g) { return fail; }
-    expand(s, ctn, cjs, v) { throw new Error('nyi'); }
+    expand(s, ctn, cjs, v) { return new ViewStump(cjs.conj(ctn)); }
     toString() { return 'fail'; }
 }
 
@@ -609,35 +609,29 @@ class ViewRoot {
     update(sub) {
         this.child.update(sub, this.lvar); }}
 
-class ViewLeaf {
+class ViewStump {
+    constructor(goal) { this.goal = goal; }
+    render() { return document.createDocumentFragment(); }
+    update(sub, lvar) {
+        throw Error('NYI')
+    }
+    harvest(tree) { tree.remove(); }
+    remove() {}
+    asGoal() { return this.goal; }}
+
+class ViewLeaf extends ViewStump {
     constructor(goal, cache) {
-        this.goal = goal;
+        super(goal);
         this.cache = cache;
         this.node = null; }
     render(sub, model) {
         let [n, o] = render(this.cache, sub, model);
         return this.node = n; }
-    update(sub, lvar) {
-        return this.goal.expand_run(sub, lvar).harvest(this);
-    }
+    update(sub, lvar) { return this.goal.expand_run(sub, lvar).harvest(this); }
+    remove() { this.node.remove(); }
     harvest(tree) {
         this.node = tree.node;
-        this.node.textContent = this.cache;
-    }
-    asGoal() { return this.goal; }}
-
-class ViewStump {
-    constructor(goal) {
-        this.goal = goal;
-    }
-    render() {
-        return document.createDocumentFragment();
-    }
-    update(sub, lvar) {
-        throw Error('NYI')
-    }
-    asGoal() { return this.goal; }
-}
+        this.node.textContent = this.cache; }}
 
 class ViewBranch {
     constructor(goal, lhs, rhs) {
@@ -645,10 +639,11 @@ class ViewBranch {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    render(children=document.createDocumentFragment()) {
-        children.appendChild(this.lhs.render());
-        children.appendChild(this.rhs.render());
-        return children; }
+    render(sub, model) {
+        let cs = document.createDocumentFragment();
+        cs.appendChild(this.lhs.render(sub, model));
+        cs.appendChild(this.rhs.render(sub, model));
+        return cs; }
     update(sub, lvar) {
         throw Error('NYI')
     }
