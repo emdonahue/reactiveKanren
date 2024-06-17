@@ -274,8 +274,17 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
 
 // FINE GRAINED
 
-asserte(render2('lorem')[0].textContent, 'lorem');
+{
+    let model = new LVar();
+    asserte(render2('lorem')[0].textContent, 'lorem');
+    asserte(render2(() => 'lorem')[0].textContent, 'lorem');
+    asserte(render2(v => v.eq('lorem'))[0].textContent, 'lorem');
+    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model)[0].textContent, 'lorem');
+    let a = render2((v,m) => v.eq(m), list(cons(model,'lorem')), model);
+    //a[1].update(list(cons(model,'ipsum')));
+    //asserte(a[1].textContent, 'ipsum');
 
+}
 
 
 

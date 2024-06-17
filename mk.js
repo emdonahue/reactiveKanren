@@ -291,7 +291,7 @@ class Goal {
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
     expand_ctn(s, cjs, v) {
         log('expand', 'ctn', this, cjs);
-        return s.isFailure() ? new SearchLeaf(cjs.conj(this), undefined) : this.expand(s, succeed, cjs, v); }
+        return s.isFailure() ? new ViewStump(cjs.conj(this)) : this.expand(s, succeed, cjs, v); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
@@ -303,7 +303,7 @@ class Succeed extends Goal {
     cont(s) { return s; }
     expand_ctn(s, g, v) {
         log('expand', 'return', this, g);
-        return new SearchLeaf(g, s.reify(v)); }
+        return new ViewLeaf(g, s.reify(v)); }
     conj(g) { return g; }
     expand(s, ctn, cjs, v) { return ctn.expand_ctn(s, cjs, v); }
     toString() { return 'succeed'; }
@@ -347,7 +347,7 @@ class Disj extends Goal {
     }
     expand(s, ctn, cjs, v) {
         log('expand', 'disj', this, ctn, cjs);
-        return new SearchBranch(cjs, this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v));
+        return new ViewBranch(cjs, this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v));
     }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
@@ -579,40 +579,63 @@ const failure = new Failure;
 
 // DOM
 
-function render(tmp, sub) {    
-    if (is_string(tmp) || is_number(tmp)) { // Simple Text nodes
-	let node = document.createTextNode(tmp);
-        log('render', 'text', tmp, node);
+function render(tmpl, sub=nil, model=null) {    
+    if (is_string(tmpl) || is_number(tmpl)) { // Simple Text nodes
+	let node = document.createTextNode(tmpl);
+        log('render', 'text', tmpl, node);
 	return [node, []]; }
     /*
-    else if (tmp instanceof LVar) { // Build a dynamic node keyed to a single static model var
-        log('render', 'var', tmp);
-        return DynamicNode.render(tmp, sub, obs, model, update, goals); }*/
-    else if (tmp instanceof Function) { // Build a dynamic node using the model
+    else if (tmpl instanceof LVar) { // Build a dynamic node keyed to a single static model var
+        log('render', 'var', tmpl);
+        return DynamicNode.render(tmpl, sub, obs, model, update, goals); }*/
+    else if (tmpl instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
-        let g = tmp(v, model);
+        let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let o = g.expand_run(sub, v);
-            return [o.render(), o] }
-        else { return render(g, sub); }
+            //o.model = model;
+            return [o.render(sub, model), new ViewRoot(v, o)]; }
+        else { return render(g, sub, model); }
     }
-//    else if (Array.isArray(tmp)) return render_head(tmp, sub, obs, model, update, goals);
+//    else if (Array.isArray(tmpl)) return render_head(tmpl, sub, obs, model, update, goals);
     else {
-        console.error('Unrecognized render tmp', tmp);
-        throw Error('Unrecognized render tmp: ' + toString(tmp)); }}
+        console.error('Unrecognized render tmpl', tmpl);
+        throw Error('Unrecognized render tmpl: ' + toString(tmpl)); }}
 
-class SearchLeaf {
-    constructor(goal, value) {
+class ViewRoot {
+    constructor(lvar, child) {
+        this.lvar = lvar;
+        this.child = child; }
+    update(sub) {
+        this.child.update(sub, this.lvar); }}
+
+class ViewLeaf {
+    constructor(goal, cache) {
         this.goal = goal;
-        this.value = value;
+        this.cache = cache;
+        this.node = null; }
+    render(sub, model) {
+        let [n, o] = render(this.cache, sub, model);
+        return this.node = n; }
+    update(sub, lvar) {
+        return this.goal.expand_run(sub, lvar);
+    }
+    asGoal() { return this.goal; }}
+
+class ViewStump {
+    constructor(goal) {
+        this.goal = goal;
     }
     render() {
-        if (is_string(this.value)) return document.createTextNode(this.value);
-        return document.createComment(); }
+        return document.createDocumentFragment();
+    }
+    update(sub, lvar) {
+        throw Error('NYI')
+    }
     asGoal() { return this.goal; }
 }
 
-class SearchBranch {
+class ViewBranch {
     constructor(goal, lhs, rhs) {
         this.goal = goal;
         this.lhs = lhs;
@@ -622,6 +645,9 @@ class SearchBranch {
         children.appendChild(this.lhs.render());
         children.appendChild(this.rhs.render());
         return children; }
+    update(sub, lvar) {
+        throw Error('NYI')
+    }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
