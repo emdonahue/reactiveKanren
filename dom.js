@@ -257,7 +257,7 @@ function render_attributes(template, parent, sub, model, obs, goals, update) {
     for (let k in template) {
         if (k === 'tagName') continue; // tagName already extracted explicitly in construction of parent.
         else if (k === 'style') [obs, goals] = render_attributes(template[k], parent.style, sub, model, obs, goals, update);
-        else if (primitive(template[k])) parent[k] = template[k];
+        else if (primitive(template[k]) && !(template[k] instanceof Function)) parent[k] = template[k];
         else if (k.substring(0,2) == 'on') { // event listeners
             log('render', 'on', k.substring(2));
             (handler => {

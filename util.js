@@ -33,11 +33,12 @@ function equals(x, y) {
         || (x && y &&
             !is_string(x) &&
             !is_number(x) &&
-            Object.prototype.toString.call(x) !== '[object Boolean]' &&
+            !is_boolean(x) &&
             x.constructor === y.constructor  && Object.keys(x).length === Object.keys(y).length && Object.entries(x).every(([k,v]) => equals(v, y[k])));
 }
 
 function is_string(x) { return Object.prototype.toString.call(x) === '[object String]'; }
 function is_number(x) { return Object.prototype.toString.call(x) === '[object Number]'; }
+function is_boolean(x) { return Object.prototype.toString.call(x) === '[object Boolean]'; };
 
-export {logging, log, dlog, copy, toString, equals, is_string, is_number}
+export {logging, log, dlog, copy, toString, equals, is_string, is_number, is_boolean}

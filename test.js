@@ -277,10 +277,13 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
 {
     let model = new LVar();
     asserte(render2('lorem')[0].textContent, 'lorem');
+    asserte(render2(['span', 'lorem'])[0].outerHTML, '<span>lorem</span>');
     asserte(render2(() => 'lorem')[0].textContent, 'lorem');
     asserte(render2(v => v.eq('lorem'))[0].textContent, 'lorem');
     asserte(render2(v => fail)[0].nodeType, Node.DOCUMENT_FRAGMENT_NODE);
     asserte(render2(v => conde(v.eq('lorem'), v.eq('ipsum')))[0].textContent, 'loremipsum');
+    //console.log(render2(['div', v => conde(v.eq(['span', v => v.eq('lorem')]), v.eq(['span', v => v.eq('ipsum')]))])[0].outerHTML)
+    asserte(render2(['div', v => v.eq(['span', v => v.eq('lorem')])])[0].innerHTML, '<span>lorem</span>');
     asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model)[0].textContent, 'lorem');
 
 

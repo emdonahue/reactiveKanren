@@ -1,5 +1,5 @@
 "use strict"
-import {logging, log, dlog, toString, copy, equals, is_string, is_number} from './util.js';
+import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boolean} from './util.js';
 //TODO let query variables be added manually not just extracted from fresh
 
 // Lists
@@ -261,7 +261,7 @@ class QuotedVar {
 
 // Goals
 function primitive(x) {
-    return typeof x == 'string' || typeof x == 'boolean' || typeof x == 'number' || x === nil || x === null || x === undefined;
+    return is_string(x) || is_boolean(x) || is_number(x) || x === nil || x === null || x === undefined || x instanceof Function;
 }
 
 class Goal {
@@ -579,7 +579,8 @@ const failure = new Failure;
 
 // DOM
 
-function render(tmpl, sub=nil, model=null) {    
+function render(tmpl, sub=nil, model=null) {
+    log('render', tmpl);
     if (is_string(tmpl) || is_number(tmpl)) { // Simple Text nodes
 	let node = document.createTextNode(tmpl);
         log('render', 'text', tmpl, node);
@@ -593,14 +594,25 @@ function render(tmpl, sub=nil, model=null) {
         let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let o = g.expand_run(sub, v);
-            //o.model = model;
             return [o.render(sub, model), new ViewRoot(v, o)]; }
         else { return render(g, sub, model); }
     }
-//    else if (Array.isArray(tmpl)) return render_head(tmpl, sub, obs, model, update, goals);
+    else if (Array.isArray(tmpl)) return render_head(tmpl, sub, model);
     else {
-        console.error('Unrecognized render tmpl', tmpl);
-        throw Error('Unrecognized render tmpl: ' + toString(tmpl)); }}
+        console.error('Unrecognized render template', tmpl); //TODO remove debug print when done developing
+        throw Error('Unrecognized render template: ' + toString(tmpl)); }}
+
+function render_head([tmpl_head, ...tmpl_children], sub, model) {
+    log('render', 'head', tmpl_head, tmpl_children);
+    if (is_string(tmpl_head)) {
+        let parent = document.createElement(tmpl_head);
+        for (let c of tmpl_children) {
+            let [n,o] = render(c, sub, model);
+            parent.appendChild(n);
+        }
+        return [parent, []];
+    }
+}
 
 class ViewRoot {
     constructor(lvar, child) {
