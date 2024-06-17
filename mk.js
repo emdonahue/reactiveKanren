@@ -618,7 +618,11 @@ class ViewLeaf {
         let [n, o] = render(this.cache, sub, model);
         return this.node = n; }
     update(sub, lvar) {
-        return this.goal.expand_run(sub, lvar);
+        return this.goal.expand_run(sub, lvar).harvest(this);
+    }
+    harvest(tree) {
+        this.node = tree.node;
+        this.node.textContent = this.cache;
     }
     asGoal() { return this.goal; }}
 
