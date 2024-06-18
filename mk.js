@@ -630,9 +630,11 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         let v = new LVar();
         let g = tmpl_head(v, model);
         let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
-        console.log(o)
-        //return new ViewRoot(v, o).render();
-        return [o.render(sub, v, [...tmpl_children]), ];
+        //console.log(o)
+        return new SubViewRoot(v, o);
+        //return [o.render(sub, v, [...tmpl_children]), ]
+
+        ;
     }
     else {
         console.error('Unrecognized render head template', tmpl_head); //TODO remove debug print when done developing
@@ -644,6 +646,16 @@ class ViewRoot {
         this.lvar = lvar;
         this.child = child; }
     update(sub) {
+        this.child.update(sub, this.lvar); }
+    render(parent) {
+        return this.child.render(parent); }}
+
+class SubViewRoot {
+    constructor(lvar, child) {
+        this.lvar = lvar;
+        this.child = child; }
+    update(sub) {
+        throw Error('nyi')
         this.child.update(sub, this.lvar); }
     render(parent) {
         return this.child.render(parent); }}
