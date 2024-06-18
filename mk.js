@@ -603,7 +603,10 @@ function render(tmpl, sub=nil, model=null) {
                                  (g, s) => {
                                      log('render', 'terminal', s)
                                      return s ? new ViewLeaf(g, s, v, model) : new ViewStump(g)});
-            return [o.render(sub, model, v), new ViewRoot(v, o)]; }
+            //return [o.render(sub, model, v), new ViewRoot(v, o)];
+            return new ViewRoot(v,o).render();
+
+        }
         else { return render(g, sub, model); }
     }
     //else if (tmpl instanceof LVar) { return render(sub.walk(tmpl), sub, model); }
@@ -626,7 +629,10 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         let v = new LVar();
         let g = tmpl_head(v, model);
         let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
-        return [o.render(sub, v, [...tmpl_children]), new ViewRoot(v, o)];}
+        console.log(o)
+        //return new ViewRoot(v, o).render();
+        return [o.render(sub, v, [...tmpl_children]), ];
+    }
     else {
         console.error('Unrecognized render head template', tmpl_head); //TODO remove debug print when done developing
         throw Error('Unrecognized render head template: ' + toString(tmpl_head)); }
@@ -637,7 +643,9 @@ class ViewRoot {
         this.lvar = lvar;
         this.child = child; }
     update(sub) {
-        this.child.update(sub, this.lvar); }}
+        this.child.update(sub, this.lvar); }
+    render() {
+        return [this.child.render(), this]; }}
 
 class ViewStump {
     constructor(goal) { this.goal = goal; }
