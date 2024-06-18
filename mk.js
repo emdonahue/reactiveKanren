@@ -279,7 +279,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => s ? new ViewLeaf(g, s.reify(v)) : new ViewStump(g))) {
+    expand_run(s=nil, v=((g,s) => s ? new ViewLeaf(g, s, v, null) : new ViewStump(g))) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -602,7 +602,7 @@ function render(tmpl, sub=nil, model=null) {
             let o = g.expand_run(sub,
                                  (g, s) => {
                                      log('render', 'terminal', s)
-                                     return s ? new ViewLeaf(g, s.reify(v)) : new ViewStump(g)});
+                                     return s ? new ViewLeaf(g, s, v, model) : new ViewStump(g)});
             return [o.render(sub, model, v), new ViewRoot(v, o)]; }
         else { return render(g, sub, model); }
     }
@@ -652,14 +652,16 @@ class ViewStump {
     asGoal() { return this.goal; }}
 
 class ViewLeaf extends ViewStump {
-    constructor(goal, cache) {
+    constructor(goal, sub, view, model) {
         super(goal);
-        this.cache = cache;
-        this.node = null; }
+        let [n,o] = render(sub.reify(view), sub, model);
+        this.cache = sub.reify(view);
+        this.children = o;
+        this.node = n; }
     render(sub, model, lvar) {
         log('render', 'leaf', this.cache);
-        let [n, o] = render(this.cache, sub, model);
-        return this.node = n; }
+        //let [n, o] = render(this.cache, sub, model);
+        return this.node; }
     subview(sub, model, templates) {
         let [n,o] = render(templates[0], sub, model);
     }

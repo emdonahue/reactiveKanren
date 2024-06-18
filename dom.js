@@ -78,7 +78,7 @@ class DynamicNode {
     static render(spec, sub, obs, model, update, goals, goal=succeed, template=null) {
         let d = new this(spec, model, goal, update, template);
         let n = d.render(sub);
-        return [n, sub, obs.cons(d), goals, goal.expand_run(sub, this.lvar)];
+        return [n, sub, obs.cons(d), goals]; //goal.expand_run(sub, this.lvar)
     }
 
     render(sub) { // -> doc frag XX -> node substitution observers goals
