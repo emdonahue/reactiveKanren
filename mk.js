@@ -588,9 +588,11 @@ const failure = new Failure;
 function render(tmpl, sub=nil, model=null) {
     log('render', tmpl);
     if (is_string(tmpl) || is_number(tmpl)) { // Simple Text nodes
-	let node = document.createTextNode(tmpl);
-        log('render', 'text', tmpl, node);
-	return [node, []]; }
+        return new ViewDOMNode(document.createTextNode(tmpl));
+	//let node = document.createTextNode(tmpl);
+        //log('render', 'text', tmpl, node);
+	//return [node, []];
+    }
     /*
     else if (tmpl instanceof LVar) { // Build a dynamic node keyed to a single static model var
         log('render', 'var', tmpl);
@@ -618,12 +620,14 @@ function render(tmpl, sub=nil, model=null) {
 function render_head([tmpl_head, ...tmpl_children], sub, model) {
     log('render', 'head', tmpl_head, tmpl_children);
     if (is_string(tmpl_head)) {
-        let parent = document.createElement(tmpl_head);
+        let parent = new ViewDOMNode(document.createElement(tmpl_head), tmpl_children.map(c => render(c, sub, model)));
+        /*
         for (let c of tmpl_children) {
             let [n,o] = render(c, sub, model);
             parent.appendChild(n);
-        }
-        return [parent, []];
+        }*/
+        //return [parent, []];
+        return parent;
     }
     else if (tmpl_head instanceof Function) {
         let v = new LVar();
@@ -658,6 +662,15 @@ class ViewStump {
     harvest(tree) { tree.remove(); }
     remove() {}
     asGoal() { return this.goal; }}
+
+class ViewDOMNode {
+    constructor(node, children=[]) {
+        this.node = node;
+        this.children = children; }
+    render(parent) {
+        if (parent) parent.appendChild(this.node);
+        this.children.forEach(c => c.render(this.node));
+        return this.node; }}
 
 class ViewLeaf extends ViewStump {
     constructor(goal, sub, view, model) {
