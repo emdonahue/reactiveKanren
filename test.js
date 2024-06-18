@@ -284,7 +284,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2(v => conde(v.eq('lorem'), v.eq('ipsum')))[0].textContent, 'loremipsum');
     asserte(render2(['div', v => v.eq(['span', v => v.eq('lorem')])])[0].outerHTML, '<div><span>lorem</span></div>');
     asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model)[0].textContent, 'lorem');
-//    asserte(render2([v => v.eq(model), (v,m) => v.eq(m)], list(cons(model,'lorem')))[0].textContent, 'lorem');
+    //asserte(render2([v => v.eq(model), (v,m) => v.eq(m)], list(cons(model,'lorem')))[0].textContent, 'lorem');
 
 
     //let a = render2((v,m) => v.eq(m), list(cons(model,'lorem')), model);

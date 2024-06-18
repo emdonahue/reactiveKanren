@@ -623,11 +623,10 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         return [parent, []];
     }
     else if (tmpl_head instanceof Function) {
-        throw Error();
         let v = new LVar();
         let g = tmpl_head(v, model);
-        let o = g.expand_run(sub, (g,s) => fail);
-        return [o.subview(sub, v, [...tmpl_children]), new ViewRoot(v, o)];}
+        let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
+        return [o.render(sub, v, [...tmpl_children]), new ViewRoot(v, o)];}
     else {
         console.error('Unrecognized render head template', tmpl_head); //TODO remove debug print when done developing
         throw Error('Unrecognized render head template: ' + toString(tmpl_head)); }
