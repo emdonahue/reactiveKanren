@@ -279,7 +279,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v=((g,s=failure) => s.isFailure() ? new ViewStump(g) : new ViewLeaf(g, s.reify(v)))) {
+    expand_run(s=nil, v=((g,s) => s ? new ViewLeaf(g, s.reify(v)) : new ViewStump(g))) {
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -600,9 +600,9 @@ function render(tmpl, sub=nil, model=null) {
         let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let o = g.expand_run(sub,
-                                 (g, s=failure) => {
+                                 (g, s) => {
                                      log('render', 'terminal', s)
-                                     return s.isFailure() ? new ViewStump(g) : new ViewLeaf(g, s.reify(v))});
+                                     return s ? new ViewLeaf(g, s.reify(v)) : new ViewStump(g)});
             return [o.render(sub, model, v), new ViewRoot(v, o)]; }
         else { return render(g, sub, model); }
     }
@@ -626,7 +626,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         throw Error();
         let v = new LVar();
         let g = tmpl_head(v, model);
-        let o = g.expand_run(sub, v);
+        let o = g.expand_run(sub, (g,s) => fail);
         return [o.subview(sub, v, [...tmpl_children]), new ViewRoot(v, o)];}
     else {
         console.error('Unrecognized render head template', tmpl_head); //TODO remove debug print when done developing
