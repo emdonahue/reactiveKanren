@@ -601,12 +601,9 @@ function render(tmpl, sub=nil, model=null) {
         let v = new LVar();
         let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let o = g.expand_run(sub,
-                                 (g, s) => {
-                                     log('render', 'terminal', s)
-                                     return s ? new ViewLeaf(g, s, v, model) : new ViewStump(g)});
+            let o = g.expand_run(sub, (g, s) => s ? new ViewLeaf(g, s, v, model) : new ViewStump(g));
             //return [o.render(sub, model, v), new ViewRoot(v, o)];
-            return new ViewRoot(v,o).render();
+            return new ViewRoot(v,o);
 
         }
         else { return render(g, sub, model); }
@@ -648,14 +645,14 @@ class ViewRoot {
         this.child = child; }
     update(sub) {
         this.child.update(sub, this.lvar); }
-    render() {
-        return [this.child.render(), this]; }}
+    render(parent) {
+        return this.child.render(parent); }}
 
 class ViewStump {
     constructor(goal) { this.goal = goal; }
-    render() {
+    render(parent) {
         log('render', 'stump');
-        return document.createDocumentFragment(); } //TODO make a global empty doc frag
+        if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
     update(sub, lvar) {
         throw Error('NYI')
     }
@@ -675,14 +672,18 @@ class ViewDOMNode {
 class ViewLeaf extends ViewStump {
     constructor(goal, sub, view, model) {
         super(goal);
-        let [n,o] = render(sub.reify(view), sub, model);
+        this.child = render(sub.reify(view), sub, model);
+        //let [n,o] = render(sub.reify(view), sub, model);
         this.cache = sub.reify(view);
-        this.children = o;
-        this.node = n; }
-    render(sub, model, lvar) {
+        //this.children = o;
+        //this.node = n;
+    }
+    render(parent) {
         log('render', 'leaf', this.cache);
         //let [n, o] = render(this.cache, sub, model);
-        return this.node; }
+        //return this.node;
+        return this.child.render(parent);
+    }
     subview(sub, model, templates) {
         let [n,o] = render(templates[0], sub, model);
     }
@@ -700,12 +701,11 @@ class ViewBranch {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    render(sub, model, lvar) {
+    render(parent=document.createDocumentFragment()) {
         log('render', 'branch', this.lhs, this.rhs);
-        let cs = document.createDocumentFragment();
-        cs.appendChild(this.lhs.render(sub, model, lvar));
-        cs.appendChild(this.rhs.render(sub, model, lvar));
-        return cs; }
+        this.lhs.render(parent);
+        this.rhs.render(parent);
+        return parent; }
     update(sub, lvar) {
         throw Error('NYI')
     }
