@@ -279,7 +279,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v) {
+    expand_run(s=nil, v=((g,s=failure) => s.isFailure() ? new ViewStump(g) : new ViewLeaf(g, s.reify(v)))) {
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -303,7 +303,9 @@ class Succeed extends Goal {
     cont(s) { return s; }
     expand_ctn(s, g, v) {
         log('expand', 'return', this, g);
-        return new ViewLeaf(g, s.reify(v)); }
+        //return new ViewLeaf(g, s.reify(v));
+        return v(g,s);
+    }
     conj(g) { return g; }
     expand(s, ctn, cjs, v) { return ctn.expand_ctn(s, cjs, v); }
     toString() { return 'succeed'; }
@@ -313,7 +315,11 @@ class Fail extends Goal {
     eval(s) { return failure; }
     suspend(s) { return failure; }
     conj(g) { return fail; }
-    expand(s, ctn, cjs, v) { return new ViewStump(cjs.conj(ctn)); }
+    expand(s, ctn, cjs, v) {
+        return v(cjs.conj(ctn));
+        //return new ViewStump(cjs.conj(ctn));
+
+                           }
     toString() { return 'fail'; }
 }
 
@@ -593,10 +599,14 @@ function render(tmpl, sub=nil, model=null) {
         let v = new LVar();
         let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let o = g.expand_run(sub, v);
-            return [o.render(sub, model), new ViewRoot(v, o)]; }
+            let o = g.expand_run(sub,
+                                 (g, s=failure) => {
+                                     log('render', 'terminal', s)
+                                     return s.isFailure() ? new ViewStump(g) : new ViewLeaf(g, s.reify(v))});
+            return [o.render(sub, model, v), new ViewRoot(v, o)]; }
         else { return render(g, sub, model); }
     }
+    //else if (tmpl instanceof LVar) { return render(sub.walk(tmpl), sub, model); }
     else if (Array.isArray(tmpl)) return render_head(tmpl, sub, model);
     else {
         console.error('Unrecognized render template', tmpl); //TODO remove debug print when done developing
@@ -612,6 +622,15 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         }
         return [parent, []];
     }
+    else if (tmpl_head instanceof Function) {
+        throw Error();
+        let v = new LVar();
+        let g = tmpl_head(v, model);
+        let o = g.expand_run(sub, v);
+        return [o.subview(sub, v, [...tmpl_children]), new ViewRoot(v, o)];}
+    else {
+        console.error('Unrecognized render head template', tmpl_head); //TODO remove debug print when done developing
+        throw Error('Unrecognized render head template: ' + toString(tmpl_head)); }
 }
 
 class ViewRoot {
@@ -623,7 +642,9 @@ class ViewRoot {
 
 class ViewStump {
     constructor(goal) { this.goal = goal; }
-    render() { return document.createDocumentFragment(); }
+    render() {
+        log('render', 'stump');
+        return document.createDocumentFragment(); } //TODO make a global empty doc frag
     update(sub, lvar) {
         throw Error('NYI')
     }
@@ -636,10 +657,16 @@ class ViewLeaf extends ViewStump {
         super(goal);
         this.cache = cache;
         this.node = null; }
-    render(sub, model) {
+    render(sub, model, lvar) {
+        log('render', 'leaf', this.cache);
         let [n, o] = render(this.cache, sub, model);
         return this.node = n; }
-    update(sub, lvar) { return this.goal.expand_run(sub, lvar).harvest(this); }
+    subview(sub, model, templates) {
+        let [n,o] = render(templates[0], sub, model);
+    }
+    update(sub, lvar) {
+        throw Error('nyi')
+        return this.goal.expand_run(sub, lvar).harvest(this); }
     remove() { this.node.remove(); }
     harvest(tree) {
         this.node = tree.node;
@@ -651,10 +678,11 @@ class ViewBranch {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    render(sub, model) {
+    render(sub, model, lvar) {
+        log('render', 'branch', this.lhs, this.rhs);
         let cs = document.createDocumentFragment();
-        cs.appendChild(this.lhs.render(sub, model));
-        cs.appendChild(this.rhs.render(sub, model));
+        cs.appendChild(this.lhs.render(sub, model, lvar));
+        cs.appendChild(this.rhs.render(sub, model, lvar));
         return cs; }
     update(sub, lvar) {
         throw Error('NYI')
