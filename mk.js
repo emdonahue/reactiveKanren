@@ -691,12 +691,13 @@ class SubView extends View {
     remove() { this.child.remove(); }}
 
 class ViewStump extends View {
-    constructor(goal) {
+    constructor(goal, comment=null) {
         super();
-        this.goal = goal; }
+        this.goal = goal;
+        this.comment = comment; }
     render(parent) {
         log('render', 'stump');
-        if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
+        if (!parent) return this.comment = document.createComment(''); }
     rerender(sub, lvar) {
         throw Error('NYI')
     }
