@@ -588,7 +588,7 @@ const failure = new Failure;
 function render(tmpl, sub=nil, model=null) {
     log('render', tmpl);
     if (is_string(tmpl) || is_number(tmpl)) { // Simple Text nodes
-        return new ViewDOMNode(document.createTextNode(tmpl));
+        return new ViewTextNode(tmpl);
 	//let node = document.createTextNode(tmpl);
         //log('render', 'text', tmpl, node);
 	//return [node, []];
@@ -617,7 +617,7 @@ function render(tmpl, sub=nil, model=null) {
 function render_head([tmpl_head, ...tmpl_children], sub, model) {
     log('render', 'head', tmpl_head, tmpl_children);
     if (is_string(tmpl_head)) {
-        let parent = new ViewDOMNode(document.createElement(tmpl_head), tmpl_children.map(c => render(c, sub, model)));
+        let parent = new ViewDOMNode(tmpl_head, tmpl_children.map(c => render(c, sub, model)));
         /*
         for (let c of tmpl_children) {
             let [n,o] = render(c, sub, model);
@@ -661,7 +661,7 @@ class IterableView extends View { //Replaces a child template and generates one 
         // if all fail, and we are not failing, we fail and insert a comment & remove everything
         // if all fail and we are already failing, do nothing
 
-        // we cant naively generate a new tree bc we'd rebuild all the dom nodes
+        // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc 
         this.child.rerender(sub, this.lvar); }
     render(parent) {
         return this.child.render(parent); }}
@@ -689,13 +689,26 @@ class ViewStump {
     asGoal() { return this.goal; }}
 
 class ViewDOMNode {
-    constructor(node, children=[]) {
-        this.node = node;
+    constructor(properties, children=[]) {
+        this.properties = properties;
+        this.node = null;
         this.children = children; }
     render(parent) {
+        console.assert(is_string(this.properties));
+        this.node = document.createElement(this.properties);
         if (parent) parent.appendChild(this.node);
         this.children.forEach(c => c.render(this.node));
         return this.node; }}
+
+class ViewTextNode {
+    constructor(text) {
+        this.text = text;
+        this.node = null; }
+    render(parent) {
+        this.node = document.createTextNode(this.text);
+        if (parent) parent.appendChild(this.node);
+        return this.node; }
+}
 
 class ViewLeaf extends ViewStump {
     constructor(goal, sub, view, model) {
