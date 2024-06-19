@@ -602,8 +602,8 @@ function render(tmpl, sub=nil, model=null) {
         let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let o = g.expand_run(sub, (g, s) => s ? new ViewLeaf(g, s, v, model) : new ViewStump(g));
-            //return [o.render(sub, model, v), new ViewRoot(v, o)];
-            return new ViewRoot(v,o);
+            //return [o.render(sub, model, v), new IterableView(v, o)];
+            return new IterableView(v,o);
 
         }
         else { return render(g, sub, model); }
@@ -631,7 +631,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         let g = tmpl_head(v, model);
         let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
         //console.log(o)
-        return new SubViewRoot(v, o);
+        return new SubView(v, o);
         //return [o.render(sub, v, [...tmpl_children]), ]
 
         ;
@@ -641,16 +641,32 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         throw Error('Unrecognized render head template: ' + toString(tmpl_head)); }
 }
 
-class ViewRoot {
-    constructor(lvar, child) {
-        this.lvar = lvar;
-        this.child = child; }
-    update(sub) {
-        this.child.update(sub, this.lvar); }
+class View {
+    update(g) {
+        this.rerender(list(cons(g.lhs, g.rhs)));
+        return this;
+    }
+}
+
+class IterableView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
+    constructor(viewvar, child) {
+        super();
+        this.lvar = viewvar;
+        this.child = child; //Root of tree of views.
+    }
+    rerender(sub) {
+        // generate new child tree
+        // if no  passing leaves, 
+        // get list of child leaves from both trees
+        // if all fail, and we are not failing, we fail and insert a comment & remove everything
+        // if all fail and we are already failing, do nothing
+
+        // we cant naively generate a new tree bc we'd rebuild all the dom nodes
+        this.child.rerender(sub, this.lvar); }
     render(parent) {
         return this.child.render(parent); }}
 
-class SubViewRoot {
+class SubView {
     constructor(lvar, child) {
         this.lvar = lvar;
         this.child = child; }
@@ -665,7 +681,7 @@ class ViewStump {
     render(parent) {
         log('render', 'stump');
         if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
-    update(sub, lvar) {
+    rerender(sub, lvar) {
         throw Error('NYI')
     }
     harvest(tree) { tree.remove(); }
@@ -684,9 +700,10 @@ class ViewDOMNode {
 class ViewLeaf extends ViewStump {
     constructor(goal, sub, view, model) {
         super(goal);
-        this.child = render(sub.reify(view), sub, model);
+        this.template = sub.reify(view);
+        this.child = render(this.template, sub, model);
         //let [n,o] = render(sub.reify(view), sub, model);
-        this.cache = sub.reify(view);
+        //this.cache = sub.reify(view);
         //this.children = o;
         //this.node = n;
     }
@@ -699,9 +716,19 @@ class ViewLeaf extends ViewStump {
     subview(sub, model, templates) {
         let [n,o] = render(templates[0], sub, model);
     }
-    update(sub, lvar) {
+    update2(sub, lvar) {
         throw Error('nyi')
         return this.goal.expand_run(sub, lvar).harvest(this); }
+    rerender(sub, vvar, model) {
+        let tmpl = sub.reify(vvar);
+        if (!equals(tmpl,this.template)) {
+            this.child.remove();
+            this.template = tmpl;
+            this.child = render(this.template, sub, model);
+            
+        }
+        throw Error('nyi')
+    }
     remove() { this.node.remove(); }
     harvest(tree) {
         this.node = tree.node;
