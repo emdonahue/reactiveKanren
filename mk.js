@@ -279,7 +279,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => s ? new ViewLeaf(g, s, v, null) : new ViewStump(g))) { //TODO remove default viewleaf
+    expand_run(s=nil, v=((g,s) => s ? ViewLeaf.render_template(g, s, v, null) : new ViewStump(g))) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -601,7 +601,7 @@ function render(tmpl, sub=nil, model=null) {
         let v = new LVar();
         let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let o = g.expand_run(sub, (g, s) => s ? new ViewLeaf(g, s, v, model) : new ViewStump(g));
+            let o = g.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, v, model) : new ViewStump(g));
             //return [o.render(sub, model, v), new IterableView(v, o)];
             return new IterableView(v,o);
 
@@ -641,11 +641,16 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         throw Error('Unrecognized render head template: ' + toString(tmpl_head)); }
 }
 
+
+
 class View {
-    update(g) {
-        this.rerender(list(cons(g.lhs, g.rhs)));
-        return this;
+    update(s) {
+        return this.rerender(s);
+        //return this;
     }
+    prerender() {
+        this.render();
+        return this; }
 }
 
 class IterableView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
@@ -655,7 +660,13 @@ class IterableView extends View { //Replaces a child template and generates one 
         this.child = child; //Root of tree of views.
     }
     rerender(sub) {
+        // walk existing tree, generating new nodes by manually running goals on substitution. pass off nodes as we go
+        // iterableview is responsible for deletions. it scans children and if all fail, insert comment ahead of first child
+        // with comment inserted as needed, remove all failing nodes with another pass and insert new nodes (get an array of children so we can do ordering)
+        // at fail leaves we re-evaluate the goal 
         // generate new child tree
+        // tandem walk trees and hand off nodes
+        // if all leaves fail in 
         // if no  passing leaves, 
         // get list of child leaves from both trees
         // if all fail, and we are not failing, we fail and insert a comment & remove everything
@@ -666,8 +677,9 @@ class IterableView extends View { //Replaces a child template and generates one 
     render(parent) {
         return this.child.render(parent); }}
 
-class SubView {
+class SubView extends View {
     constructor(lvar, child) {
+        super();
         this.lvar = lvar;
         this.child = child; }
     update(sub) {
@@ -676,8 +688,10 @@ class SubView {
     render(parent) {
         return this.child.render(parent); }}
 
-class ViewStump {
-    constructor(goal) { this.goal = goal; }
+class ViewStump extends View {
+    constructor(goal) {
+        super();
+        this.goal = goal; }
     render(parent) {
         log('render', 'stump');
         if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
@@ -688,8 +702,9 @@ class ViewStump {
     remove() {}
     asGoal() { return this.goal; }}
 
-class ViewDOMNode {
+class ViewDOMNode extends View {
     constructor(properties, children=[]) {
+        super();
         this.properties = properties;
         this.node = null;
         this.children = children; }
@@ -700,8 +715,9 @@ class ViewDOMNode {
         this.children.forEach(c => c.render(this.node));
         return this.node; }}
 
-class ViewTextNode {
+class ViewTextNode extends View {
     constructor(text) {
+        super();
         this.text = text;
         this.node = null; }
     render(parent) {
@@ -711,14 +727,18 @@ class ViewTextNode {
 }
 
 class ViewLeaf extends ViewStump {
-    constructor(goal, sub, view, model) {
+    constructor(goal, template, child) {
         super(goal);
-        this.template = sub.reify(view);
-        this.child = render(this.template, sub, model);
+        this.template = template;
+        this.child = child;
         //let [n,o] = render(sub.reify(view), sub, model);
         //this.cache = sub.reify(view);
         //this.children = o;
         //this.node = n;
+    }
+    static render_template(goal, sub, lvar, model) {
+        let tmpl = sub.reify(lvar);
+        return new this(goal, tmpl, render(tmpl, sub, model));
     }
     render(parent) {
         log('render', 'leaf', this.cache);
@@ -747,8 +767,9 @@ class ViewLeaf extends ViewStump {
         this.node = tree.node;
         this.node.textContent = this.cache; }}
 
-class ViewBranch {
+class ViewBranch extends View {
     constructor(goal, lhs, rhs) {
+        super();
         this.goal = goal;
         this.lhs = lhs;
         this.rhs = rhs;
