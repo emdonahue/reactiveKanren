@@ -659,7 +659,7 @@ class IterableView extends View { //Replaces a child template and generates one 
         this.lvar = viewvar;
         this.child = child; //Root of tree of views.
     }
-    rerender(sub) {
+    rerender(sub, model) {
         // walk existing tree, generating new nodes by manually running goals on substitution. pass off nodes as we go
         // iterableview is responsible for deletions. it scans children and if all fail, insert comment ahead of first child
         // with comment inserted as needed, remove all failing nodes with another pass and insert new nodes (get an array of children so we can do ordering)
@@ -672,8 +672,11 @@ class IterableView extends View { //Replaces a child template and generates one 
         // if all fail, and we are not failing, we fail and insert a comment & remove everything
         // if all fail and we are already failing, do nothing
 
-        // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc 
-        return new IterableView(this.lvar, this.child.rerender(sub, this.lvar)); }
+        // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc
+        let updates = [];
+        let r = new IterableView(this.lvar, this.child.rerender(sub, model, this.lvar, updates));
+        console.log(updates)
+        return r; }
     render(parent) {
         return this.child.render(parent); }
     remove() { this.child.remove(); }}
@@ -691,13 +694,12 @@ class SubView extends View {
     remove() { this.child.remove(); }}
 
 class ViewStump extends View {
-    constructor(goal, comment=null) {
+    constructor(goal) {
         super();
-        this.goal = goal;
-        this.comment = comment; }
+        this.goal = goal; }
     render(parent) {
         log('render', 'stump');
-        if (!parent) return this.comment = document.createComment(''); }
+        if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
     rerender(sub, lvar) {
         throw Error('NYI')
     }
@@ -761,16 +763,19 @@ class ViewLeaf extends ViewStump {
     update2(sub, lvar) {
         throw Error('nyi')
         return this.goal.expand_run(sub, lvar).harvest(this); }
-    rerender(sub, vvar, model) {
+    rerender(sub, model, vvar, updates) {
         console.warn('need to run view leaf goal');
         let states = this.goal.run(1, {reify: false, substitution: sub});
         if (states.isNil()) return new ViewStump(this.goal);
         sub = states.car.substitution;
         let tmpl = sub.reify(vvar);
+        let t1;
         if (!equals(tmpl,this.template)) {
             log('render', 'template', tmpl);
-            return new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model)); }
-        return new ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model));
+            t1 = new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model)); }
+        else t1 = new ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model));
+        updates.push({t0: this, t1: t1});
+        return t1;
     }
     remove() { this.child.remove(); }
     harvest(tree) {
