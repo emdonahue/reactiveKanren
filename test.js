@@ -290,7 +290,9 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2([v => v.eq(model), (v,m) => v.eq(m)], list(cons(model,'lorem'))).render().textContent, 'lorem');
 
 
-    //asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum'))).textContent, 'ipsum');
+    //console.log(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum'))))
+    logging('render')
+    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum'))).render().textContent, 'ipsum');
     
     //let a = render2((v,m) => v.eq(m), list(cons(model,'lorem')), model);
     //a[1].update(list(cons(model,'ipsum')));

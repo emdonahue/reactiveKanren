@@ -673,9 +673,10 @@ class IterableView extends View { //Replaces a child template and generates one 
         // if all fail and we are already failing, do nothing
 
         // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc 
-        this.child.rerender(sub, this.lvar); }
+        return new IterableView(this.lvar, this.child.rerender(sub, this.lvar)); }
     render(parent) {
-        return this.child.render(parent); }}
+        return this.child.render(parent); }
+    remove() { this.child.remove(); }}
 
 class SubView extends View {
     constructor(lvar, child) {
@@ -686,7 +687,8 @@ class SubView extends View {
         throw Error('nyi')
         this.child.update(sub, this.lvar); }
     render(parent) {
-        return this.child.render(parent); }}
+        return this.child.render(parent); }
+    remove() { this.child.remove(); }}
 
 class ViewStump extends View {
     constructor(goal) {
@@ -703,17 +705,21 @@ class ViewStump extends View {
     asGoal() { return this.goal; }}
 
 class ViewDOMNode extends View {
-    constructor(properties, children=[]) {
+    constructor(properties, children=[], node=null) {
         super();
         this.properties = properties;
-        this.node = null;
+        this.node = node;
         this.children = children; }
     render(parent) {
         console.assert(is_string(this.properties));
         this.node = document.createElement(this.properties);
         if (parent) parent.appendChild(this.node);
         this.children.forEach(c => c.render(this.node));
-        return this.node; }}
+        return this.node; }
+    rerender(sub, vvar, model) {
+        return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, vvar, model)), this.node);
+    }
+    remove() { if (this.node) this.node.remove(); }}
 
 class ViewTextNode extends View {
     constructor(text) {
@@ -724,6 +730,8 @@ class ViewTextNode extends View {
         this.node = document.createTextNode(this.text);
         if (parent) parent.appendChild(this.node);
         return this.node; }
+    rerender(sub, vvar, model) { return this; }
+    remove() { if (this.node) this.node.remove(); }
 }
 
 class ViewLeaf extends ViewStump {
@@ -753,16 +761,17 @@ class ViewLeaf extends ViewStump {
         throw Error('nyi')
         return this.goal.expand_run(sub, lvar).harvest(this); }
     rerender(sub, vvar, model) {
+        console.warn('need to run view leaf goal');
+        let states = this.goal.run(1, {reify: false, substitution: sub});
+        if (states.isNil()) return new ViewStump(this.goal);
+        sub = states.car.substitution;
         let tmpl = sub.reify(vvar);
         if (!equals(tmpl,this.template)) {
-            this.child.remove();
-            this.template = tmpl;
-            this.child = render(this.template, sub, model);
-            
-        }
-        throw Error('nyi')
+            log('render', 'template', tmpl);
+            return new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model)); }
+        return new ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model));
     }
-    remove() { this.node.remove(); }
+    remove() { this.child.remove(); }
     harvest(tree) {
         this.node = tree.node;
         this.node.textContent = this.cache; }}
@@ -782,6 +791,9 @@ class ViewBranch extends View {
     update(sub, lvar) {
         throw Error('NYI')
     }
+    remove() {
+        this.lhs.remove();
+        this.rhs.remove(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
