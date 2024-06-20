@@ -290,8 +290,8 @@ class Goal {
     }
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
     expand_ctn(s, cjs, v) {
-        log('expand', 'ctn', this, cjs);
-        return s.isFailure() ? new ViewStump(cjs.conj(this)) : this.expand(s, succeed, cjs, v); }
+        log('expand', 'ctn', this, cjs, s);
+        return s.isFailure() ? v(cjs.conj(this)) : this.expand(s, succeed, cjs, v); }
     suspend(s) { return new Suspended(s, this) }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
@@ -301,13 +301,13 @@ class Succeed extends Goal {
     eval(s) { return s; }
     suspend(s, ctn=succeed) { return ctn.cont(s); }
     cont(s) { return s; }
-    expand_ctn(s, g, v) {
-        log('expand', 'return', this, g);
+    expand_ctn(s, cjs, v) {
+        log('expand', 'return', this, cjs, s);
         //return new ViewLeaf(g, s.reify(v));
-        return v(g,s);
+        return v(cjs,s);
     }
     conj(g) { return g; }
-    expand(s, ctn, cjs, v) { return ctn.expand_ctn(s, cjs, v); }
+    expand(s, ctn, cjs, v) { return s.expand_ctn(ctn, cjs, v); }
     toString() { return 'succeed'; }
 }
 
@@ -316,10 +316,8 @@ class Fail extends Goal {
     suspend(s) { return failure; }
     conj(g) { return fail; }
     expand(s, ctn, cjs, v) {
-        return v(cjs.conj(ctn));
-        //return new ViewStump(cjs.conj(ctn));
-
-                           }
+        log('expand', 'fail', cjs.conj(ctn));
+        return v(cjs.conj(ctn)); }
     toString() { return 'fail'; }
 }
 
@@ -389,7 +387,7 @@ class Unification extends Goal {
     expand(s, ctn, cjs, v) {
         log('expand', '==', this, ctn, cjs);
         s = s.unify(this.lhs, this.rhs);
-        return ctn.expand_ctn(s, cjs.conj(this), v);
+        return s.expand_ctn(ctn, cjs.conj(this), v);
     }
     toString() { return `(${toString(this.lhs)} == ${toString(this.rhs)})`; }
 }
@@ -407,7 +405,7 @@ class Constraint extends Goal {
     expand(s, ctn, cjs, v) {
         log('expand', 'constraint', this, ctn, cjs);
         s = (this.f.apply(null, this.lvars.map(x => s.walk(x)))) ? s : failure;
-        return ctn.expand_ctn(s, cjs.conj(this), v);
+        return s.expand_ctn(ctn, cjs.conj(this), v);
     }
     toString() { return `${this.f}(${this.lvars})`; }
 }
@@ -423,11 +421,11 @@ class Reunification extends Goal {
 }
 
 function conde(...condes) {
-    return condes.reduceRight((cs, c) => to_goal(c).disj(to_goal(cs)));
+    return condes.reduceRight((cs, c) => to_goal(c).disj(cs), fail);
 }
 
 function conj(...conjs) {
-    return conjs.reduceRight((cs, c) => to_goal(c).conj(to_goal(cs)));
+    return conjs.reduceRight((cs, c) => to_goal(c).conj(cs), succeed);
 }
 
 function unify(x, y) {
@@ -478,6 +476,7 @@ class Failure extends Stream {
     isIncomplete() { return false; }
     step() { return this; }
     isFailure() { return true; }
+    expand_ctn(ctn, cjs, rtrn) { return rtrn(cjs.conj(ctn)); }
 }
 
 class State extends Stream {
@@ -520,6 +519,7 @@ class State extends Stream {
     _mplus(s) { return new Answers(this, s); }
     walk_binding(lvar) { return this.substitution.walk_binding(lvar); }
     walk(lvar) { return this.substitution.walk(lvar); }
+    expand_ctn(ctn, cjs, rtrn) { return ctn.expand_ctn(this, cjs, rtrn); }
 }
 
 
@@ -600,6 +600,7 @@ function render(tmpl, sub=nil, model=null) {
     else if (tmpl instanceof Function) { // Build a dynamic node using the model
         let v = new LVar();
         let g = tmpl(v, model);
+        log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let o = g.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, v, model) : new ViewStump(g));
             //return [o.render(sub, model, v), new IterableViewRoot(v, o)];
@@ -630,7 +631,6 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         let v = new LVar();
         let g = tmpl_head(v, model);
         let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
-        //console.log(o)
         return new SubView(v, o);
         //return [o.render(sub, v, [...tmpl_children]), ]
 
@@ -684,7 +684,6 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         // if no children attached, no edits needed
         // if it is the comment node, start the insert-after process, inserting and removing as needed
         //let firstAttachedChild = updates.find(t => !t.isFailure());
-        //console.log(updates)
         return r; }
     render(parent) {
         if (parent) parent.appendChild(this.comment);
@@ -765,6 +764,8 @@ class ViewLeaf extends ViewStump {
     }
     static render_template(goal, sub, lvar, model) {
         let tmpl = sub.reify(lvar);
+        log('render', 'iteritem', tmpl, sub);
+        if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
         return new this(goal, tmpl, render(tmpl, sub, model));
     }
     render(parent) {
