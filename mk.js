@@ -712,8 +712,10 @@ class ViewStump extends View {
     render(parent) {
         log('render', 'stump');
         if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
-    rerender(sub, lvar) {
-        throw Error('NYI')
+    rerender(sub, model, vvar, updates) {
+        let t1 = this.goal.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, vvar, model) : new ViewStump(g))
+        updates.push({t0: this, t1: t1});
+        return t1;
     }
     replaceDOM(view0, node) {
         view0.remove();
