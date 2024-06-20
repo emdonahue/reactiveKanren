@@ -285,11 +285,17 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2(v => v.eq('lorem')).render().textContent, 'lorem');
     asserte(render2(v => fail).render().nodeType, Node.DOCUMENT_FRAGMENT_NODE);
     asserte(render2(v => conde(v.eq('lorem'), v.eq('ipsum'))).render().textContent, 'loremipsum');
-    asserte(render2(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><span>lorem</span></div>');
+    asserte(render2(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><!----><span><!---->lorem</span></div>');
     asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).render().textContent, 'lorem');
     asserte(render2([v => v.eq(model), (v,m) => v.eq(m)], list(cons(model,'lorem'))).render().textContent, 'lorem');
 
-    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template
+    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
+    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template post-render
+    asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New subtemplate pre-render
+    asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<p><!---->ipsum</p>'); // New subtemplate post-render
+
+
+
     
     //let a = render2((v,m) => v.eq(m), list(cons(model,'lorem')), model);
     //a[1].update(list(cons(model,'ipsum')));

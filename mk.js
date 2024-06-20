@@ -353,7 +353,7 @@ class Disj extends Goal {
     }
     expand(s, ctn, cjs, v) {
         log('expand', 'disj', this, ctn, cjs);
-        return new ViewBranch(cjs, this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v));
+        return new IterableViewBranch(cjs, this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v));
     }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
@@ -602,8 +602,8 @@ function render(tmpl, sub=nil, model=null) {
         let g = tmpl(v, model);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let o = g.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, v, model) : new ViewStump(g));
-            //return [o.render(sub, model, v), new IterableView(v, o)];
-            return new IterableView(v,o);
+            //return [o.render(sub, model, v), new IterableViewRoot(v, o)];
+            return new IterableViewRoot(v,o);
 
         }
         else { return render(g, sub, model); }
@@ -649,15 +649,18 @@ class View {
         //return this;
     }
     prerender() {
+        log('render', 'prerender');
         this.render();
         return this; }
+    isFailure() { return false; }
 }
 
-class IterableView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
-    constructor(viewvar, child) {
+class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
+    constructor(viewvar, child, comment=document.createComment('')) {
         super();
         this.lvar = viewvar;
         this.child = child; //Root of tree of views.
+        this.comment = comment;
     }
     rerender(sub, model) {
         // walk existing tree, generating new nodes by manually running goals on substitution. pass off nodes as we go
@@ -674,12 +677,20 @@ class IterableView extends View { //Replaces a child template and generates one 
 
         // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc
         let updates = [];
-        let r = new IterableView(this.lvar, this.child.rerender(sub, model, this.lvar, updates));
-        console.log(updates)
+        let r = new IterableViewRoot(this.lvar, this.child.rerender(sub, model, this.lvar, updates), this.comment);
+        updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
+        
+        // get first attached child (comment or first non fail with parent
+        // if no children attached, no edits needed
+        // if it is the comment node, start the insert-after process, inserting and removing as needed
+        //let firstAttachedChild = updates.find(t => !t.isFailure());
+        //console.log(updates)
         return r; }
     render(parent) {
+        if (parent) parent.appendChild(this.comment);
         return this.child.render(parent); }
-    remove() { this.child.remove(); }}
+    remove() { this.child.remove(); }
+    lastNode() { this.child.lastNode(); }}
 
 class SubView extends View {
     constructor(lvar, child) {
@@ -703,7 +714,9 @@ class ViewStump extends View {
     rerender(sub, lvar) {
         throw Error('NYI')
     }
+    replaceDOM() { throw Error('nyi') }
     harvest(tree) { tree.remove(); }
+    isFailure() { return true; }
     remove() {}
     asGoal() { return this.goal; }}
 
@@ -714,6 +727,8 @@ class ViewDOMNode extends View {
         this.node = node;
         this.children = children; }
     render(parent) {
+        log('render', 'dom', this.node);
+        if (this.node) return this.node;
         console.assert(is_string(this.properties));
         this.node = document.createElement(this.properties);
         if (parent) parent.appendChild(this.node);
@@ -722,7 +737,8 @@ class ViewDOMNode extends View {
     rerender(sub, vvar, model) {
         return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, vvar, model)), this.node);
     }
-    remove() { if (this.node) this.node.remove(); }}
+    remove() { if (this.node) this.node.remove(); }
+    lastNode() { this.children.at(-1).lastNode(); }}
 
 class ViewTextNode extends View {
     constructor(text) {
@@ -735,7 +751,7 @@ class ViewTextNode extends View {
         return this.node; }
     rerender(sub, vvar, model) { return this; }
     remove() { if (this.node) this.node.remove(); }
-}
+    lastNode() { this.node; }}
 
 class ViewLeaf extends ViewStump {
     constructor(goal, template, child) {
@@ -764,7 +780,6 @@ class ViewLeaf extends ViewStump {
         throw Error('nyi')
         return this.goal.expand_run(sub, lvar).harvest(this); }
     rerender(sub, model, vvar, updates) {
-        console.warn('need to run view leaf goal');
         let states = this.goal.run(1, {reify: false, substitution: sub});
         if (states.isNil()) return new ViewStump(this.goal);
         sub = states.car.substitution;
@@ -778,11 +793,17 @@ class ViewLeaf extends ViewStump {
         return t1;
     }
     remove() { this.child.remove(); }
+    lastNode() { this.child.lastNode(); }
+    replaceDOM(view0, node) { // TODO no-op if templates are equal
+        node.after(this.render());
+        view0.remove();
+        return this.lastNode();
+    }
     harvest(tree) {
         this.node = tree.node;
         this.node.textContent = this.cache; }}
 
-class ViewBranch extends View {
+class IterableViewBranch extends View {
     constructor(goal, lhs, rhs) {
         super();
         this.goal = goal;
@@ -800,6 +821,7 @@ class ViewBranch extends View {
     remove() {
         this.lhs.remove();
         this.rhs.remove(); }
+    lastNode() { this.rhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
