@@ -297,6 +297,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).render().outerHTML, '<p><!---->lorem</p>'); // Subtemplate display
     asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p><!----></p>'); // Subtemplate delete
     asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'ipsum')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p><!---->lorem</p>'); // Subtemplate undelete
+    asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p><!---->ipsum</p>'); // Subtemplate swap
 
 
     //asserte(render2(['p', (v,m) => conde([m.eq('lorem'), v.eq(m)], [m.eq('ipsum'), v.eq(m)])], list(cons(model,'lorem')), model).render().outerHTML, '<p><!---->lorem</p>'); // New subtemplate post-render

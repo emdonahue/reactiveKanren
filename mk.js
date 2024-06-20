@@ -794,7 +794,7 @@ class ViewLeaf extends ViewStump {
             sub = states.car.substitution;
             let tmpl = sub.reify(vvar);
             if (!equals(tmpl,this.template)) t1 = new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model));
-            else t1 = new ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model)); }
+            else return ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model)); } // If the template hasn't changed, we don't need to replace the root.
         log('render', 'rerender', 'iteritem', 'update', t1);
         updates.push({t0: this, t1: t1});
         return t1;
