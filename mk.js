@@ -676,8 +676,10 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         // if all fail and we are already failing, do nothing
 
         // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc
+        log('render', 'rerender', 'iterviewroot');
         let updates = [];
         let r = new IterableViewRoot(this.lvar, this.child.rerender(sub, model, this.lvar, updates), this.comment);
+        log('render', 'rerender', 'iterroot', 'updates', updates);
         updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
         
         // get first attached child (comment or first non fail with parent
@@ -713,7 +715,9 @@ class ViewStump extends View {
     rerender(sub, lvar) {
         throw Error('NYI')
     }
-    replaceDOM() { throw Error('nyi') }
+    replaceDOM(view0, node) {
+        view0.remove();
+        return node; }
     harvest(tree) { tree.remove(); }
     isFailure() { return true; }
     remove() {}
@@ -780,16 +784,16 @@ class ViewLeaf extends ViewStump {
     update2(sub, lvar) {
         throw Error('nyi')
         return this.goal.expand_run(sub, lvar).harvest(this); }
-    rerender(sub, model, vvar, updates) {
-        let states = this.goal.run(1, {reify: false, substitution: sub});
-        if (states.isNil()) return new ViewStump(this.goal);
-        sub = states.car.substitution;
-        let tmpl = sub.reify(vvar);
-        let t1;
-        if (!equals(tmpl,this.template)) {
-            log('render', 'template', tmpl);
-            t1 = new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model)); }
-        else t1 = new ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model));
+    rerender(sub, model, vvar, updates) {        
+        let t1, states = this.goal.run(1, {reify: false, substitution: sub});
+        log('render', 'rerender', 'iteritem', 'goal', this.goal);
+        if (states.isNil()) t1 = new ViewStump(this.goal);
+        else {
+            sub = states.car.substitution;
+            let tmpl = sub.reify(vvar);
+            if (!equals(tmpl,this.template)) t1 = new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model));
+            else t1 = new ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model)); }
+        log('render', 'rerender', 'iteritem', 'update', t1);
         updates.push({t0: this, t1: t1});
         return t1;
     }
