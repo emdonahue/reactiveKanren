@@ -603,7 +603,6 @@ function render(tmpl, sub=nil, model=null) {
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let o = g.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, v, model) : new ViewStump(g));
-            //return [o.render(sub, model, v), new IterableViewRoot(v, o)];
             return new IterableViewRoot(v,o);
 
         }
@@ -630,8 +629,12 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
     else if (tmpl_head instanceof Function) {
         let v = new LVar();
         let g = tmpl_head(v, model);
-        let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
-        return new SubView(v, o);
+        log('render', 'head', 'fn', g);
+        //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
+        //return new SubView(v, o);
+
+        let o = g.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, tmpl_children[0], v) : new ViewStump(g));
+        return new IterableViewRoot(tmpl_children[0],o);
         //return [o.render(sub, v, [...tmpl_children]), ]
 
         ;
@@ -676,7 +679,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         // if all fail and we are already failing, do nothing
 
         // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc
-        log('render', 'rerender', 'iterviewroot');
+        log('render', 'rerender', 'iterviewroot', model);
         let updates = [];
         let r = new IterableViewRoot(this.lvar, this.child.rerender(sub, model, this.lvar, updates), this.comment);
         log('render', 'rerender', 'iterroot', 'updates', updates);
@@ -763,10 +766,6 @@ class ViewLeaf extends ViewStump {
         super(goal);
         this.template = template;
         this.child = child;
-        //let [n,o] = render(sub.reify(view), sub, model);
-        //this.cache = sub.reify(view);
-        //this.children = o;
-        //this.node = n;
     }
     static render_template(goal, sub, lvar, model) {
         let tmpl = sub.reify(lvar);
@@ -780,21 +779,15 @@ class ViewLeaf extends ViewStump {
         //return this.node;
         return this.child.render(parent);
     }
-    subview(sub, model, templates) {
-        let [n,o] = render(templates[0], sub, model);
-    }
-    update2(sub, lvar) {
-        throw Error('nyi')
-        return this.goal.expand_run(sub, lvar).harvest(this); }
-    rerender(sub, model, vvar, updates) {        
-        let t1, states = this.goal.run(1, {reify: false, substitution: sub});
-        log('render', 'rerender', 'iteritem', 'goal', this.goal);
+    rerender(sub, model, vvar, updates) {
+        log('render', 'rerender', 'iteritem', this.goal, model);
+        let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
         if (states.isNil()) t1 = new ViewStump(this.goal);
         else {
             sub = states.car.substitution;
             let tmpl = sub.reify(vvar);
             if (!equals(tmpl,this.template)) t1 = new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model));
-            else return ViewLeaf(this.goal, this.template, this.child.rerender(sub, lvar, model)); } // If the template hasn't changed, we don't need to replace the root.
+            else return new ViewLeaf(this.goal, this.template, this.child.rerender(sub, vvar, model)); } // If the template hasn't changed, we don't need to replace the root.
         log('render', 'rerender', 'iteritem', 'update', t1);
         updates.push({t0: this, t1: t1});
         return t1;
