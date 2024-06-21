@@ -261,7 +261,7 @@ function treelist(x,m) {
 }
 
 asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML, '<div><div>1<!---->2<!----><!----></div><!----><div>3<!---->4<!----><!----></div><!----><!----></div>');
-//console.log(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML)
+
 
 {
     let ul_template = ['ul', function ul(view, model) {
@@ -300,13 +300,17 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p><!---->ipsum</p>'); // Subtemplate swap
 
     asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
-    console.log(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
+    //console.log(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
 
-    logging('render')
+    
     asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
     asserte(render2([v => conde(v.eq('lorem'), v.eq('ipsum')), (v,m) => v.eq(m)]).render().textContent, 'loremipsum');
     asserte(render2(['p', [v => conde(v.eq('lorem'), v.eq('ipsum')), ['span', (v,m) => v.eq(m)]]]).render().outerHTML, '<p><!----><span><!---->lorem</span><span><!---->ipsum</span></p>');
-    
+
+    asserte(render2([(v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')]),
+                     (v,m) => fresh(x => v.eq(m))],
+                    list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
+
     //asserte(render2(['p', [(v,m) => conde([v.eq('lorem'), v.eq(m)], [v.eq('ipsum'), v.eq(m)]), ['span', (v,m) => v.eq(m)]]], list(cons(model, 'lorem'))).render().outerHTML, '<p><span><!---->lorem</span><span><!---->ipsum</span></p>');
 
     //asserte(render2(['p', (v,m) => conde([m.eq('lorem'), v.eq(m)], [m.eq('ipsum'), v.eq(m)])], list(cons(model,'lorem')), model).render().outerHTML, '<p><!---->lorem</p>'); // New subtemplate post-render
