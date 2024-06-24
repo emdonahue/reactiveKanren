@@ -279,7 +279,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => s ? ViewLeaf.render_template(g, s, v, null) : new ViewStump(g))) { //TODO remove default viewleaf
+    expand_run(s=nil, v=((g,s) => s ? IterableViewItem.render_template(g, s, v, null) : new ViewStump(g))) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -303,7 +303,6 @@ class Succeed extends Goal {
     cont(s) { return s; }
     expand_ctn(s, cjs, v) {
         log('expand', 'return', this, cjs, s);
-        //return new ViewLeaf(g, s.reify(v));
         return v(cjs,s);
     }
     conj(g) { return g; }
@@ -602,7 +601,7 @@ function render(tmpl, sub=nil, model=null) {
         let g = tmpl(v, model);
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let o = g.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, v, model) : new ViewStump(g));
+            let o = g.expand_run(sub, (g, s) => s ? IterableViewItem.render_template(g, s, v, model) : new ViewStump(g));
             return new IterableViewRoot(v,o);
 
         }
@@ -633,7 +632,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
         //return new SubView(v, o);
 
-        let o = g.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, tmpl_children[0], v) : new ViewStump(g));
+        let o = g.expand_run(sub, (g, s) => s ? IterableViewItem.render_template(g, s, tmpl_children[0], v) : new ViewStump(g));
         return new SubView(v, new IterableViewRoot(tmpl_children[0],o));
         //return [o.render(sub, v, [...tmpl_children]), ]
 
@@ -721,7 +720,7 @@ class ViewStump extends View {
         if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
     rerender(sub, model, vvar, updates) {
         log('render', 'rerender', 'stump', this.goal);
-        let t1 = this.goal.expand_run(sub, (g, s) => s ? ViewLeaf.render_template(g, s, vvar, model) : new ViewStump(g))
+        let t1 = this.goal.expand_run(sub, (g, s) => s ? IterableViewItem.render_template(g, s, vvar, model) : new ViewStump(g))
         updates.push({t0: this, t1: t1});
         return t1;
     }
@@ -768,17 +767,18 @@ class ViewTextNode extends View {
     remove() { if (this.node) this.node.remove(); }
     lastNode() { return this.node.parentNode ? this.node : null; }}
 
-class ViewLeaf extends ViewStump {
-    constructor(goal, template, child) {
+class IterableViewItem extends ViewStump {
+    constructor(goal, template, child, failing) {
         super(goal);
         this.template = template;
         this.child = child;
+        this.failing = failing;
     }
     static render_template(goal, sub, lvar, model) {
         let tmpl = sub.reify(lvar);
         log('render', 'iteritem', tmpl, sub);
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
-        return new this(goal, tmpl, render(tmpl, sub, model));
+        return new this(goal, tmpl, render(tmpl, sub, model), false);
     }
     render(parent) {
         log('render', 'leaf', toString(this.template));
@@ -789,12 +789,12 @@ class ViewLeaf extends ViewStump {
     rerender(sub, model, vvar, updates) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
         let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
-        if (states.isNil()) t1 = new ViewStump(this.goal);
+        if (states.isNil()) t1 = new IterableViewItem(this.goal, this.template, this.child, true); //new ViewStump(this.goal);
         else {
             sub = states.car.substitution;
             let tmpl = sub.reify(vvar);
-            if (!equals(tmpl,this.template)) t1 = new ViewLeaf(this.goal, tmpl, render(tmpl, sub, model));
-            else return new ViewLeaf(this.goal, this.template, this.child.rerender(sub, vvar, model)); } // If the template hasn't changed, we don't need to replace the root.
+            if (!equals(tmpl,this.template)) t1 = new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false);
+            else return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false); } // If the template hasn't changed, we don't need to replace the root.
         log('render', 'rerender', 'iteritem', 'update', t1);
         updates.push({t0: this, t1: t1});
         return t1;
@@ -802,6 +802,10 @@ class ViewLeaf extends ViewStump {
     remove() { this.child.remove(); }
     lastNode() { this.child.lastNode(); }
     replaceDOM(view0, node) { // TODO no-op if templates are equal
+        if (this.failing) {
+            view0.remove();
+            return node;
+        }
         log('render', 'rerender', 'replacedom', 'adding');
         node.after(this.render());
         log('render', 'rerender', 'replacedom', 'added', node.parentNode);
