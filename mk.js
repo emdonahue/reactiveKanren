@@ -279,7 +279,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => s ? IterableViewItem.render_template(g, s, v, null) : new ViewStump(g))) { //TODO remove default viewleaf
+    expand_run(s=nil, v=((g,s) => IterableViewItem.render_template(g, s, v, null))) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -601,7 +601,7 @@ function render(tmpl, sub=nil, model=null) {
         let g = tmpl(v, model);
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let o = g.expand_run(sub, (g, s) => s ? IterableViewItem.render_template(g, s, v, model) : new ViewStump(g));
+            let o = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model));
             return new IterableViewRoot(v,o);
 
         }
@@ -632,7 +632,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
         //return new SubView(v, o);
 
-        let o = g.expand_run(sub, (g, s) => s ? IterableViewItem.render_template(g, s, tmpl_children[0], v) : new ViewStump(g));
+        let o = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, tmpl_children[0], v));
         return new SubView(v, new IterableViewRoot(tmpl_children[0],o));
         //return [o.render(sub, v, [...tmpl_children]), ]
 
@@ -660,7 +660,6 @@ class View {
 class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
     constructor(viewvar, child, comment=document.createComment('')) {
         super();
-        console.assert(child instanceof View);
         this.lvar = viewvar;
         this.child = child; //Root of tree of views.
         this.comment = comment;
@@ -711,28 +710,6 @@ class SubView extends View {
     lastNode() { return this.child.lastNode(); }
     remove() { this.child.remove(); }}
 
-class ViewStump extends View {
-    constructor(goal) {
-        super();
-        this.goal = goal; }
-    render(parent) {
-        log('render', 'stump', this.goal);
-        if (!parent) return document.createDocumentFragment(); } //TODO make a global empty doc frag
-    rerender(sub, model, vvar, updates) {
-        log('render', 'rerender', 'stump', this.goal);
-        let t1 = this.goal.expand_run(sub, (g, s) => s ? IterableViewItem.render_template(g, s, vvar, model) : new ViewStump(g))
-        updates.push({t0: this, t1: t1});
-        return t1;
-    }
-    replaceDOM(view0, node) {
-        log('render', 'rerender', 'replacedom', 'removing', view0);
-        view0.remove();
-        return node; }
-    harvest(tree) { tree.remove(); }
-    isFailure() { return true; }
-    lastNode() { return null; }
-    remove() {}
-    asGoal() { return this.goal; }}
 
 class ViewDOMNode extends View {
     constructor(properties, children=[], node=null) {
@@ -767,14 +744,16 @@ class ViewTextNode extends View {
     remove() { if (this.node) this.node.remove(); }
     lastNode() { return this.node.parentNode ? this.node : null; }}
 
-class IterableViewItem extends ViewStump {
+class IterableViewItem extends View {
     constructor(goal, template, child, failing) {
-        super(goal);
+        super();
+        this.goal = goal;
         this.template = template;
         this.child = child;
         this.failing = failing;
     }
     static render_template(goal, sub, lvar, model) {
+        if (!sub) return new this(goal, null, null, true);
         let tmpl = sub.reify(lvar);
         log('render', 'iteritem', tmpl, sub);
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
@@ -784,12 +763,13 @@ class IterableViewItem extends ViewStump {
         log('render', 'leaf', toString(this.template));
         //let [n, o] = render(this.cache, sub, model);
         //return this.node;
+        if (this.failing) return document.createDocumentFragment();
         return this.child.render(parent);
     }
     rerender(sub, model, vvar, updates) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
         let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
-        if (states.isNil()) t1 = new IterableViewItem(this.goal, this.template, this.child, true); //new ViewStump(this.goal);
+        if (states.isNil()) t1 = new IterableViewItem(this.goal, this.template, this.child, true); 
         else {
             sub = states.car.substitution;
             let tmpl = sub.reify(vvar);
@@ -799,7 +779,7 @@ class IterableViewItem extends ViewStump {
         updates.push({t0: this, t1: t1});
         return t1;
     }
-    remove() { this.child.remove(); }
+    remove() { if(!this.failing) this.child.remove(); }
     lastNode() { this.child.lastNode(); }
     replaceDOM(view0, node) { // TODO no-op if templates are equal
         if (this.failing) {
