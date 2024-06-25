@@ -597,7 +597,7 @@ function render(tmpl, sub=nil, model=null) {
         log('render', 'var', tmpl);
         return DynamicNode.render(tmpl, sub, obs, model, update, goals); }*/
     else if (tmpl instanceof Function) { // Build a dynamic node using the model
-        let v = new LVar();
+        let v = new LVar(); //TODO can view vars all be the same physical var?
         let g = tmpl(v, model);
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
@@ -665,35 +665,31 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         this.comment = comment;
     }
     rerender(sub, model) {
-        // walk existing tree, generating new nodes by manually running goals on substitution. pass off nodes as we go
-        // iterableview is responsible for deletions. it scans children and if all fail, insert comment ahead of first child
-        // with comment inserted as needed, remove all failing nodes with another pass and insert new nodes (get an array of children so we can do ordering)
-        // at fail leaves we re-evaluate the goal 
-        // generate new child tree
-        // tandem walk trees and hand off nodes
-        // if all leaves fail in 
-        // if no  passing leaves, 
-        // get list of child leaves from both trees
-        // if all fail, and we are not failing, we fail and insert a comment & remove everything
-        // if all fail and we are already failing, do nothing
 
-        // we cant naively generate a new tree bc we'd rebuild all the dom nodes, and we cant easily generate a pure value tree bc
+        // at each timestep, we will get pairs that either: go removed to added, added to removed (this is trivial), added to changed added, order changed, order fn changed, changed from fail to branch
+        // for added -> removed, just remove
+        // for added, no change of order, find last child of predecessor and insert (or first child of successor, or comment), and do this in order so we can know everything to the left is already attached
+        // for order changed, try to perform the minimal swaps
+        
         log('render', 'rerender', 'iterviewroot');
         let updates = [];
         let r = new IterableViewRoot(this.lvar, this.child.rerender(sub, model, this.lvar, updates), this.comment);
         log('render', 'rerender', 'iterroot', 'updates', updates);
         updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
-        
-        // get first attached child (comment or first non fail with parent
-        // if no children attached, no edits needed
-        // if it is the comment node, start the insert-after process, inserting and removing as needed
-        //let firstAttachedChild = updates.find(t => !t.isFailure());
         return r; }
     render(parent) {
         if (parent) parent.appendChild(this.comment);
         return this.child.render(parent); }
     remove() { this.child.remove(); }
     lastNode() { return this.child.lastNode(); }}
+
+class OrderedIterableRoot extends IterableViewRoot {
+    constructor(viewvar, child, comment=document.createComment(''), orderv, orderfnv, ordered_children) {
+        super(viewvar, child, comment);
+        this.ovar = orderv;
+        this.ofnvar = orderfnv;
+        this.ordered_children = ordered_children;
+}
 
 class SubView extends View {
     constructor(lvar, child) {
@@ -745,7 +741,7 @@ class ViewTextNode extends View {
     lastNode() { return this.node.parentNode ? this.node : null; }}
 
 class IterableViewItem extends View {
-    constructor(goal, template, child, failing) {
+    constructor(goal, template=null, child=null, failing=true) {
         super();
         this.goal = goal;
         this.template = template;
@@ -753,7 +749,7 @@ class IterableViewItem extends View {
         this.failing = failing;
     }
     static render_template(goal, sub, lvar, model) {
-        if (!sub) return new this(goal, null, null, true);
+        if (!sub) return new this(goal);
         let tmpl = sub.reify(lvar);
         log('render', 'iteritem', tmpl, sub);
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
@@ -761,27 +757,28 @@ class IterableViewItem extends View {
     }
     render(parent) {
         log('render', 'leaf', toString(this.template));
-        //let [n, o] = render(this.cache, sub, model);
-        //return this.node;
         if (this.failing) return document.createDocumentFragment();
         return this.child.render(parent);
     }
     rerender(sub, model, vvar, updates) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
         let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
-        if (states.isNil()) t1 = new IterableViewItem(this.goal, this.template, this.child, true); 
-        else {
-            sub = states.car.substitution;
-            let tmpl = sub.reify(vvar);
-            if (!equals(tmpl,this.template)) t1 = new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false);
-            else return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false); } // If the template hasn't changed, we don't need to replace the root.
-        log('render', 'rerender', 'iteritem', 'update', t1);
-        updates.push({t0: this, t1: t1});
-        return t1;
+        if (states.isNil()) {
+            if (this.failing) return this;
+            updates.push({t0: this, t1: new IterableViewItem(this.goal, this.template, this.child, true)});
+            return updates[updates.length-1].t1; }
+
+        sub = states.car.substitution;
+        let tmpl = sub.reify(vvar);
+        
+        if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
+        
+        updates.push({t0: this, t1: new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false)});
+        return updates[updates.length-1].t1;;
     }
     remove() { if(!this.failing) this.child.remove(); }
     lastNode() { this.child.lastNode(); }
-    replaceDOM(view0, node) { // TODO no-op if templates are equal
+    replaceDOM(view0, node) {
         if (this.failing) {
             view0.remove();
             return node;
@@ -808,9 +805,6 @@ class IterableViewBranch extends View {
         this.lhs.render(parent);
         this.rhs.render(parent);
         return parent; }
-    update(sub, lvar) {
-        throw Error('NYI')
-    }
     remove() {
         this.lhs.remove();
         this.rhs.remove(); }
