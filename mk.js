@@ -598,11 +598,12 @@ function render(tmpl, sub=nil, model=null) {
         return DynamicNode.render(tmpl, sub, obs, model, update, goals); }*/
     else if (tmpl instanceof Function) { // Build a dynamic node using the model
         let v = new LVar(); //TODO can view vars all be the same physical var?
-        let g = tmpl(v, model);
+        let o = new LVar();
+        let g = tmpl(v, model, o);        
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let o = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model));
-            return new IterableViewRoot(v,o);
+            let c = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model,o));
+            return new IterableViewRoot(v,c,o);
 
         }
         else { return render(g, sub, model); }
@@ -627,13 +628,14 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
     }
     else if (tmpl_head instanceof Function) {
         let v = new LVar();
+        let o = new LVar();
         let g = tmpl_head(v, model);
         log('render', 'head', 'fn', g);
         //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
         //return new SubView(v, o);
 
-        let o = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, tmpl_children[0], v));
-        return new SubView(v, new IterableViewRoot(tmpl_children[0],o));
+        let c = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, tmpl_children[0], v, o));
+        return new SubView(v, new IterableViewRoot(tmpl_children[0],c,o));
         //return [o.render(sub, v, [...tmpl_children]), ]
 
         ;
@@ -658,11 +660,16 @@ class View {
 }
 
 class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
-    constructor(viewvar, child, comment=document.createComment('')) {
+    constructor(viewvar, child, order, comment=document.createComment(''),
+                ordered_children=child.toArray([]).sort((a,b) =>
+                    a.order == b.order ? 0 : a.order < b.order ? -1 : 1)) {
         super();
+        if (!(comment instanceof Node)) throw Error('comment not node')
         this.lvar = viewvar;
+        this.order = order; //Order var
         this.child = child; //Root of tree of views.
         this.comment = comment;
+        this.ordered_children = ordered_children;
     }
     rerender(sub, model) {
 
@@ -673,13 +680,17 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         
         log('render', 'rerender', 'iterviewroot');
         let updates = [];
-        let r = new IterableViewRoot(this.lvar, this.child.rerender(sub, model, this.lvar, updates), this.comment);
+        let r = new IterableViewRoot(this.lvar, this.child.rerender(sub, model, this.lvar, updates), this.order, this.comment);
         log('render', 'rerender', 'iterroot', 'updates', updates);
         updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
         return r; }
     render(parent) {
-        if (parent) parent.appendChild(this.comment);
-        return this.child.render(parent); }
+        log('render', 'iterroot', this.ordered_children);
+        let f = this.ordered_children.reduce((f,c) => c.render(f) && f, document.createDocumentFragment());
+        if (parent) {
+            parent.appendChild(this.comment);
+            parent.appendChild(f); }
+        return f; }
     remove() { this.child.remove(); }
     lastNode() { return this.child.lastNode(); }}
 
@@ -688,8 +699,10 @@ class OrderedIterableRoot extends IterableViewRoot {
         super(viewvar, child, comment);
         this.ovar = orderv;
         this.ofnvar = orderfnv;
-        this.ordered_children = ordered_children;
+        this.ordered_children = ordered_children; }
 }
+
+
 
 class SubView extends View {
     constructor(lvar, child) {
@@ -741,24 +754,32 @@ class ViewTextNode extends View {
     lastNode() { return this.node.parentNode ? this.node : null; }}
 
 class IterableViewItem extends View {
-    constructor(goal, template=null, child=null, failing=true) {
+    constructor(goal, template=null, child=null, failing=true,order) {
         super();
         this.goal = goal;
         this.template = template;
         this.child = child;
         this.failing = failing;
+        this.order = order;
     }
-    static render_template(goal, sub, lvar, model) {
+    static render_template(goal, sub, lvar, model, order) {
         if (!sub) return new this(goal);
         let tmpl = sub.reify(lvar);
         log('render', 'iteritem', tmpl, sub);
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
-        return new this(goal, tmpl, render(tmpl, sub, model), false);
+        return new this(goal, tmpl, render(tmpl, sub, model), false, sub.reify(order));
     }
     render(parent) {
         log('render', 'leaf', toString(this.template));
-        if (this.failing) return document.createDocumentFragment();
-        return this.child.render(parent);
+        let n = document.createDocumentFragment();
+        if (!this.failing) {
+            this.child.render(n);
+            
+            let cs = Array.from(n.children);
+
+            if (parent) parent.appendChild(n);
+        }
+        return n;
     }
     rerender(sub, model, vvar, updates) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
@@ -789,9 +810,7 @@ class IterableViewItem extends View {
         view0.remove();
         return this.lastNode() || node;
     }
-    harvest(tree) {
-        this.node = tree.node;
-        this.node.textContent = this.cache; }}
+    toArray(a) { a.push(this); return a; }}
 
 class IterableViewBranch extends View {
     constructor(goal, lhs, rhs) {
@@ -808,6 +827,10 @@ class IterableViewBranch extends View {
     remove() {
         this.lhs.remove();
         this.rhs.remove(); }
+    toArray(a) {
+        this.lhs.toArray(a);
+        this.rhs.toArray(a);
+        return a; }
     lastNode() { return this.rhs.lastNode() || this.lhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
