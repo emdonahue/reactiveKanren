@@ -608,6 +608,9 @@ function render(tmpl, sub=nil, model=null) {
         }
         else { return render(g, sub, model); }
     }
+    else if (tmpl instanceof Template) {
+        return tmpl.render(sub, model);
+    }
     //else if (tmpl instanceof LVar) { return render(sub.walk(tmpl), sub, model); }
     else if (Array.isArray(tmpl)) return render_head(tmpl, sub, model);
     else {
@@ -673,16 +676,32 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     }
     rerender(sub, model) {
 
-        // at each timestep, we will get pairs that either: go removed to added, added to removed (this is trivial), added to changed added, order changed, order fn changed, changed from fail to branch
+        // at each timestep, we will get pairs that either: added, removed, template changed, order changed, order fn changed, changed from fail to branch
+        // we have already some number of attached nodes with certain templates that we want to minimize the disruption of
+        // unchanged items can't be optimized so ignore them and only find the best way to handle the deltas either by trading or delete/create???
+        // for fail -> add, we need to create and insert at the correct spot
+        // for template change
         // for added -> removed, just remove
         // for added, no change of order, find last child of predecessor and insert (or first child of successor, or comment), and do this in order so we can know everything to the left is already attached
         // for order changed, try to perform the minimal swaps
+
+        // align sorted array of attached children with sorted array mixed in with diffs
+        // compare the two heads. if same, skip
+        // do we really need diffs if we have this order sort situation, or are diffs only for unordered, if that ever even happens?
+
+        // instead of attaching comment we could always create a dummy node with an after()
         
         log('render', 'rerender', 'iterviewroot');
-        let updates = [];
-        let r = new IterableViewRoot(this.lvar, this.child.rerender(sub, model, this.lvar, updates), this.order, this.comment);
-        log('render', 'rerender', 'iterroot', 'updates', updates);
-        updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
+        //let updates = [];
+        let c = this.child.rerender(sub, model, this.lvar);
+        let delta = c.items().sort((a,b) =>
+            a.order == b.order ? 0 : a.order < b.order ? -1 : 1);
+        this.ordered_children.forEach(c => c.remove());
+        delta.reduceRight((_,n) => this.comment.after(n.render()), null);
+        let r = new IterableViewRoot(this.lvar, c, this.order, this.comment, delta);
+        //log('render', 'rerender', 'iterroot', 'updates', updates);
+        //updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
+
         return r; }
     render(parent) {
         log('render', 'iterroot', this.ordered_children);
@@ -692,6 +711,9 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
             parent.appendChild(f); }
         return f; }
     remove() { this.child.remove(); }
+    items(a=[]) {
+        this.child.items(a);
+        return a; }
     lastNode() { return this.child.lastNode(); }}
 
 class OrderedIterableRoot extends IterableViewRoot {
@@ -786,16 +808,19 @@ class IterableViewItem extends View {
         let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
         if (states.isNil()) {
             if (this.failing) return this;
-            updates.push({t0: this, t1: new IterableViewItem(this.goal, this.template, this.child, true)});
-            return updates[updates.length-1].t1; }
+            //updates.push({t0: this, t1: new IterableViewItem(this.goal, this.template, this.child, true)});
+            //return updates[updates.length-1].t1;
+            return new IterableViewItem(this.goal, this.template, this.child, true);
+        }
 
         sub = states.car.substitution;
         let tmpl = sub.reify(vvar);
         
         if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
-        
-        updates.push({t0: this, t1: new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false)});
-        return updates[updates.length-1].t1;;
+
+        return new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false);
+        //updates.push({t0: this, t1: new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false)});
+        //return updates[updates.length-1].t1;;
     }
     remove() { if(!this.failing) this.child.remove(); }
     lastNode() { this.child.lastNode(); }
@@ -810,6 +835,9 @@ class IterableViewItem extends View {
         view0.remove();
         return this.lastNode() || node;
     }
+    items(a=[]) {
+        if (!this.failing) a.push(this);
+        return a; }
     toArray(a) { a.push(this); return a; }}
 
 class IterableViewBranch extends View {
@@ -831,8 +859,24 @@ class IterableViewBranch extends View {
         this.lhs.toArray(a);
         this.rhs.toArray(a);
         return a; }
+    items(a=[]) {
+        this.lhs.items(a);
+        this.rhs.items(a);
+        return a; }
     lastNode() { return this.rhs.lastNode() || this.lhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
+}
+
+class Template {}
+
+class OrderedTemplate extends Template {
+    constructor(template, orderfn) {
+        this.template = template;
+        this.orderfn = orderfn;
+    }
+    render(sub, model) {
+        return 
+    }
 }
 
 export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, render};
