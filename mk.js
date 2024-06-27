@@ -664,7 +664,7 @@ class View {
 
 class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
     constructor(viewvar, child, order, comment=document.createComment(''),
-                ordered_children=child.toArray([]).sort((a,b) =>
+                ordered_children=child.items().sort((a,b) =>
                     a.order == b.order ? 0 : a.order < b.order ? -1 : 1)) {
         super();
         if (!(comment instanceof Node)) throw Error('comment not node')
@@ -690,12 +690,50 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         // do we really need diffs if we have this order sort situation, or are diffs only for unordered, if that ever even happens?
 
         // instead of attaching comment we could always create a dummy node with an after()
+
+        // longest common subsequence
+        // target: longest common subsequence where each item is a pair of pointers into old and new array. then we can go through and delete the old that are not in the sequence and render the new
+        // if one array is empty, add or pass on all the rest of theother
+        // if the heads are the same, skip one
+        // 
         
         log('render', 'rerender', 'iterviewroot');
         //let updates = [];
         let c = this.child.rerender(sub, model, this.lvar);
         let delta = c.items().sort((a,b) =>
             a.order == b.order ? 0 : a.order < b.order ? -1 : 1);
+
+        let i,j;
+        let lcs = [...new Array(this.ordered_children.length+1)].map(() => new Array(delta.length+1).fill(0));
+        for (i=1; i<=this.ordered_children.length; i++) {
+            for (j=1; j<=delta.length; j++) {
+                if (equals(this.ordered_children[i-1].template, delta[j-1].template)) {
+                    lcs[i][j] = lcs[i-1][j-1] + 1;
+                }
+                else {
+                    lcs[i][j] = Math.max(lcs[i][j-1], lcs[i-1][j]);
+                }
+            }
+        }
+        //console.log(this.ordered_children, delta, lcs)
+        i--; j--;
+//        let anchor = this.comment;
+        while (i && j) {
+            if (equals(this.ordered_children[i-1].template, delta[j-1].template)) {
+                i--;
+                j--;
+            }
+            else if (lcs[i-1][j] < lcs[i][j-1]) { // Skipping a delta, so add it
+
+                j--;
+            }
+            else { // Skipping a dom node, so remove it
+  //              this.ordered_children[i].remove();
+                i--;
+            }
+        }
+
+        
         this.ordered_children.forEach(c => c.remove());
         delta.reduceRight((_,n) => this.comment.after(n.render()), null);
         let r = new IterableViewRoot(this.lvar, c, this.order, this.comment, delta);
