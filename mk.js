@@ -718,7 +718,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         //console.log(this.ordered_children, delta, lcs)
         i--; j--;
 //        let anchor = this.comment;
-        while (i && j) {
+        while (i && j) { //TODO we should go te 0 with both to ensure all deletions/additions
             if (equals(this.ordered_children[i-1].template, delta[j-1].template)) {
                 i--;
                 j--;
@@ -733,9 +733,22 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
             }
         }
 
+
+        if (this.ordered_children.length &&
+            this.ordered_children[this.ordered_children.length-1].lastNode()) { // null if we rerender before render
+            log('render', 'rerender', 'parent',
+                this.ordered_children[this.ordered_children.length-1].lastNode(),
+                this.ordered_children[this.ordered_children.length-1].lastNode().parentNode);
+            this.ordered_children[this.ordered_children.length-1].lastNode().after(this.comment);
+        }
+
+        log('render', 'rerender', 'delete/add', this.ordered_children, delta);
         
-        this.ordered_children.forEach(c => c.remove());
-        delta.reduceRight((_,n) => this.comment.after(n.render()), null);
+        this.ordered_children.forEach(c => c.remove()); 
+        //delta.reduceRight((_,n) => this.comment.after(n.render()), null);
+
+        delta.forEach(n => this.comment.before(n.render())); //try variadic before()
+        if (delta.length) this.comment.remove();
         let r = new IterableViewRoot(this.lvar, c, this.order, this.comment, delta);
         //log('render', 'rerender', 'iterroot', 'updates', updates);
         //updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
@@ -743,9 +756,10 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         return r; }
     render(parent) {
         log('render', 'iterroot', this.ordered_children);
-        let f = this.ordered_children.reduce((f,c) => c.render(f) && f, document.createDocumentFragment());
-        if (parent) {
-            parent.appendChild(this.comment);
+        let f = this.ordered_children.length ?
+            this.ordered_children.reduce((f,c) => c.render(f) && f, document.createDocumentFragment())
+            : this.comment;
+        if (parent) {            
             parent.appendChild(f); }
         return f; }
     remove() { this.child.remove(); }
@@ -798,7 +812,7 @@ class ViewDOMNode extends View {
         return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, vvar, model)), this.node);
     }
     remove() { if (this.node) this.node.remove(); }
-    lastNode() { return this.node.parentNode ? this.node : null; }}
+    lastNode() { return this.node; }}
 
 class ViewTextNode extends View {
     constructor(text) {
@@ -811,7 +825,7 @@ class ViewTextNode extends View {
         return this.node; }
     rerender(sub, vvar, model) { return this; }
     remove() { if (this.node) this.node.remove(); }
-    lastNode() { return this.node.parentNode ? this.node : null; }}
+    lastNode() { return this.node; }}
 
 class IterableViewItem extends View {
     constructor(goal, template=null, child=null, failing=true,order) {
@@ -861,7 +875,7 @@ class IterableViewItem extends View {
         //return updates[updates.length-1].t1;;
     }
     remove() { if(!this.failing) this.child.remove(); }
-    lastNode() { this.child.lastNode(); }
+    lastNode() { return this.child.lastNode(); }
     replaceDOM(view0, node) {
         if (this.failing) {
             view0.remove();
@@ -901,7 +915,7 @@ class IterableViewBranch extends View {
         this.lhs.items(a);
         this.rhs.items(a);
         return a; }
-    lastNode() { return this.rhs.lastNode() || this.lhs.lastNode(); }
+    lastNode() { return this.rhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
