@@ -696,12 +696,20 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         // if one array is empty, add or pass on all the rest of theother
         // if the heads are the same, skip one
         // 
+
+
+        if (this.ordered_children.length &&
+            this.ordered_children[this.ordered_children.length-1].lastNode()) { // null if we rerender before render
+            log('render', 'rerender', 'parent',
+                this.ordered_children[this.ordered_children.length-1].lastNode(),
+                this.ordered_children[this.ordered_children.length-1].lastNode().parentNode);
+            this.ordered_children[this.ordered_children.length-1].lastNode().after(this.comment);
+        }
         
         log('render', 'rerender', 'iterviewroot');
         //let updates = [];
         let c = this.child.rerender(sub, model, this.lvar);
-        let delta = c.items().sort((a,b) =>
-            a.order == b.order ? 0 : a.order < b.order ? -1 : 1);
+        let delta = c.items().sort((a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1);
 
         let i,j;
         let lcs = [...new Array(this.ordered_children.length+1)].map(() => new Array(delta.length+1).fill(0));
@@ -718,33 +726,28 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         //console.log(this.ordered_children, delta, lcs)
         i--; j--;
 //        let anchor = this.comment;
-        while (i && j) { //TODO we should go te 0 with both to ensure all deletions/additions
-            if (equals(this.ordered_children[i-1].template, delta[j-1].template)) {
+        while (i || j) { //TODO we should go te 0 with both to ensure all deletions/additions
+            if (i && j && equals(this.ordered_children[i-1].template, delta[j-1].template)) {
+                
                 i--;
                 j--;
             }
-            else if (lcs[i-1][j] < lcs[i][j-1]) { // Skipping a delta, so add it
+            else if (!i || lcs[i-1][j] < lcs[i][j-1]) { // Skipping a delta, so add it
 
                 j--;
             }
             else { // Skipping a dom node, so remove it
-  //              this.ordered_children[i].remove();
+                this.ordered_children[i-1].remove();
                 i--;
             }
         }
 
 
-        if (this.ordered_children.length &&
-            this.ordered_children[this.ordered_children.length-1].lastNode()) { // null if we rerender before render
-            log('render', 'rerender', 'parent',
-                this.ordered_children[this.ordered_children.length-1].lastNode(),
-                this.ordered_children[this.ordered_children.length-1].lastNode().parentNode);
-            this.ordered_children[this.ordered_children.length-1].lastNode().after(this.comment);
-        }
+        
 
         log('render', 'rerender', 'delete/add', this.ordered_children, delta);
         
-        this.ordered_children.forEach(c => c.remove()); 
+        //this.ordered_children.forEach(c => c.remove()); 
         //delta.reduceRight((_,n) => this.comment.after(n.render()), null);
 
         delta.forEach(n => this.comment.before(n.render())); //try variadic before()
@@ -860,8 +863,6 @@ class IterableViewItem extends View {
         let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
         if (states.isNil()) {
             if (this.failing) return this;
-            //updates.push({t0: this, t1: new IterableViewItem(this.goal, this.template, this.child, true)});
-            //return updates[updates.length-1].t1;
             return new IterableViewItem(this.goal, this.template, this.child, true);
         }
 
@@ -871,8 +872,6 @@ class IterableViewItem extends View {
         if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
 
         return new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false);
-        //updates.push({t0: this, t1: new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false)});
-        //return updates[updates.length-1].t1;;
     }
     remove() { if(!this.failing) this.child.remove(); }
     lastNode() { return this.child.lastNode(); }
