@@ -711,7 +711,9 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let c = this.child.rerender(sub, model, this.lvar);
         let delta = c.items().sort((a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1);
 
-        let i,j;
+        log('render', 'rerender', 'iterroot', 'delta', this.ordered_children, delta);
+
+        let i,j=delta.length+1;
         let lcs = [...new Array(this.ordered_children.length+1)].map(() => new Array(delta.length+1).fill(0));
         for (i=1; i<=this.ordered_children.length; i++) {
             for (j=1; j<=delta.length; j++) {
@@ -723,20 +725,22 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
                 }
             }
         }
-        //console.log(this.ordered_children, delta, lcs)
+
         i--; j--;
-//        let anchor = this.comment;
         while (i || j) { //TODO we should go te 0 with both to ensure all deletions/additions
             if (i && j && equals(this.ordered_children[i-1].template, delta[j-1].template)) {
-                
+                log('render', 'rerender', 'iterroot', 'swap', this.ordered_children[i-1], delta[j-1]);
                 i--;
                 j--;
             }
             else if (!i || lcs[i-1][j] < lcs[i][j-1]) { // Skipping a delta, so add it
-
+                let anchor = j === delta.length ? this.comment : delta[j].firstNode();
+                log('render', 'rerender', 'iterroot', 'add', delta[j-1], anchor);
+                anchor.before(delta[j-1].render());
                 j--;
             }
             else { // Skipping a dom node, so remove it
+                log('render', 'rerender', 'iterroot', 'delete', this.ordered_children[i-1]);
                 this.ordered_children[i-1].remove();
                 i--;
             }
@@ -745,12 +749,12 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
 
         
 
-        log('render', 'rerender', 'delete/add', this.ordered_children, delta);
+        
         
         //this.ordered_children.forEach(c => c.remove()); 
         //delta.reduceRight((_,n) => this.comment.after(n.render()), null);
 
-        delta.forEach(n => this.comment.before(n.render())); //try variadic before()
+        //delta.forEach(n => this.comment.before(n.render())); //try variadic before()
         if (delta.length) this.comment.remove();
         let r = new IterableViewRoot(this.lvar, c, this.order, this.comment, delta);
         //log('render', 'rerender', 'iterroot', 'updates', updates);
@@ -769,6 +773,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     items(a=[]) {
         this.child.items(a);
         return a; }
+    firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }}
 
 class OrderedIterableRoot extends IterableViewRoot {
@@ -793,6 +798,7 @@ class SubView extends View {
         log('render', 'rerender', 'model', sub.reify(this.lvar));
         return new SubView(this.lvar, this.child.rerender(sub, this.lvar, view));
     }
+    firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }
     remove() { this.child.remove(); }}
 
@@ -815,6 +821,7 @@ class ViewDOMNode extends View {
         return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, vvar, model)), this.node);
     }
     remove() { if (this.node) this.node.remove(); }
+    firstNode() { return this.node; }
     lastNode() { return this.node; }}
 
 class ViewTextNode extends View {
@@ -828,6 +835,7 @@ class ViewTextNode extends View {
         return this.node; }
     rerender(sub, vvar, model) { return this; }
     remove() { if (this.node) this.node.remove(); }
+    firstNode() { return this.node; }
     lastNode() { return this.node; }}
 
 class IterableViewItem extends View {
@@ -874,6 +882,7 @@ class IterableViewItem extends View {
         return new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false);
     }
     remove() { if(!this.failing) this.child.remove(); }
+    firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }
     replaceDOM(view0, node) {
         if (this.failing) {
@@ -914,6 +923,7 @@ class IterableViewBranch extends View {
         this.lhs.items(a);
         this.rhs.items(a);
         return a; }
+    firstNode() { return this.lhs.firstNode(); }
     lastNode() { return this.rhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
