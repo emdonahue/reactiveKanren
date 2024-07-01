@@ -85,10 +85,10 @@ class List {
     update_binding(x, y, prev=nil, next=nil, updates=nil) {
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = prev.walk_binding(x);
-        
+
         let {car: y_var, cdr: y_val} = prev.walk_binding(y);
         /*
-        if (next.assoc(x_var)) {            
+        if (next.assoc(x_var)) {
             y_val = next.assoc(x_var).cdr;
             log('reunify', 'subterm', x_var, y_val, next);
         }
@@ -119,8 +119,8 @@ class List {
         else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
             let norm = copy(y_val); //TODO should be type of y_val
             if (!primitive(x_val) && !(x_val instanceof LVar)) Object.assign(norm, x_val);
-            
-            for (let k in y_val) { // For each attr of the new value,                
+
+            for (let k in y_val) { // For each attr of the new value,
                 if (!primitive(x_val) && !(x_val instanceof LVar) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
                     //s = s.update_binding(x_val[k], y_val[k], prev, next);
                     updates = updates.acons(x_val[k], y_val[k]);
@@ -161,6 +161,7 @@ class Pair extends List {
             return this.cdr.assoc(key);
         }
     }
+    firstAnswer() { return this.car.substitution; }
     memp(p) {
         if (p(this.car)) return this.car;
         return this.cdr.memp(p);
@@ -191,9 +192,9 @@ class Pair extends List {
         return this; }
     isNil() { return false; }
 
-    // x->1, y->2     
+    // x->1, y->2
 
-    
+
     _toString() {
         return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + toString(this.cdr)}`;
     }
@@ -215,6 +216,7 @@ class Empty extends List {
     isNil() { return true; }
     fold(f, x) { return x; }
     remove(x) { return this; }
+    firstAnswer() { return failure; }
     every(f) { return this; }
     _toString() { return ''; }
 }
@@ -293,6 +295,7 @@ class Goal {
         log('expand', 'ctn', this, cjs, s);
         return s.isFailure() ? v(cjs.conj(this)) : this.expand(s, succeed, cjs, v); }
     suspend(s) { return new Suspended(s, this) }
+    apply(sub) { return this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
 }
@@ -332,8 +335,8 @@ class Conj extends Goal {
         return this.lhs.eval(s, this.rhs.conj(ctn));
     }
     expand(s, ctn, cjs, v) {
-        log('expand', 'conj', this, ctn, cjs);        
-        return this.lhs.expand(s, ctn.conj(this.rhs), cjs, v); 
+        log('expand', 'conj', this, ctn, cjs);
+        return this.lhs.expand(s, ctn.conj(this.rhs), cjs, v);
     }
     toString() { return `(${this.lhs} & ${this.rhs})`; }
 }
@@ -541,7 +544,7 @@ function occurs_check(x,y,s) { // Check if y occurs in x
     if (b) return occurs_check(b.cdr,y,s);
     return false;
 }
-    
+
 
 class Suspended extends Stream {
     constructor(s, g) {
@@ -599,7 +602,7 @@ function render(tmpl, sub=nil, model=null) {
     else if (tmpl instanceof Function) { // Build a dynamic node using the model
         let v = new LVar(); //TODO can view vars all be the same physical var?
         let o = new LVar();
-        let g = tmpl(v, model, o);        
+        let g = tmpl(v, model, o);
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
             let c = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model,o));
@@ -662,7 +665,7 @@ class View {
     isFailure() { return false; }
 }
 
-class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var. 
+class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
     constructor(viewvar, child, order, comment=document.createComment(''),
                 ordered_children=child.items().sort((a,b) =>
                     a.order == b.order ? 0 : a.order < b.order ? -1 : 1)) {
@@ -695,7 +698,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         // target: longest common subsequence where each item is a pair of pointers into old and new array. then we can go through and delete the old that are not in the sequence and render the new
         // if one array is empty, add or pass on all the rest of theother
         // if the heads are the same, skip one
-        // 
+        //
 
 
         if (this.ordered_children.length &&
@@ -705,7 +708,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
                 this.ordered_children[this.ordered_children.length-1].lastNode().parentNode);
             this.ordered_children[this.ordered_children.length-1].lastNode().after(this.comment);
         }
-        
+
         log('render', 'rerender', 'iterviewroot');
         //let updates = [];
         let c = this.child.rerender(sub, model, this.lvar);
@@ -749,11 +752,11 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         }
 
 
-        
 
-        
-        
-        //this.ordered_children.forEach(c => c.remove()); 
+
+
+
+        //this.ordered_children.forEach(c => c.remove());
         //delta.reduceRight((_,n) => this.comment.after(n.render()), null);
 
         //delta.forEach(n => this.comment.before(n.render())); //try variadic before()
@@ -768,7 +771,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let f = this.ordered_children.length ?
             this.ordered_children.reduce((f,c) => c.render(f) && f, document.createDocumentFragment())
             : this.comment;
-        if (parent) {            
+        if (parent) {
             parent.appendChild(f); }
         return f; }
     remove() { this.child.remove(); }
@@ -861,7 +864,7 @@ class IterableViewItem extends View {
         let n = document.createDocumentFragment();
         if (!this.failing) {
             this.child.render(n);
-            
+
             let cs = Array.from(n.children);
 
             if (parent) parent.appendChild(n);
@@ -870,16 +873,11 @@ class IterableViewItem extends View {
     }
     rerender(sub, model, vvar, updates) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
-        let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
-        if (states.isNil()) {
+        var sub = this.goal.apply(sub);
+        if (sub.isFailure()) {
             if (this.failing) return this;
-            return new IterableViewItem(this.goal, this.template, this.child, true, this.order);
-        }
-
-        sub = states.car.substitution;
-        let tmpl = sub.reify(vvar);
-        return new IterableViewItem(this.goal, tmpl, null, false, this.order);
-    }
+            return new IterableViewItem(this.goal, this.template, this.child, true, this.order); }
+        return new IterableViewItem(this.goal, sub.reify(vvar), null, false, this.order); }
     remove() { if(!this.failing) this.child.remove(); }
     firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }
@@ -935,7 +933,7 @@ class OrderedTemplate extends Template {
         this.orderfn = orderfn;
     }
     render(sub, model) {
-        return 
+        return
     }
 }
 
