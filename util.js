@@ -7,7 +7,8 @@ function logging(on, ...channel) {
 
 function log(...args) {
     if (logging_channels.some(ch => ch.every((e,i) => e === true || e == args[i]))) {
-        console.log.apply(console, args);
+        console.log.apply(console, args.map(
+            a => (is_string(a) || Array.isArray(a) || a instanceof Function) ? [a] : ['<' + a.constructor.name + '>', a]).flat(1));
     }
     return args[args.length-1];
 }

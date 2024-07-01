@@ -736,6 +736,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
             else if (!i || lcs[i-1][j] < lcs[i][j-1]) { // Skipping a delta, so add it
                 let anchor = j === delta.length ? this.comment : delta[j].firstNode();
                 log('render', 'rerender', 'iterroot', 'add', delta[j-1], anchor);
+                delta[j-1].child = render(delta[j-1].template, sub, model);
                 anchor.before(delta[j-1].render());
                 j--;
             }
@@ -839,7 +840,7 @@ class ViewTextNode extends View {
     lastNode() { return this.node; }}
 
 class IterableViewItem extends View {
-    constructor(goal, template=null, child=null, failing=true,order) {
+    constructor(goal, template=null, child=null, failing=true, order) {
         super();
         this.goal = goal;
         this.template = template;
@@ -850,7 +851,7 @@ class IterableViewItem extends View {
     static render_template(goal, sub, lvar, model, order) {
         if (!sub) return new this(goal);
         let tmpl = sub.reify(lvar);
-        log('render', 'iteritem', tmpl, sub);
+        log('render', 'render_template', tmpl, toString(sub.substitution));
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
         return new this(goal, tmpl, render(tmpl, sub, model), false, sub.reify(order));
     }
@@ -871,15 +872,15 @@ class IterableViewItem extends View {
         let t1, states = this.goal.run(1, {reify: false, substitution: sub});        
         if (states.isNil()) {
             if (this.failing) return this;
-            return new IterableViewItem(this.goal, this.template, this.child, true);
+            return new IterableViewItem(this.goal, this.template, this.child, true, this.order);
         }
 
         sub = states.car.substitution;
         let tmpl = sub.reify(vvar);
         
-        if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
+        if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false, this.order); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
 
-        return new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false);
+        return new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false, this.order);
     }
     remove() { if(!this.failing) this.child.remove(); }
     firstNode() { return this.child.firstNode(); }

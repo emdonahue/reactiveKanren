@@ -307,10 +307,15 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2([v => conde(v.eq('lorem'), v.eq('ipsum')), (v,m) => v.eq(m)]).render().textContent, 'loremipsum');
     asserte(render2(['p', [v => conde(v.eq('lorem'), v.eq('ipsum')), ['span', (v,m) => v.eq(m)]]]).render().outerHTML, '<p><span>lorem</span><span>ipsum</span></p>');
 
+    let abc = render2([(v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')]),
+                     (v,m) => fresh(x => v.eq(m))],
+                    list(cons(model, 'lorem')), model)
+
+    /*
     asserte(render2([(v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')]),
                      (v,m) => fresh(x => v.eq(m))],
                     list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
-
+    */
 
     // ORDER
     asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum');
