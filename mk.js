@@ -673,12 +673,8 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let subviews = this.child.subviews(this.sortfn());
         let c = this.child.rerender(sub, model, this.vvar);
         let delta = c.subviews(this.sortfn());
-
+        if (!delta.length) subviews[0].firstNode().before(this.comment);
         log('render', 'rerender', 'iterroot', 'delta', subviews, delta);
-
-        if (subviews.length && // Insert the comment node as an anchor for inserting others
-            subviews[subviews.length-1].lastNode()) { // null if we rerender before render);            
-            subviews[subviews.length-1].lastNode().after(this.comment); } //TODO only use comment if 0 children
 
         let i,j=delta.length+1;
         let lcs = [...new Array(subviews.length+1)].map(() => new Array(delta.length+1).fill(0));
