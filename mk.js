@@ -730,6 +730,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         while (i || j) { //TODO we should go te 0 with both to ensure all deletions/additions
             if (i && j && equals(this.ordered_children[i-1].template, delta[j-1].template)) {
                 log('render', 'rerender', 'iterroot', 'swap', this.ordered_children[i-1], delta[j-1]);
+                delta[j-1].child = this.ordered_children[i-1].child.rerender(sub, this.lvar, model);
                 i--;
                 j--;
             }
@@ -878,9 +879,9 @@ class IterableViewItem extends View {
         sub = states.car.substitution;
         let tmpl = sub.reify(vvar);
         
-        if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child.rerender(sub, vvar, model), false, this.order); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
+        if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child, false, this.order); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
 
-        return new IterableViewItem(this.goal, tmpl, render(tmpl, sub, model), false, this.order);
+        return new IterableViewItem(this.goal, tmpl, this.child, false, this.order); //render(tmpl, sub, model)
     }
     remove() { if(!this.failing) this.child.remove(); }
     firstNode() { return this.child.firstNode(); }

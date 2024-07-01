@@ -303,7 +303,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     //console.log(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
 
     
-    asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
+    //subview asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
     asserte(render2([v => conde(v.eq('lorem'), v.eq('ipsum')), (v,m) => v.eq(m)]).render().textContent, 'loremipsum');
     asserte(render2(['p', [v => conde(v.eq('lorem'), v.eq('ipsum')), ['span', (v,m) => v.eq(m)]]]).render().outerHTML, '<p><span>lorem</span><span>ipsum</span></p>');
 
@@ -311,7 +311,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
                      (v,m) => fresh(x => v.eq(m))],
                     list(cons(model, 'lorem')), model)
 
-    /*
+    /*subview
     asserte(render2([(v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')]),
                      (v,m) => fresh(x => v.eq(m))],
                     list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
