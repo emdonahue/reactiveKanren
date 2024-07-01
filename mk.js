@@ -878,10 +878,7 @@ class IterableViewItem extends View {
 
         sub = states.car.substitution;
         let tmpl = sub.reify(vvar);
-        
-        if (equals(tmpl,this.template)) return new IterableViewItem(this.goal, this.template, this.child, false, this.order); // If the template hasn't changed, we don't need to replace the root, so don't add it to the updates list.
-
-        return new IterableViewItem(this.goal, tmpl, this.child, false, this.order); //render(tmpl, sub, model)
+        return new IterableViewItem(this.goal, tmpl, null, false, this.order);
     }
     remove() { if(!this.failing) this.child.remove(); }
     firstNode() { return this.child.firstNode(); }
