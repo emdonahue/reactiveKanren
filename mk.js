@@ -600,16 +600,7 @@ function render(tmpl, sub=nil, model=null) {
         log('render', 'var', tmpl);
         return DynamicNode.render(tmpl, sub, obs, model, update, goals); }*/
     else if (tmpl instanceof Function) { // Build a dynamic node using the model
-        let v = new LVar(); //TODO can view vars all be the same physical var?
-        let o = new LVar();
-        let g = tmpl(v, model, o);
-        log('render', 'fn', g);
-        if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            let c = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model,o));
-            return new IterableViewRoot(v,c,o);
-
-        }
-        else { return render(g, sub, model); }
+        return IterableViewRoot.render(tmpl, sub, model);
     }
     else if (tmpl instanceof Template) {
         return tmpl.render(sub, model);
@@ -638,10 +629,10 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         let g = tmpl_head(v, model);
         log('render', 'head', 'fn', g);
         //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
-        //return new SubView(v, o);
+        //return new ModelView(v, o);
 
         let c = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, tmpl_children[0], v, o));
-        return new SubView(v, new IterableViewRoot(tmpl_children[0],c,o));
+        return new ModelView(v, new IterableViewRoot(tmpl_children[0],o,c));
         //return [o.render(sub, v, [...tmpl_children]), ]
 
         ;
@@ -652,7 +643,6 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
 }
 
 
-
 class View {
     update(s) {
         return this.rerender(s);
@@ -660,67 +650,41 @@ class View {
     }
     prerender() {
         let r = this.render();
-        log('render', 'prerender', r);
+        log('render', 'prerender', r.outerHTML);
         return this; }
     isFailure() { return false; }
 }
 
+
 class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
-    constructor(viewvar, child, order, comment=document.createComment(''),
-                ordered_children=child.items().sort((a,b) =>
-                    a.order == b.order ? 0 : a.order < b.order ? -1 : 1)) {
+    constructor(vvar, ovar, child, comment=document.createComment('')) {
         super();
         if (!(comment instanceof Node)) throw Error('comment not node')
-        this.lvar = viewvar;
-        this.order = order; //Order var
-        this.child = child; //Root of tree of views.
-        this.comment = comment;
-        this.ordered_children = ordered_children;
+        this.vvar = vvar; // Bound to view templates of each child
+        this.ovar = ovar; // Bound to order key of each child
+        this.child = child; //Root of tree of views
+        this.comment = comment; // Attached to DOM as placeholder if all children fail
     }
+
+    sortfn() { return (a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1; }
+
     rerender(sub, model) {
+        log('render', 'rerender', 'iterroot', 'start');
+        let subviews = this.child.subviews(this.sortfn());
+        let c = this.child.rerender(sub, model, this.vvar);
+        let delta = c.subviews(this.sortfn());
 
-        // at each timestep, we will get pairs that either: added, removed, template changed, order changed, order fn changed, changed from fail to branch
-        // we have already some number of attached nodes with certain templates that we want to minimize the disruption of
-        // unchanged items can't be optimized so ignore them and only find the best way to handle the deltas either by trading or delete/create???
-        // for fail -> add, we need to create and insert at the correct spot
-        // for template change
-        // for added -> removed, just remove
-        // for added, no change of order, find last child of predecessor and insert (or first child of successor, or comment), and do this in order so we can know everything to the left is already attached
-        // for order changed, try to perform the minimal swaps
+        log('render', 'rerender', 'iterroot', 'delta', subviews, delta);
 
-        // align sorted array of attached children with sorted array mixed in with diffs
-        // compare the two heads. if same, skip
-        // do we really need diffs if we have this order sort situation, or are diffs only for unordered, if that ever even happens?
-
-        // instead of attaching comment we could always create a dummy node with an after()
-
-        // longest common subsequence
-        // target: longest common subsequence where each item is a pair of pointers into old and new array. then we can go through and delete the old that are not in the sequence and render the new
-        // if one array is empty, add or pass on all the rest of theother
-        // if the heads are the same, skip one
-        //
-
-
-        if (this.ordered_children.length &&
-            this.ordered_children[this.ordered_children.length-1].lastNode()) { // null if we rerender before render
-            log('render', 'rerender', 'parent',
-                this.ordered_children[this.ordered_children.length-1].lastNode(),
-                this.ordered_children[this.ordered_children.length-1].lastNode().parentNode);
-            this.ordered_children[this.ordered_children.length-1].lastNode().after(this.comment);
-        }
-
-        log('render', 'rerender', 'iterviewroot');
-        //let updates = [];
-        let c = this.child.rerender(sub, model, this.lvar);
-        let delta = c.items().sort((a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1);
-
-        log('render', 'rerender', 'iterroot', 'delta', this.ordered_children, delta);
+        if (subviews.length && // Insert the comment node as an anchor for inserting others
+            subviews[subviews.length-1].lastNode()) { // null if we rerender before render);            
+            subviews[subviews.length-1].lastNode().after(this.comment); } //TODO only use comment if 0 children
 
         let i,j=delta.length+1;
-        let lcs = [...new Array(this.ordered_children.length+1)].map(() => new Array(delta.length+1).fill(0));
-        for (i=1; i<=this.ordered_children.length; i++) {
+        let lcs = [...new Array(subviews.length+1)].map(() => new Array(delta.length+1).fill(0));
+        for (i=1; i<=subviews.length; i++) {
             for (j=1; j<=delta.length; j++) {
-                if (equals(this.ordered_children[i-1].template, delta[j-1].template)) {
+                if (equals(subviews[i-1].template, delta[j-1].template)) {
                     lcs[i][j] = lcs[i-1][j-1] + 1;
                 }
                 else {
@@ -731,45 +695,43 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
 
         i--; j--;
         while (i || j) { //TODO we should go te 0 with both to ensure all deletions/additions
-            if (i && j && equals(this.ordered_children[i-1].template, delta[j-1].template)) {
-                log('render', 'rerender', 'iterroot', 'swap', this.ordered_children[i-1], delta[j-1]);
-                delta[j-1].child = this.ordered_children[i-1].child.rerender(sub, this.lvar, model);
+            if (i && j && equals(subviews[i-1].template, delta[j-1].template)) {
+                log('render', 'rerender', 'iterroot', 'swap', subviews[i-1], delta[j-1]);
+                delta[j-1].child = subviews[i-1].child.rerender(sub, this.vvar, model);
                 i--;
                 j--;
             }
-            else if (!i || lcs[i-1][j] < lcs[i][j-1]) { // Skipping a delta, so add it
-                let anchor = j === delta.length ? this.comment : delta[j].firstNode();
+            else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // Skipping a delta, so add it
+                let anchor = !subviews.length ? this.comment :
+                    j === delta.length ? subviews[subviews.length-1].lastNode() : delta[j].firstNode();
                 log('render', 'rerender', 'iterroot', 'add', delta[j-1], anchor);
                 delta[j-1].child = render(delta[j-1].template, sub, model);
-                anchor.before(delta[j-1].render());
+                anchor && anchor.before(delta[j-1].render());
                 j--;
             }
             else { // Skipping a dom node, so remove it
-                log('render', 'rerender', 'iterroot', 'delete', this.ordered_children[i-1]);
-                this.ordered_children[i-1].remove();
+                log('render', 'rerender', 'iterroot', 'delete', subviews[i-1]);
+                subviews[i-1].remove();
                 i--;
             }
         }
 
-
-
-
-
-
-        //this.ordered_children.forEach(c => c.remove());
-        //delta.reduceRight((_,n) => this.comment.after(n.render()), null);
-
-        //delta.forEach(n => this.comment.before(n.render())); //try variadic before()
         if (delta.length) this.comment.remove();
-        let r = new IterableViewRoot(this.lvar, c, this.order, this.comment, delta);
-        //log('render', 'rerender', 'iterroot', 'updates', updates);
-        //updates.reduce((n,c) => c.t1.replaceDOM(c.t0, n), this.comment);
-
+        let r = new IterableViewRoot(this.vvar, this.ovar, c, this.comment, delta);
         return r; }
+    
+    static render(f, sub, model) { //TODO can view vars all be the same physical var?
+        let v = new LVar(), o = new LVar(), g = f(v, model, o);
+        log('render', 'fn', g);
+        if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
+            return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model,o))); }
+        else { return render(g, sub, model); }
+    }
     render(parent) {
-        log('render', 'iterroot', this.ordered_children);
-        let f = this.ordered_children.length ?
-            this.ordered_children.reduce((f,c) => c.render(f) && f, document.createDocumentFragment())
+        let subviews = this.child.subviews(this.sortfn());
+        log('render', 'iterroot', subviews);
+        let f = subviews.length ?
+            subviews.reduce((f,c) => c.render(f) && f, document.createDocumentFragment())
             : this.comment;
         if (parent) {
             parent.appendChild(f); }
@@ -781,69 +743,41 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }}
 
-class OrderedIterableRoot extends IterableViewRoot {
-    constructor(viewvar, child, comment=document.createComment(''), orderv, orderfnv, ordered_children) {
-        super(viewvar, child, comment);
-        this.ovar = orderv;
-        this.ofnvar = orderfnv;
-        this.ordered_children = ordered_children; }
+class SubView {
+    subviews(sortf) {
+        return this.items().sort(sortf);
+    }
 }
 
-
-
-class SubView extends View {
-    constructor(lvar, child) {
+class IterableViewBranch extends SubView {
+    constructor(goal, lhs, rhs) {
         super();
-        this.lvar = lvar;
-        this.child = child; }
-    render(parent) {
-        log('render', 'subview');
-        return this.child.render(parent); }
-    rerender(sub, model, view) {
-        log('render', 'rerender', 'model', sub.reify(this.lvar));
-        return new SubView(this.lvar, this.child.rerender(sub, this.lvar, view));
+        this.goal = goal;
+        this.lhs = lhs;
+        this.rhs = rhs;
     }
-    firstNode() { return this.child.firstNode(); }
-    lastNode() { return this.child.lastNode(); }
-    remove() { this.child.remove(); }}
+    render(parent=document.createDocumentFragment()) {
+        log('render', 'branch', this.lhs, this.rhs);
+        this.lhs.render(parent);
+        this.rhs.render(parent);
+        return parent; }
+    remove() {
+        this.lhs.remove();
+        this.rhs.remove(); }
+    toArray(a) {
+        this.lhs.toArray(a);
+        this.rhs.toArray(a);
+        return a; }
+    items(a=[]) {
+        this.lhs.items(a);
+        this.rhs.items(a);
+        return a; }
+    firstNode() { return this.lhs.firstNode(); }
+    lastNode() { return this.rhs.lastNode(); }
+    asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
+}
 
-
-class ViewDOMNode extends View {
-    constructor(properties, children=[], node=null) {
-        super();
-        this.properties = properties;
-        this.node = node;
-        this.children = children; }
-    render(parent) {
-        log('render', 'dom', this.node);
-        if (this.node) return this.node;
-        console.assert(is_string(this.properties));
-        this.node = document.createElement(this.properties);
-        if (parent) parent.appendChild(this.node);
-        this.children.forEach(c => c.render(this.node));
-        return this.node; }
-    rerender(sub, vvar, model) {
-        return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, vvar, model)), this.node);
-    }
-    remove() { if (this.node) this.node.remove(); }
-    firstNode() { return this.node; }
-    lastNode() { return this.node; }}
-
-class ViewTextNode extends View {
-    constructor(text) {
-        super();
-        this.text = text;
-        this.node = null; }
-    render(parent) {
-        this.node = document.createTextNode(this.text);
-        if (parent) parent.appendChild(this.node);
-        return this.node; }
-    rerender(sub, vvar, model) { return this; }
-    remove() { if (this.node) this.node.remove(); }
-    firstNode() { return this.node; }
-    lastNode() { return this.node; }}
-
-class IterableViewItem extends View {
+class IterableViewItem extends SubView {
     constructor(goal, template=null, child=null, failing=true, order) {
         super();
         this.goal = goal;
@@ -897,33 +831,68 @@ class IterableViewItem extends View {
         return a; }
     toArray(a) { a.push(this); return a; }}
 
-class IterableViewBranch extends View {
-    constructor(goal, lhs, rhs) {
-        super();
-        this.goal = goal;
-        this.lhs = lhs;
-        this.rhs = rhs;
-    }
-    render(parent=document.createDocumentFragment()) {
-        log('render', 'branch', this.lhs, this.rhs);
-        this.lhs.render(parent);
-        this.rhs.render(parent);
-        return parent; }
-    remove() {
-        this.lhs.remove();
-        this.rhs.remove(); }
-    toArray(a) {
-        this.lhs.toArray(a);
-        this.rhs.toArray(a);
-        return a; }
-    items(a=[]) {
-        this.lhs.items(a);
-        this.rhs.items(a);
-        return a; }
-    firstNode() { return this.lhs.firstNode(); }
-    lastNode() { return this.rhs.lastNode(); }
-    asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
+
+class OrderedIterableRoot extends IterableViewRoot {
+    constructor(viewvar, child, comment=document.createComment(''), orderv, orderfnv, subviews) {
+        super(viewvar, child, comment);
+        this.ovar = orderv;
+        this.ofnvar = orderfnv;
+        this.subviews = subviews; }
 }
+
+
+class ModelView extends View {
+    constructor(lvar, child) {
+        super();
+        this.lvar = lvar;
+        this.child = child; }
+    render(parent) {
+        log('render', 'subview');
+        return this.child.render(parent); }
+    rerender(sub, model, view) {
+        log('render', 'rerender', 'model', sub.reify(this.lvar));
+        return new ModelView(this.lvar, this.child.rerender(sub, this.lvar, view));
+    }
+    firstNode() { return this.child.firstNode(); }
+    lastNode() { return this.child.lastNode(); }
+    remove() { this.child.remove(); }}
+
+
+class ViewDOMNode extends View {
+    constructor(properties, children=[], node=null) {
+        super();
+        this.properties = properties;
+        this.node = node;
+        this.children = children; }
+    render(parent) {
+        log('render', 'dom', this.node);
+        if (this.node) return this.node;
+        console.assert(is_string(this.properties));
+        this.node = document.createElement(this.properties);
+        if (parent) parent.appendChild(this.node);
+        this.children.forEach(c => c.render(this.node));
+        return this.node; }
+    rerender(sub, vvar, model) {
+        return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, vvar, model)), this.node);
+    }
+    remove() { if (this.node) this.node.remove(); }
+    firstNode() { return this.node; }
+    lastNode() { return this.node; }}
+
+class ViewTextNode extends View {
+    constructor(text) {
+        super();
+        this.text = text;
+        this.node = null; }
+    render(parent) {
+        this.node = document.createTextNode(this.text);
+        if (parent) parent.appendChild(this.node);
+        return this.node; }
+    rerender(sub, vvar, model) { return this; }
+    remove() { if (this.node) this.node.remove(); }
+    firstNode() { return this.node; }
+    lastNode() { return this.node; }}
+
 
 class Template {}
 
