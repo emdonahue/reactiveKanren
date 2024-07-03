@@ -778,18 +778,15 @@ class IterableViewBranch extends IterableSubView {
     lastNode() { return this.rhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }}
 
-class IterableViewLeaf extends IterableSubView {
-    constructor(goal, child=null) {
-        super(goal);
-        this.child = child; }}
-
-class IterableViewFailure extends IterableSubView {
+class IterableViewFailure extends IterableSubView { // Failures on the initial render that may expand to leaves or branches.
     items(a=[]) { return a; }
     rerender(sub, model, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => IterableSubView.render(g, s, vvar, model,ovar)); }
 }
 
-class IterableViewFailedItem extends IterableViewLeaf {
-    items(a=[]) { return a; }
+class IterableViewFailedItem extends IterableViewFailure { // Rerender failures of atomic leaves that may cache nodes
+    constructor(goal, child) {
+        super(goal);
+        this.child = child; }
 
     rerender(sub, model, vvar, ovar) {
         log('render', 'rerender', 'iterfail', this.goal, sub.reify(vvar), sub.reify(model));
@@ -797,9 +794,10 @@ class IterableViewFailedItem extends IterableViewLeaf {
         if (sub.isFailure()) return this;
         return new IterableViewItem(this.goal, sub.reify(vvar), this.child, sub.reify(ovar)); }}
 
-class IterableViewItem extends IterableViewLeaf {
+class IterableViewItem extends IterableSubView { // Displayable iterable item
     constructor(goal, template=null, child=null, order=null) {
-        super(goal, child);
+        super(goal);
+        this.child = child;
         this.template = template;
         this.order = order; }
     
