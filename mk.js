@@ -777,7 +777,8 @@ class IterableViewLeaf extends IterableSubView {
         this.child = child; }}
 
 class IterableViewFailure extends IterableSubView {
-    
+    items(a=[]) { return a; }
+    rerender(sub, model, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => IterableViewItem.render(g, s, vvar, model,ovar)); }
 }
 
 class IterableViewFailedItem extends IterableViewLeaf {
