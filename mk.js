@@ -686,7 +686,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     rerender(sub, model) {
         log('render', 'rerender', 'iterroot', 'start');
         let subviews = this.child.subviews(this.sortfn());
-        let child = this.child.rerender(sub, model, this.vvar);
+        let child = this.child.rerender(sub, model, this.vvar, this.ovar);
         let delta = child.subviews(this.sortfn());
         log('render', 'rerender', 'iterroot', 'delta', subviews, delta);
 
@@ -759,9 +759,9 @@ class IterableViewBranch extends IterableSubView {
         this.lhs.toArray(a);
         this.rhs.toArray(a);
         return a; }
-    rerender(sub, model, vvar) {
+    rerender(sub, model, vvar, ovar) {
         var sub = this.goal.apply(sub); //TODO make branches hold their own failure flag for early stopping
-        return new IterableViewBranch(this.goal, this.lhs.rerender(sub, model, vvar), this.rhs.rerender(sub, model, vvar)); }
+        return new IterableViewBranch(this.goal, this.lhs.rerender(sub, model, vvar, ovar), this.rhs.rerender(sub, model, vvar, ovar)); }
     items(a=[]) {
         this.lhs.items(a);
         this.rhs.items(a);
@@ -779,11 +779,11 @@ class IterableViewLeaf extends IterableSubView {
 class IterableViewFailure extends IterableViewLeaf {
     items(a=[]) { return a; }
 
-    rerender(sub, model, vvar) {
+    rerender(sub, model, vvar, ovar) {
         log('render', 'rerender', 'iterfail', this.goal, sub.reify(vvar), sub.reify(model));
         var sub = this.goal.apply(sub);
         if (sub.isFailure()) return this;
-        return new IterableViewItem(this.goal, sub.reify(vvar), null, false, null); }
+        return new IterableViewItem(this.goal, sub.reify(vvar), null, false, sub.reify(ovar)); }
 }
 
 class IterableViewItem extends IterableViewLeaf {
@@ -806,13 +806,13 @@ class IterableViewItem extends IterableViewLeaf {
         log('render', 'item', parent && parent.outerHTML, toString(this.template));
         if (!this.failing) return this.child.render(parent); }
     
-    rerender(sub, model, vvar) {
-        log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
+    rerender(sub, model, vvar, ovar) {
+        log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model), sub.reify(ovar));
         var sub = this.goal.apply(sub);
         if (sub.isFailure()) {
             if (this.failing) return this;
             return new IterableViewItem(this.goal, this.template, this.child, true, this.order); }
-        return new IterableViewItem(this.goal, sub.reify(vvar), null, false, this.order); }
+        return new IterableViewItem(this.goal, sub.reify(vvar), null, false, sub.reify(ovar)); }
     
     remove() { if(!this.failing) this.child.remove(); }
     firstNode() { return this.child.firstNode(); }
