@@ -665,57 +665,8 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         this.child = child; //Root of tree of views
         this.comment = comment; // Attached to DOM as placeholder if all children fail
     }
-
     sortfn() { return (a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1; }
 
-    rerender(sub, model) {
-        log('render', 'rerender', 'iterroot', 'start');
-        let subviews = this.child.subviews(this.sortfn());
-        let c = this.child.rerender(sub, model, this.vvar);
-        let delta = c.subviews(this.sortfn());
-        if (!delta.length) subviews[0].firstNode().before(this.comment);
-        log('render', 'rerender', 'iterroot', 'delta', subviews, delta);
-
-        let i,j=delta.length+1;
-        let lcs = [...new Array(subviews.length+1)].map(() => new Array(delta.length+1).fill(0));
-        for (i=1; i<=subviews.length; i++) {
-            for (j=1; j<=delta.length; j++) {
-                if (equals(subviews[i-1].template, delta[j-1].template)) {
-                    lcs[i][j] = lcs[i-1][j-1] + 1;
-                }
-                else {
-                    lcs[i][j] = Math.max(lcs[i][j-1], lcs[i-1][j]);
-                }
-            }
-        }
-
-        i--; j--;
-        while (i || j) { //TODO we should go te 0 with both to ensure all deletions/additions
-            if (i && j && equals(subviews[i-1].template, delta[j-1].template)) {
-                log('render', 'rerender', 'iterroot', 'swap', subviews[i-1], delta[j-1]);
-                delta[j-1].child = subviews[i-1].child.rerender(sub, this.vvar, model);
-                i--;
-                j--;
-            }
-            else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // Skipping a delta, so add it
-                let anchor = !subviews.length ? this.comment :
-                    j === delta.length ? subviews[subviews.length-1].lastNode() : delta[j].firstNode();
-                log('render', 'rerender', 'iterroot', 'add', delta[j-1], anchor);
-                delta[j-1].child = render(delta[j-1].template, sub, model);
-                anchor && anchor.before(delta[j-1].render());
-                j--;
-            }
-            else { // Skipping a dom node, so remove it
-                log('render', 'rerender', 'iterroot', 'delete', subviews[i-1]);
-                subviews[i-1].remove();
-                i--;
-            }
-        }
-
-        if (delta.length) this.comment.remove();
-        let r = new IterableViewRoot(this.vvar, this.ovar, c, this.comment, delta);
-        return r; }
-    
     static render(f, sub, model) { //TODO can view vars all be the same physical var?
         let v = new LVar(), o = new LVar(), g = f(v, model, o);
         log('render', 'fn', g);
@@ -723,15 +674,60 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
             return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model,o))); }
         else { return render(g, sub, model); }
     }
-    render(parent) {
+    
+    render(parent=document.createDocumentFragment()) {
         let subviews = this.child.subviews(this.sortfn());
         log('render', 'iterroot', subviews);
-        let f = subviews.length ?
-            subviews.reduce((f,c) => c.render(f) && f, document.createDocumentFragment())
-            : this.comment;
-        if (parent) {
-            parent.appendChild(f); }
-        return f; }
+        if (!subviews.length) return parent.appendChild(this.comment);
+        subviews.forEach((c) => c.render(parent));
+        return parent; }
+    
+    rerender(sub, model) {
+        log('render', 'rerender', 'iterroot', 'start');
+        let subviews = this.child.subviews(this.sortfn());
+        let child = this.child.rerender(sub, model, this.vvar);
+        let delta = child.subviews(this.sortfn());
+        log('render', 'rerender', 'iterroot', 'delta', subviews, delta);
+
+        if (!delta.length) subviews[0].firstNode().before(this.comment);
+        this.diffDOM(this.buildLCSTable(subviews, delta), subviews, delta, sub, model);
+        if (delta.length) this.comment.remove();
+        
+        return new IterableViewRoot(this.vvar, this.ovar, child, this.comment, delta); }
+
+    buildLCSTable(subviews, delta) { // Build dynamic table for longest common subsequence problem. Reuse all the already in-DOM nodes possible by finding the greatest subsequence common to the previous and next timesteps.
+        let lcs = [...new Array(subviews.length+1)].map(() => new Array(delta.length+1).fill(0));
+        for (let i=1; i<=subviews.length; i++) { // Start with an m x n table of zeroes where m is the length of the new iterable and n is the old.
+            for (let j=1; j<=delta.length; j++) { // Walk all cells and, if the templates match at i,j advance each counter and the length of the longest subsequence.
+                if (equals(subviews[i-1].template, delta[j-1].template)) {
+                    lcs[i][j] = lcs[i-1][j-1] + 1; }
+                else { // Otherwise, preserve the maximum subsequence length coming from advancing either index to this step.
+                    lcs[i][j] = Math.max(lcs[i][j-1], lcs[i-1][j]); }}}
+        return lcs; }
+
+    diffDOM (lcs, subviews, delta, sub, model) { // Decode the length table and perform swaps/insertions/deletions
+        let i = lcs.length - 1, j = lcs[0].length - 1;
+
+        while (i || j) { // Go all the way to 0 to ensure all insertions/deletions.
+
+            if (i && j && equals(subviews[i-1].template, delta[j-1].template)) { // If we can reuse a template,
+                log('render', 'rerender', 'iterroot', 'swap', subviews[i-1], delta[j-1]);
+                delta[j-1].child = subviews[i-1].child.rerender(sub, this.vvar, model); // steal the previous child and rerender it.
+                i--; j--; }
+            
+            else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // If we need to skip a delta, insert it at current position
+                let anchor = !subviews.length ? this.comment : // Current position is defined by previous delta, last subview, or comment
+                    j === delta.length ? subviews[subviews.length-1].lastNode() : delta[j].firstNode();
+                log('render', 'rerender', 'iterroot', 'add', delta[j-1], anchor);
+                delta[j-1].child = render(delta[j-1].template, sub, model);
+                anchor && anchor.before(delta[j-1].render());
+                j--; }
+            
+            else { // Skipping a dom node, so remove it
+                log('render', 'rerender', 'iterroot', 'delete', subviews[i-1]);
+                subviews[i-1].remove();
+                i--; }}}
+    
     remove() { this.child.remove(); }
     items(a=[]) {
         this.child.items(a);
@@ -752,11 +748,6 @@ class IterableViewBranch extends SubView {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    render(parent=document.createDocumentFragment()) {
-        log('render', 'branch', this.lhs, this.rhs);
-        this.lhs.render(parent);
-        this.rhs.render(parent);
-        return parent; }
     remove() {
         this.lhs.remove();
         this.rhs.remove(); }
