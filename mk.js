@@ -776,6 +776,10 @@ class IterableViewLeaf extends IterableSubView {
         super(goal);
         this.child = child; }}
 
+class IterableViewFailure extends IterableSubView {
+    
+}
+
 class IterableViewFailedItem extends IterableViewLeaf {
     items(a=[]) { return a; }
 
@@ -792,7 +796,7 @@ class IterableViewItem extends IterableViewLeaf {
         this.order = order; }
     
     static render(goal, sub, lvar, model, order) {
-        if (!sub) return new IterableViewFailedItem(goal);
+        if (!sub) return new IterableViewFailure(goal);
         let tmpl = sub.reify(lvar);
         log('render', 'render_template', tmpl, toString(sub.substitution));
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
