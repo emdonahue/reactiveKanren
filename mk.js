@@ -295,7 +295,7 @@ class Goal {
         log('expand', 'ctn', this, cjs, s);
         return s.isFailure() ? v(cjs.conj(this)) : this.expand(s, succeed, cjs, v); }
     suspend(s) { return new Suspended(s, this) }
-    apply(sub) { return this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
+    apply(sub) { return sub.isFailure() ? failure : this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
     is_disj() { return false; }
     toString() { return JSON.stringify(this); }
 }
@@ -715,13 +715,17 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
                 delta[j-1].child = subviews[i-1].child.rerender(sub, this.vvar, model); // steal the previous child and rerender it.
                 i--; j--; }
             
-            else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // If we need to skip a delta, insert it at current position
-                let anchor = !subviews.length ? this.comment : // Current position is defined by previous delta, last subview, or comment
-                    j === delta.length ? subviews[subviews.length-1].lastNode() : delta[j].firstNode();
-                log('render', 'rerender', 'iterroot', 'add', delta[j-1], anchor);
+            else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // If we need to skip a delta, insert it at current position                
                 delta[j-1].child = render(delta[j-1].template, sub, model);
-                anchor && anchor.before(delta[j-1].render());
-                j--; }
+                if (!subviews.length) this.comment.after(delta[j-1].render()); // If no previous subviews, comment must have been added by render
+                else if (j === delta.length) { // If we haven't yet added any new deltas, use the last previous subview (if attached).
+                    if (subviews[subviews.length-1].lastNode()) subviews[subviews.length-1].lastNode().after(delta[j-1].render());
+                }
+                else { // Otherwise, insert delta in front of previous delta (which may be a swap from previous subviews).
+                    delta[j].firstNode().before(delta[j-1].render());
+                }
+                j--;
+            }
             
             else { // Skipping a dom node, so remove it
                 log('render', 'rerender', 'iterroot', 'delete', subviews[i-1]);
@@ -746,8 +750,7 @@ class IterableViewBranch extends SubView {
         super();
         this.goal = goal;
         this.lhs = lhs;
-        this.rhs = rhs;
-    }
+        this.rhs = rhs; }
     remove() {
         this.lhs.remove();
         this.rhs.remove(); }
@@ -755,6 +758,9 @@ class IterableViewBranch extends SubView {
         this.lhs.toArray(a);
         this.rhs.toArray(a);
         return a; }
+    rerender(sub, model, vvar) {
+        var sub = this.goal.apply(sub); //TODO make branches hold their own failure flag for early stopping
+        return new IterableViewBranch(this.goal, this.lhs.rerender(sub, model, vvar), this.rhs.rerender(sub, model, vvar)); }
     items(a=[]) {
         this.lhs.items(a);
         this.rhs.items(a);
@@ -782,17 +788,18 @@ class IterableViewItem extends SubView {
         return new this(goal, tmpl, render(tmpl, sub, model), false, sub.reify(order));
     }
     
-    render(parent) { // Parent is never undefined because this is always a child of view root.
-        log('render', 'leaf', toString(this.template));
+    render(parent) { // Parent may be undefined on rerender during diff add phase, but children can handle it.
+        log('render', 'item', parent && parent.outerHTML, toString(this.template));
         if (!this.failing) return this.child.render(parent); }
     
-    rerender(sub, model, vvar, updates) {
+    rerender(sub, model, vvar) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
         var sub = this.goal.apply(sub);
         if (sub.isFailure()) {
             if (this.failing) return this;
             return new IterableViewItem(this.goal, this.template, this.child, true, this.order); }
         return new IterableViewItem(this.goal, sub.reify(vvar), null, false, this.order); }
+    
     remove() { if(!this.failing) this.child.remove(); }
     firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }
