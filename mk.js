@@ -282,7 +282,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => IterableViewItem.render_template(g, s, v, null))) { //TODO remove default viewleaf
+    expand_run(s=nil, v=((g,s) => IterableViewItem.render(g, s, v, null))) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -632,7 +632,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
         //return new ModelView(v, o);
 
-        let c = g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, tmpl_children[0], v, o));
+        let c = g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, tmpl_children[0], v, o));
         return new ModelView(v, new IterableViewRoot(tmpl_children[0],o,c));
         //return [o.render(sub, v, [...tmpl_children]), ]
 
@@ -672,7 +672,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let v = new LVar(), o = new LVar(), g = f(v, model, o);
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render_template(g, s, v, model,o))); }
+            return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
         else { return render(g, sub, model); }
     }
     
@@ -713,11 +713,12 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
 
             if (i && j && equals(subviews[i-1].template, delta[j-1].template)) { // If we can reuse a template,
                 log('render', 'rerender', 'iterroot', 'swap', subviews[i-1], delta[j-1]);
-                delta[j-1].child = subviews[i-1].child.rerender(sub, this.vvar, model); // steal the previous child and rerender it.
+                delta[j-1].child = subviews[i-1].child.rerender(sub, model, this.vvar); // steal the previous child and rerender it.
                 i--; j--; }
             
-            else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // If we need to skip a delta, insert it at current position                
-                delta[j-1].child = render(delta[j-1].template, sub, model);
+            else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // If we need to skip a delta, insert it at current position
+                //delta[j-1].child = render(delta[j-1].template, sub, model);
+                delta[j-1].rerender_child(delta[j-1].template, sub, model);
                 if (!subviews.length) this.comment.after(delta[j-1].render()); // If no previous subviews, comment must have been added by render
                 else if (j === delta.length) { // If we haven't yet added any new deltas, use the last previous subview (if attached).
                     if (subviews[subviews.length-1].lastNode()) subviews[subviews.length-1].lastNode().after(delta[j-1].render());
@@ -732,7 +733,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
                 log('render', 'rerender', 'iterroot', 'delete', subviews[i-1]);
                 subviews[i-1].remove();
                 i--; }}}
-    
+
     remove() { this.child.remove(); }
     items(a=[]) {
         this.child.items(a);
@@ -768,33 +769,30 @@ class IterableViewBranch extends IterableSubView {
         return a; }
     firstNode() { return this.lhs.firstNode(); }
     lastNode() { return this.rhs.lastNode(); }
-    asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
-}
+    asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }}
 
 class IterableViewLeaf extends IterableSubView {
     constructor(goal, child=null) {
         super(goal);
         this.child = child; }}
 
-class IterableViewFailure extends IterableViewLeaf {
+class IterableViewFailedItem extends IterableViewLeaf {
     items(a=[]) { return a; }
 
     rerender(sub, model, vvar, ovar) {
         log('render', 'rerender', 'iterfail', this.goal, sub.reify(vvar), sub.reify(model));
         var sub = this.goal.apply(sub);
         if (sub.isFailure()) return this;
-        return new IterableViewItem(this.goal, sub.reify(vvar), null, sub.reify(ovar)); }
-}
+        return new IterableViewItem(this.goal, sub.reify(vvar), this.child, sub.reify(ovar)); }}
 
 class IterableViewItem extends IterableViewLeaf {
     constructor(goal, template=null, child=null, order=null) {
         super(goal, child);
         this.template = template;
-        this.order = order;
-    }
+        this.order = order; }
     
-    static render_template(goal, sub, lvar, model, order) {
-        if (!sub) return new IterableViewFailure(goal);
+    static render(goal, sub, lvar, model, order) {
+        if (!sub) return new IterableViewFailedItem(goal);
         let tmpl = sub.reify(lvar);
         log('render', 'render_template', tmpl, toString(sub.substitution));
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
@@ -808,8 +806,14 @@ class IterableViewItem extends IterableViewLeaf {
     rerender(sub, model, vvar, ovar) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model), sub.reify(ovar));
         var sub = this.goal.apply(sub);
-        if (sub.isFailure()) return new IterableViewFailure(this.goal, this.child);
+        if (sub.isFailure()) return new IterableViewFailedItem(this.goal, this.child);
         return new IterableViewItem(this.goal, sub.reify(vvar), null, sub.reify(ovar)); }
+
+    rerender_child(template, sub, model) { // TODO consider avoiding mutation in child rerender
+        log('render', 'render_child', this.template, template, this.child);
+        if (this.child && equals(this.template, template)) this.child = this.child.rerender(sub, model);
+        else this.child = render(template, sub, model);
+    }
     
     remove() { this.child.remove(); }
     firstNode() { return this.child.firstNode(); }
@@ -860,8 +864,8 @@ class ViewDOMNode extends View {
         if (parent) parent.appendChild(this.node);
         this.children.forEach(c => c.render(this.node));
         return this.node; }
-    rerender(sub, vvar, model) {
-        return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, vvar, model)), this.node);
+    rerender(sub, model) {
+        return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, model)), this.node);
     }
     remove() { if (this.node) this.node.remove(); }
     firstNode() { return this.node; }
@@ -873,10 +877,11 @@ class ViewTextNode extends View {
         this.text = text;
         this.node = null; }
     render(parent) {
-        this.node = document.createTextNode(this.text);
+        log('render', 'textnode', this.text, this.node);
+        this.node = this.node || document.createTextNode(this.text);
         if (parent) parent.appendChild(this.node);
         return this.node; }
-    rerender(sub, vvar, model) { return this; }
+    rerender(sub, model, vvar) { return this; }
     remove() { if (this.node) this.node.remove(); }
     firstNode() { return this.node; }
     lastNode() { return this.node; }}

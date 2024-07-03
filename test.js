@@ -214,7 +214,7 @@ asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum')
 asserte(new App(null, [{style: {color: x => x.eq('purple')}}, 'lorem']).node.style.color, 'purple');
 asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div><!----></div>');
 
-asserte(new App(null, [x => x.eq(cons(1,2)), (x,m) => m.eq({car: x})]).node.textContent, 1);
+asserte(new App(null, [x => x.eq(cons(1,2)), (x,m) => m.eq({car: x})]).node.textContent, '1');
 
 //asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes.length, 2);
 //asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
@@ -304,6 +304,10 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p>ipsum</p>'); // Subtemplate swap
     asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate swap identical
     asserte(render2(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
+
+    { let v = render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model);
+      let n = v.render().firstChild;
+      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
 
     asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
     //console.log(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())

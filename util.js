@@ -29,9 +29,10 @@ function copy(x) {//TODO convert to structuredclone?
 }
 
 function equals(x, y) {
-    return (x == y)
+    return (x === y)
         || (Array.isArray(x) && Array.isArray(y) && x.length == y.length && x.every((e,i) => equals(e, y[i])))
         || (x && y &&
+            !(x instanceof Node) &&
             !is_string(x) &&
             !is_number(x) &&
             !is_boolean(x) &&
