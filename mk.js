@@ -765,7 +765,7 @@ class IterableViewBranch extends SubView {
 }
 
 class IterableViewItem extends SubView {
-    constructor(goal, template=null, child=null, failing=true, order) {
+    constructor(goal, template=null, child=null, failing=true, order=null) {
         super();
         this.goal = goal;
         this.template = template;
@@ -773,6 +773,7 @@ class IterableViewItem extends SubView {
         this.failing = failing;
         this.order = order;
     }
+    
     static render_template(goal, sub, lvar, model, order) {
         if (!sub) return new this(goal);
         let tmpl = sub.reify(lvar);
@@ -780,18 +781,11 @@ class IterableViewItem extends SubView {
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
         return new this(goal, tmpl, render(tmpl, sub, model), false, sub.reify(order));
     }
-    render(parent) {
+    
+    render(parent) { // Parent is never undefined because this is always a child of view root.
         log('render', 'leaf', toString(this.template));
-        let n = document.createDocumentFragment();
-        if (!this.failing) {
-            this.child.render(n);
-
-            let cs = Array.from(n.children);
-
-            if (parent) parent.appendChild(n);
-        }
-        return n;
-    }
+        if (!this.failing) return this.child.render(parent); }
+    
     rerender(sub, model, vvar, updates) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model));
         var sub = this.goal.apply(sub);
