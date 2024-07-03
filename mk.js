@@ -770,18 +770,34 @@ class IterableViewBranch extends SubView {
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
-class IterableViewItem extends SubView {
-    constructor(goal, template=null, child=null, failing=true, order=null) {
+class IterableViewLeaf extends SubView {
+    constructor(goal, child=null) {
         super();
-        this.goal = goal;
-        this.template = template;
+        this. goal = goal;
         this.child = child;
+    }
+}
+
+class IterableViewFailure extends IterableViewLeaf {
+    items(a=[]) { return a; }
+
+    rerender(sub, model, vvar) {
+        log('render', 'rerender', 'iterfail', this.goal, sub.reify(vvar), sub.reify(model));
+        var sub = this.goal.apply(sub);
+        if (sub.isFailure()) return this;
+        return new IterableViewItem(this.goal, sub.reify(vvar), null, false, null); }
+}
+
+class IterableViewItem extends IterableViewLeaf {
+    constructor(goal, template=null, child=null, failing=true, order=null) {
+        super(goal, child);
+        this.template = template;
         this.failing = failing;
         this.order = order;
     }
     
     static render_template(goal, sub, lvar, model, order) {
-        if (!sub) return new this(goal);
+        if (!sub) return new IterableViewFailure(goal);
         let tmpl = sub.reify(lvar);
         log('render', 'render_template', tmpl, toString(sub.substitution));
         if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
