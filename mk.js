@@ -248,6 +248,7 @@ class LVar {
     isNumbero() { return this.constraint(v => is_number(v)); }
     isPairo() { return this.constraint(v => v instanceof Pair); }
     membero(x) { return fresh((a,b) => [this.eq(cons(a,b)), conde(a.eq(x), b.membero(x))]); }
+    imembero(x,o,n=0) { return fresh((a,b) => [this.eq(cons(a,b)), conde([a.eq(x), o.eq(n)], b.imembero(x,o,n+1))]); } //TODO make imembero accept ground order terms
 }
 
 class SVar extends LVar {
@@ -739,16 +740,16 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }}
 
-class SubView {
+class IterableSubView {
+    constructor(goal) { this.goal = goal; }
     subviews(sortf) {
         return this.items().sort(sortf);
     }
 }
 
-class IterableViewBranch extends SubView {
+class IterableViewBranch extends IterableSubView {
     constructor(goal, lhs, rhs) {
-        super();
-        this.goal = goal;
+        super(goal);
         this.lhs = lhs;
         this.rhs = rhs; }
     remove() {
@@ -770,13 +771,10 @@ class IterableViewBranch extends SubView {
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
 }
 
-class IterableViewLeaf extends SubView {
+class IterableViewLeaf extends IterableSubView {
     constructor(goal, child=null) {
-        super();
-        this. goal = goal;
-        this.child = child;
-    }
-}
+        super(goal);
+        this.child = child; }}
 
 class IterableViewFailure extends IterableViewLeaf {
     items(a=[]) { return a; }

@@ -320,8 +320,12 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     */
 
     // ORDER
-    asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum');
+    asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
 
+    asserte(render2(['p', (v,m,o) => m.membero(v).conj(v.eq(o))], list(cons(model,list(1,2))), model).prerender().rerender(list(cons(model, list(2,1)))).render().outerHTML, '<p>12</p>'); // Exchange cached
+
+    
+    //asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(m)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Rerender order
     //asserte(render2(['p', [(v,m) => conde([v.eq('lorem'), v.eq(m)], [v.eq('ipsum'), v.eq(m)]), ['span', (v,m) => v.eq(m)]]], list(cons(model, 'lorem'))).render().outerHTML, '<p><span><!---->lorem</span><span><!---->ipsum</span></p>');
 
     //asserte(render2(['p', (v,m) => conde([m.eq('lorem'), v.eq(m)], [m.eq('ipsum'), v.eq(m)])], list(cons(model,'lorem')), model).render().outerHTML, '<p><!---->lorem</p>'); // New subtemplate post-render
