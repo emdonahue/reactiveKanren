@@ -282,7 +282,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => IterableViewItem.render(g, s, v, null))) { //TODO remove default viewleaf
+    expand_run(s=nil, v=((g,s) => IterableSubView.render(g, s, v, null))) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -632,7 +632,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
         //return new ModelView(v, o);
 
-        let c = g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, tmpl_children[0], v, o));
+        let c = g.expand_run(sub, (g, s) => IterableSubView.render(g, s, tmpl_children[0], v, o));
         return new ModelView(v, new IterableViewRoot(tmpl_children[0],o,c));
         //return [o.render(sub, v, [...tmpl_children]), ]
 
@@ -672,7 +672,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let v = new LVar(), o = new LVar(), g = f(v, model, o);
         log('render', 'fn', g);
         if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
+            return new this(v, o, g.expand_run(sub, (g, s) => IterableSubView.render(g, s, v, model,o))); }
         else { return render(g, sub, model); }
     }
     
@@ -746,6 +746,13 @@ class IterableSubView {
     subviews(sortf) {
         return this.items().sort(sortf);
     }
+
+    static render(goal, sub, lvar, model, order) {
+        if (!sub) return new IterableViewFailure(goal);
+        let tmpl = sub.reify(lvar);
+        log('render', 'render_template', tmpl, toString(sub.substitution));
+        if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
+        return new IterableViewItem(goal, tmpl, render(tmpl, sub, model), sub.reify(order)); }
 }
 
 class IterableViewBranch extends IterableSubView {
@@ -778,7 +785,7 @@ class IterableViewLeaf extends IterableSubView {
 
 class IterableViewFailure extends IterableSubView {
     items(a=[]) { return a; }
-    rerender(sub, model, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => IterableViewItem.render(g, s, vvar, model,ovar)); }
+    rerender(sub, model, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => IterableSubView.render(g, s, vvar, model,ovar)); }
 }
 
 class IterableViewFailedItem extends IterableViewLeaf {
@@ -795,14 +802,6 @@ class IterableViewItem extends IterableViewLeaf {
         super(goal, child);
         this.template = template;
         this.order = order; }
-    
-    static render(goal, sub, lvar, model, order) {
-        if (!sub) return new IterableViewFailure(goal);
-        let tmpl = sub.reify(lvar);
-        log('render', 'render_template', tmpl, toString(sub.substitution));
-        if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
-        return new this(goal, tmpl, render(tmpl, sub, model), sub.reify(order));
-    }
     
     render(parent) { // Parent may be undefined on rerender during diff add phase, but children can handle it.
         log('render', 'item', parent && parent.outerHTML, toString(this.template));
