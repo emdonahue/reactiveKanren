@@ -354,7 +354,7 @@ class Disj extends Goal {
     }
     expand(s, ctn, cjs, v) {
         log('expand', 'disj', this, ctn, cjs);
-        return new IterableViewBranch(cjs, this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v));
+        return new IterableViewBranch(this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v), cjs);
     }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
@@ -756,8 +756,8 @@ class IterableSubView {
 }
 
 class IterableViewBranch extends IterableSubView {
-    constructor(goal, lhs, rhs) {
-        super(goal);
+    constructor(lhs, rhs, ...args) {
+        super(...args);
         this.lhs = lhs;
         this.rhs = rhs; }
     remove() {
@@ -769,7 +769,7 @@ class IterableViewBranch extends IterableSubView {
         return a; }
     rerender(sub, model, vvar, ovar) {
         var sub = this.goal.apply(sub); //TODO make branches hold their own failure flag for early stopping
-        return new IterableViewBranch(this.goal, this.lhs.rerender(sub, model, vvar, ovar), this.rhs.rerender(sub, model, vvar, ovar)); }
+        return new IterableViewBranch(this.lhs.rerender(sub, model, vvar, ovar), this.rhs.rerender(sub, model, vvar, ovar), this.goal); }
     items(a=[]) {
         this.lhs.items(a);
         this.rhs.items(a);
@@ -784,8 +784,8 @@ class IterableViewFailure extends IterableSubView { // Failures on the initial r
 }
 
 class IterableViewFailedItem extends IterableViewFailure { // Rerender failures of atomic leaves that may cache nodes
-    constructor(goal, child) {
-        super(goal);
+    constructor(child, ...args) {
+        super(...args);
         this.child = child; }
 
     rerender(sub, model, vvar, ovar) {
@@ -808,7 +808,7 @@ class IterableViewItem extends IterableSubView { // Displayable iterable item
     rerender(sub, model, vvar, ovar) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model), sub.reify(ovar));
         var sub = this.goal.apply(sub);
-        if (sub.isFailure()) return new IterableViewFailedItem(this.goal, this.child);
+        if (sub.isFailure()) return new IterableViewFailedItem(this.child, this.goal);
         return new IterableViewItem(this.goal, sub.reify(vvar), null, sub.reify(ovar)); }
 
     rerender_child(template, sub, model) { // TODO consider avoiding mutation in child rerender
@@ -824,15 +824,6 @@ class IterableViewItem extends IterableSubView { // Displayable iterable item
         a.push(this);
         return a; }
     toArray(a) { a.push(this); return a; }}
-
-
-class OrderedIterableRoot extends IterableViewRoot {
-    constructor(viewvar, child, comment=document.createComment(''), orderv, orderfnv, subviews) {
-        super(viewvar, child, comment);
-        this.ovar = orderv;
-        this.ofnvar = orderfnv;
-        this.subviews = subviews; }
-}
 
 
 class ModelView extends View {
@@ -897,7 +888,7 @@ class OrderedTemplate extends Template {
         this.orderfn = orderfn;
     }
     render(sub, model) {
-        return
+
     }
 }
 
