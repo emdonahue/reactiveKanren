@@ -678,7 +678,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     
     render(parent=document.createDocumentFragment()) {
         let subviews = this.child.subviews(this.sortfn());
-        log('render', 'iterroot', subviews);
+        log('render', 'iterroot', subviews, parent);
         if (!subviews.length) return parent.appendChild(this.comment);
         subviews.forEach((c) => c.render(parent));
         return parent; }
@@ -802,7 +802,7 @@ class IterableViewItem extends IterableSubView { // Displayable iterable item
         this.order = order; }
     
     render(parent) { // Parent may be undefined on rerender during diff add phase, but children can handle it.
-        log('render', 'item', parent && parent.outerHTML, toString(this.template));
+        log('render', 'item', parent, parent && parent.outerHTML, toString(this.template));
         return this.child.render(parent); }
     
     rerender(sub, model, vvar, ovar) {
@@ -859,12 +859,12 @@ class ViewDOMNode extends View {
         this.node = node;
         this.children = children; }
     render(parent) {
-        log('render', 'dom', this.node);
-        if (this.node) return this.node;
-        console.assert(is_string(this.properties));
-        this.node = document.createElement(this.properties);
+        log('render', 'dom', this.node, parent);
+        console.assert(is_string(this.properties)); //TODO allow full property objects
+        if (!this.node) {
+            this.node = document.createElement(this.properties);
+            this.children.forEach(c => c.render(this.node)); }
         if (parent) parent.appendChild(this.node);
-        this.children.forEach(c => c.render(this.node));
         return this.node; }
     rerender(sub, model) {
         return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, model)), this.node);
@@ -879,7 +879,7 @@ class ViewTextNode extends View {
         this.text = text;
         this.node = null; }
     render(parent) {
-        log('render', 'textnode', this.text, this.node);
+        log('render', 'textnode', this.text, this.node); //TODO find out why we have to add to parent & whether that applies to dom node as well
         this.node = this.node || document.createTextNode(this.text);
         if (parent) parent.appendChild(this.node);
         return this.node; }

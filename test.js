@@ -294,6 +294,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     // Updates before/after render
     asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
     asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template post-render
+    asserte(render2((v,m) => v.eq(['span', 'ipsum']), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().firstChild.outerHTML, '<span>ipsum</span>'); // New dom template post-render
     asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New subtemplate pre-render
     asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<p>ipsum</p>'); // New subtemplate post-render
 
@@ -303,12 +304,17 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'ipsum')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate undelete
     asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p>ipsum</p>'); // Subtemplate swap
     asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate swap identical
-    //asserte(render2(['p', (v,m) => m.eq(list('ipsum', 'dolor')).conj(m.membero(v))], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Expand fail to branch
+    asserte(render2(['p', (v,m) => m.eq(list('ipsum', 'dolor')).conj(m.membero(v))], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Expand fail to branch
     asserte(render2(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
 
     { let v = render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model);
       let n = v.render().firstChild;
       asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
+    { let v = render2(['p', (v,m) => m.eq('lorem').conj(v.eq(['span', 'lorem']))], list(cons(model,'lorem')), model);
+      let n = v.render().firstChild;
+      let v2 = v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild
+      console.log(n, v2, n===v2)
+      asserte(n, v2); }
 
     asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
     //console.log(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
