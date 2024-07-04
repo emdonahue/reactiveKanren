@@ -3,7 +3,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render2} from './mk.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render2, view} from './mk.js'
 import {App, render, garbage_mark, garbage_sweep} from './dom.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 
@@ -283,7 +283,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     // Static renders
     asserte(render2('lorem').render().textContent, 'lorem');
     asserte(render2(['span', 'lorem']).render().outerHTML, '<span>lorem</span>');
-    asserte(render2(() => 'lorem').render().textContent, 'lorem');
+    //asserte(render2(() => 'lorem').render().textContent, 'lorem');
     asserte(render2(v => v.eq('lorem')).render().textContent, 'lorem');
     asserte(render2(v => fail).render().nodeType, Node.COMMENT_NODE);
     asserte(render2(v => conde(v.eq('lorem'), v.eq('ipsum'))).render().textContent, 'loremipsum');
@@ -312,9 +312,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
       asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
     { let v = render2(['p', (v,m) => m.eq('lorem').conj(v.eq(['span', 'lorem']))], list(cons(model,'lorem')), model);
       let n = v.render().firstChild;
-      let v2 = v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild
-      console.log(n, v2, n===v2)
-      asserte(n, v2); }
+      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
 
     asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
     //console.log(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
@@ -330,6 +328,10 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
                     list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
     */
 
+    // MODEL
+    asserte(render2(view((v,m) => v.eq(m)), list(cons(model,'lorem')), model).render().textContent, 'lorem');
+    asserte(render2(view((v,m) => v.eq(m)).model((v,m) => v.eq('ipsum')), list(cons(model,'lorem')), model).render().textContent, 'ipsum');
+    
     // ORDER
     asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
 

@@ -590,22 +590,14 @@ const failure = new Failure;
 
 function render(tmpl, sub=nil, model=null) {
     log('render', tmpl);
-    if (is_string(tmpl) || is_number(tmpl)) { // Simple Text nodes
-        return new ViewTextNode(tmpl);
-	//let node = document.createTextNode(tmpl);
-        //log('render', 'text', tmpl, node);
-	//return [node, []];
-    }
+    if (is_string(tmpl) || is_number(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
     /*
     else if (tmpl instanceof LVar) { // Build a dynamic node keyed to a single static model var
         log('render', 'var', tmpl);
         return DynamicNode.render(tmpl, sub, obs, model, update, goals); }*/
-    else if (tmpl instanceof Function) { // Build a dynamic node using the model
-        return IterableViewRoot.render(tmpl, sub, model);
-    }
-    else if (tmpl instanceof Template) {
-        return tmpl.render(sub, model);
-    }
+    else if (tmpl instanceof Template) return tmpl.render(sub, model);
+    else if (tmpl instanceof Function) return IterableViewRoot.render(tmpl, sub, model); // Build a dynamic node using the model
+
     //else if (tmpl instanceof LVar) { return render(sub.walk(tmpl), sub, model); }
     else if (Array.isArray(tmpl)) return render_head(tmpl, sub, model);
     else {
@@ -633,7 +625,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         //return new ModelView(v, o);
 
         let c = g.expand_run(sub, (g, s) => IterableSubView.render(g, s, tmpl_children[0], v, o));
-        return new ModelView(v, new IterableViewRoot(tmpl_children[0],o,c));
+        return new IterableModelRoot(v, tmpl_children[0],o,c);
         //return [o.render(sub, v, [...tmpl_children]), ]
 
         ;
@@ -646,15 +638,11 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
 
 class View {
     update(s) {
-        return this.rerender(s);
-        //return this;
-    }
+        return this.rerender(s); }
     prerender() {
         let r = this.render();
         log('render', 'prerender', r.outerHTML);
-        return this; }
-    isFailure() { return false; }
-}
+        return this; }}
 
 
 class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
@@ -671,10 +659,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     static render(f, sub, model) { //TODO can view vars all be the same physical var?
         let v = new LVar(), o = new LVar(), g = f(v, model, o);
         log('render', 'fn', g);
-        if (g instanceof Goal) { // Must be a template because no templates supplied for leaf nodes
-            return new this(v, o, g.expand_run(sub, (g, s) => IterableSubView.render(g, s, v, model,o))); }
-        else { return render(g, sub, model); }
-    }
+        return new this(v, o, g.expand_run(sub, (g, s) => IterableSubView.render(g, s, v, model,o))); }
     
     render(parent=document.createDocumentFragment()) {
         let subviews = this.child.subviews(this.sortfn());
@@ -700,7 +685,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let lcs = [...new Array(subviews.length+1)].map(() => new Array(delta.length+1).fill(0));
         for (let i=1; i<=subviews.length; i++) { // Start with an m x n table of zeroes where m is the length of the new iterable and n is the old.
             for (let j=1; j<=delta.length; j++) { // Walk all cells and, if the templates match at i,j advance each counter and the length of the longest subsequence.
-                if (equals(subviews[i-1].template, delta[j-1].template)) {
+                if (equals(subviews[i-1].template, delta[j-1].template)) { //TODO expand view fns before testing equality, preferably at the start so everything is expanded always
                     lcs[i][j] = lcs[i-1][j-1] + 1; }
                 else { // Otherwise, preserve the maximum subsequence length coming from advancing either index to this step.
                     lcs[i][j] = Math.max(lcs[i][j-1], lcs[i-1][j]); }}}
@@ -740,6 +725,13 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         return a; }
     firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }}
+
+class IterableModelRoot extends IterableViewRoot {
+    constructor(model, ...args) {
+        super(...args);
+        this.model = model; }
+    rerender(sub, model) { return super.rerender(sub, this.model); }
+}
 
 class IterableSubView {
     constructor(goal) { this.goal = goal; }
@@ -826,25 +818,8 @@ class IterableViewItem extends IterableSubView { // Displayable iterable item
     toArray(a) { a.push(this); return a; }}
 
 
-class ModelView extends View {
-    constructor(lvar, child) {
-        super();
-        this.lvar = lvar;
-        this.child = child; }
-    render(parent) {
-        log('render', 'subview');
-        return this.child.render(parent); }
-    rerender(sub, model, view) {
-        log('render', 'rerender', 'model', sub.reify(this.lvar));
-        return new ModelView(this.lvar, this.child.rerender(sub, this.lvar, view));
-    }
-    firstNode() { return this.child.firstNode(); }
-    lastNode() { return this.child.lastNode(); }
-    remove() { this.child.remove(); }}
-
-
-class ViewDOMNode extends View {
-    constructor(properties, children=[], node=null) {
+class ViewDOMNode extends View { 
+    constructor(properties, children=[], node=null) { //TODO a domnode can prune all non dynamic children at the start since they will never update. may not be necessary if we only need 1 level of matching (and nested levels handled with pure updating), but if it is make sure to check for recursive loops like building <ul>
         super();
         this.properties = properties;
         this.node = node;
@@ -880,16 +855,25 @@ class ViewTextNode extends View {
     lastNode() { return this.node; }}
 
 
-class Template {}
-
-class OrderedTemplate extends Template {
-    constructor(template, orderfn) {
+class Template {
+    constructor(template) {
         this.template = template;
-        this.orderfn = orderfn;
+        this.mdl = null; }
+    render(sub, mdl) {
+        if (this.mdl) {
+            let v = new LVar(), o = new LVar(), g = this.mdl(v, mdl);
+            log('render', 'template', g);
+            console.assert(this.template)
+            let c = g.expand_run(sub, (g, s) => IterableSubView.render(g, s, this.template, v, o));
+            return new IterableModelRoot(v, this.template, o, c);
+        }
+        return render(this.template, sub, mdl);
     }
-    render(sub, model) {
-
-    }
+    model(m) {
+        this.mdl = m;
+        return this; }
 }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, render};
+function view(template) { return new Template(template); }
+
+export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, render, view};
