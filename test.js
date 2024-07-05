@@ -294,7 +294,7 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
     // Updates before/after render
     asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
     asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template post-render
-    asserte(render2((v,m) => v.eq(['span', 'ipsum']), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().firstChild.outerHTML, '<span>ipsum</span>'); // New dom template post-render
+    asserte(render2((v,m) => v.eq(['span', 'ipsum']), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<span>ipsum</span>'); // New dom template post-render
     asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New subtemplate pre-render
     asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<p>ipsum</p>'); // New subtemplate post-render
 
@@ -337,6 +337,9 @@ asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML,
 
     asserte(render2(['p', (v,m,o) => m.membero(v).conj(v.eq(o))], list(cons(model,list(1,2))), model).prerender().rerender(list(cons(model, list(2,1)))).render().outerHTML, '<p>12</p>'); // Exchange cached
 
+
+    // MODEL & ORDER
+    //asserte(render2(view().model((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)]))).render().textContent, 'loremipsum'); // Render order
     
     //asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(m)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Rerender order
     //asserte(render2(['p', [(v,m) => conde([v.eq('lorem'), v.eq(m)], [v.eq('ipsum'), v.eq(m)]), ['span', (v,m) => v.eq(m)]]], list(cons(model, 'lorem'))).render().outerHTML, '<p><span><!---->lorem</span><span><!---->ipsum</span></p>');

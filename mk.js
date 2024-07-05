@@ -1,6 +1,12 @@
 "use strict"
 import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boolean} from './util.js';
+//TODO global generic 'model' variable object as a shortcut for (v,m) => v.eq(m), maybe generalize to path vars
 //TODO let query variables be added manually not just extracted from fresh
+//TODO redo render so its purely a return value
+//TODO investigate caching properties of iterable views and models
+//TODO use clone node over create element for speed when applicable (eg dynamic model)
+//TODO look into event delegation
+//TODO can we generalize LCS to use partial reuse instead of binary equality
 
 // Lists
 class List {
@@ -661,12 +667,12 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         log('render', 'fn', g);
         return new this(v, o, g.expand_run(sub, (g, s) => IterableSubView.render(g, s, v, model,o))); }
     
-    render(parent=document.createDocumentFragment()) {
+    render() {
         let subviews = this.child.subviews(this.sortfn());
-        log('render', 'iterroot', subviews, parent);
-        if (!subviews.length) return parent.appendChild(this.comment);
-        subviews.forEach((c) => c.render(parent));
-        return parent; }
+        log('render', 'iterroot', subviews);
+        if (!subviews.length) return this.comment;
+        if (subviews.length === 1) return subviews[0].render();
+        return subviews.reduce((f,s) => f.appendChild(s.render()) && f, document.createDocumentFragment()); }
     
     rerender(sub, model) {
         log('render', 'rerender', 'iterroot', 'start');
@@ -824,13 +830,12 @@ class ViewDOMNode extends View {
         this.properties = properties;
         this.node = node;
         this.children = children; }
-    render(parent) {
-        log('render', 'dom', this.node, parent);
+    render() {
+        log('render', 'dom', this.node);
         console.assert(is_string(this.properties)); //TODO allow full property objects
-        if (!this.node) {
-            this.node = document.createElement(this.properties);
-            this.children.forEach(c => c.render(this.node)); }
-        if (parent) parent.appendChild(this.node);
+        if (this.node) return this.node;
+        this.node = document.createElement(this.properties);
+        this.children.forEach(c => this.node.appendChild(c.render()));
         return this.node; }
     rerender(sub, model) {
         return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, model)), this.node);
@@ -844,11 +849,9 @@ class ViewTextNode extends View {
         super();
         this.text = text;
         this.node = null; }
-    render(parent) {
+    render() {
         log('render', 'textnode', this.text, this.node); //TODO find out why we have to add to parent & whether that applies to dom node as well
-        this.node = this.node || document.createTextNode(this.text);
-        if (parent) parent.appendChild(this.node);
-        return this.node; }
+        return this.node = this.node || document.createTextNode(this.text); }
     rerender(sub, model, vvar) { return this; }
     remove() { if (this.node) this.node.remove(); }
     firstNode() { return this.node; }
@@ -869,9 +872,18 @@ class Template {
         }
         return render(this.template, sub, mdl);
     }
-    model(m) {
-        this.mdl = m;
-        return this; }
+    model(m) { return new ModelTemplate(m, this.template); }
+}
+
+class ModelTemplate extends Template {
+    constructor(model, ...args) {
+        super(...args);
+        this.mdl = model; }
+    render(sub, mdl) {
+        let v = new LVar(), o = new LVar(), g = this.mdl(v, mdl);
+        log('render', 'template', g);
+        let c = g.expand_run(sub, (g, s) => IterableSubView.render(g, s, this.template, v, o));
+        return new IterableModelRoot(v, this.template, o, c); }
 }
 
 function view(template) { return new Template(template); }
