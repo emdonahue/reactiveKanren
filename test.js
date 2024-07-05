@@ -3,8 +3,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render2, view} from './mk.js'
-import {App, render, garbage_mark, garbage_sweep} from './dom.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render, view} from './mk.js'
 import {logging, log, dlog, copy, toString, equals} from './util.js'
 
 function test(f, test_name) {
@@ -21,37 +20,6 @@ function asserte(a, b) {
     if (!equals(a, b)) throw Error(toString(a) + ' != ' + toString(b));
 }
 
-
-
-// walk all update vars first to normalize checking if a var will be updated? dont have to worry about vars shared between two terms as subterm bc physical storage is a tree
-// update all children halting with any children who will get their own updates. as we walk x, check each var against current set of updates
-
-
-
-/*
-let [m, s] = normalize({
-    a: 1,
-    b: 2,
-    c: [3, 4],
-    d: {e: 5, f: 6}
-}, nil);
-
-log("model",m);
-log("substitution",s);
-
-//Model
-console.assert(s.walk(m).a instanceof LVar, s.walk(m).a);
-asserte(garbage_mark(s, m).length(), 10);
-asserte(garbage_mark(s.acons(m.c, m.a), m).length(), 6);
-asserte(garbage_sweep(s, garbage_mark(s.acons(m.c, m.a), m)).length(), 6);
-*/
-
-//Template
-//asserte(render(s.walk(m).a, s, nil, m)[0].textContent, '1');
-
-//DOM
-
-//var o = nil; // observers: convert substitution values into dom updates
 
 
 // MK TEST
@@ -166,296 +134,87 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 // x(1 . y:(2 . z:())), x->y, y->z
 
 
-
-
-// Static templates
-asserte(new App(null, 'lorem').node.textContent, 'lorem');
-
-asserte(new App(null, ['div', 'lorem']).node.tagName, 'DIV');
-asserte(new App(null, ['div', 'lorem']).node.textContent, 'lorem');
-
-asserte(new App(null, [{tagName: 'div'}, 'lorem']).node.tagName, 'DIV');
-asserte(new App(null, [{tagName: 'div'}, 'lorem']).node.textContent, 'lorem');
-
-asserte(new App(null, [{tagName: 'div', name: 'ipsum'}, 'lorem']).node.name, 'ipsum');
-
-asserte(new App(null, [{tagName: 'div', style: {color: 'purple'}}, 'lorem']).node.style.color, 'purple');
-
-asserte(new App(null, ['div', ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
-
-//asserte(new App(null, [[null, null], 'div', 'lorem']).node.childNodes.length, 2);
-//asserte(new App(null, [[null, null], 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
-
-//asserte(new App(null, [list(null, null), 'div', 'lorem']).node.childNodes.length, 2);
-//asserte(new App(null, [list(null, null), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
-
-// Functions
-asserte(new App(null, () => 'lorem').node.textContent, 'lorem');
-asserte(new App(null, [() => 'div', 'lorem']).node.tagName, 'DIV');
-asserte(new App(null, [() => ({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
-//asserte(new App(null, [{tagName: () => 'div'}, 'lorem']).node.tagName, 'DIV'); //TODO enable fn/goal for tagname
-asserte(new App(null, [{name: () => 'ipsum'}, 'lorem']).node.name, 'ipsum');
-asserte(new App(null, [{style: {color: () => 'purple'}}, 'lorem']).node.style.color, 'purple');
-asserte(new App(null, ['div', () => ['div', 'lorem']]).node.childNodes[0].textContent, 'lorem');
-
-//asserte(new App(null, [() => [null, null], 'div', 'lorem']).node.childNodes.length, 2);
-//asserte(new App(null, [() => [null, null], 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
-
-//asserte(new App(null, [() => list(null, null), 'div', 'lorem']).node.childNodes.length, 2);
-//asserte(new App(null, [() => list(null, null), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
-
-// Goals
-asserte(new App(null, x => x.eq('lorem')).node.textContent, 'lorem');
-asserte(new App(null, x => fresh(y => [x.eq(y), y.eq('lorem')])).node.textContent, 'lorem');
-asserte(new App(null, x => fresh(y => [x.eq(quote(y)), y.eq('lorem')])).node.textContent, 'lorem');
-//asserte(new App(null, [x => x.eq('div'), 'lorem']).node.tagName, 'DIV');
-//asserte(new App(null, [x => x.eq({tagName: 'div'}), 'lorem']).node.tagName, 'DIV');
-asserte(new App(null, [{name: x => x.eq('ipsum')}, 'lorem']).node.name, 'ipsum');
-asserte(new App(null, [{style: {color: x => x.eq('purple')}}, 'lorem']).node.style.color, 'purple');
-asserte(new App(null, ['div', x => x.eq(['div', 'lorem'])]).node.outerHTML, '<div><div>lorem</div><!----></div>');
-
-asserte(new App(null, [x => x.eq(cons(1,2)), (x,m) => m.eq({car: x})]).node.textContent, '1');
-
-//asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes.length, 2);
-//asserte(new App(null, [x => x.eq([null, null]), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
-
-//asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes.length, 2);
-//asserte(new App(null, [x => x.eq(list(null, null)), 'div', 'lorem']).node.childNodes[0].textContent, 'lorem');
-
-// Model Vars
-asserte(new App('lorem', (x,m) => m).node.textContent, 'lorem');
-asserte(new App('lorem', (x,m) => m).update(m => m.set('ipsum')).node.textContent, 'ipsum');
-asserte(new App('lorem', (x,m) => ['div', m]).node.textContent, 'lorem');
-asserte(new App('lorem', (x,m) => ['div', m]).update(m => m.set('ipsum')).node.textContent, 'ipsum');
-asserte(new App('lorem', (x,m) => [{name: m}]).node.name, 'lorem');
-asserte(new App('lorem', (x,m) => [{name: m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
-asserte(new App('red', (x,m) => [{style: {color: m}}]).node.style.color, 'red');
-asserte(new App('red', (x,m) => [{style: {color: m}}]).update(m => m.set('blue')).node.style.color, 'blue');
-//asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).node.textContent, 'loremipsum');
-//asserte(new App(list('lorem', 'ipsum'), (x,m) => [m, 'div', (_,e) => e]).update(m => m.set(list('lorem', 'ipsum', 'dolor'))).node.textContent, 'loremipsumdolor');
-
-
-asserte(new App('lorem', (x,m) => x.eq(m)).node.textContent, 'lorem');
-asserte(new App('lorem', (x,m) => x.eq(m)).update(m => m.set('ipsum')).node.textContent, 'ipsum');
-
-//asserte(new App('lorem', (x,m) => conj(x.eq('ipsum'), x.eq(m))).node.textContent, '');
-asserte(new App('lorem', (x,m) => x.eq(['div', m])).node.textContent, 'lorem');
-asserte(new App('lorem', (x,m) => fresh(y => [y.eq(m), x.eq(['div', y])])).node.firstChild.outerHTML, '<div>lorem<!----></div>');
-
-asserte(new App('lorem', (x,m) => [{name: () => m}]).node.name, 'lorem');
-asserte(new App('lorem', (x,m) => [{name: () => m}]).update(m => m.set('ipsum')).node.name, 'ipsum');
-asserte(new App('lorem', [{name: (x,m) => conj(x.eq('ipsum'), fail)}]).node.name, undefined);
-
-
-
-// Stratification
-asserte(new App(list(1,2,3), (x,m) => m.membero(x)).node.textContent, '123');
-asserte(new App(list(list(1,2), list(3,4)), [(x,m) => m.membero(x), (x,m) => m.membero(x)]).node.textContent, '1234');
-
-//logging('run')
-//logging('render', 'dynamic');
-
-function treelist(x,m) {
-    return conde([m.isNumbero(), x.eq(m)],
-                 [m.isPairo(), x.eq(['div', [(y,m) => m.membero(y), treelist]])]);
-}
-
-asserte(new App(list(list(1,2), list(3,4)), treelist).node.firstChild.outerHTML, '<div><div>1<!---->2<!----><!----></div><!----><div>3<!---->4<!----><!----></div><!----><!----></div>');
-
-
-{
-    let ul_template = ['ul', function ul(view, model) {
-    return conde([model.isStringo(), view.eq(['li', model])],
-                 [model.isPairo(), view.eq(['li', ['ul', [subview => model.membero(subview), ul]]])])}];
-
-
-
-    asserte(new App(list(list('1','2'), list('3','4')), ul_template).node.outerHTML, '<ul><li><ul><li><ul><li>1<!----></li><!----><li>2<!----></li><!----><!----></ul></li><!----><li><ul><li>3<!----></li><!----><li>4<!----></li><!----><!----></ul></li><!----><!----></ul></li><!----></ul>');
-
-}
-
-
-// FINE GRAINED
+// DOM
 
 {
     let model = new LVar();
 
     // Static renders
-    asserte(render2('lorem').render().textContent, 'lorem');
-    asserte(render2(['span', 'lorem']).render().outerHTML, '<span>lorem</span>');
-    //asserte(render2(() => 'lorem').render().textContent, 'lorem');
-    asserte(render2(v => v.eq('lorem')).render().textContent, 'lorem');
-    asserte(render2(v => fail).render().nodeType, Node.COMMENT_NODE);
-    asserte(render2(v => conde(v.eq('lorem'), v.eq('ipsum'))).render().textContent, 'loremipsum');
-    asserte(render2(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><span>lorem</span></div>');
-    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).render().textContent, 'lorem');
-    asserte(render2([v => v.eq(model), (v,m) => v.eq(m)], list(cons(model,'lorem'))).render().textContent, 'lorem');
+    asserte(render('lorem').render().textContent, 'lorem');
+    asserte(render(['span', 'lorem']).render().outerHTML, '<span>lorem</span>');
+    //asserte(render(() => 'lorem').render().textContent, 'lorem');
+    asserte(render(v => v.eq('lorem')).render().textContent, 'lorem');
+    asserte(render(v => fail).render().nodeType, Node.COMMENT_NODE);
+    asserte(render(v => conde(v.eq('lorem'), v.eq('ipsum'))).render().textContent, 'loremipsum');
+    asserte(render(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><span>lorem</span></div>');
+    asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).render().textContent, 'lorem');
+    asserte(render([v => v.eq(model), (v,m) => v.eq(m)], list(cons(model,'lorem'))).render().textContent, 'lorem');
 
     // Updates before/after render
-    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
-    asserte(render2((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template post-render
-    asserte(render2((v,m) => v.eq(['span', 'ipsum']), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<span>ipsum</span>'); // New dom template post-render
-    asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New subtemplate pre-render
-    asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<p>ipsum</p>'); // New subtemplate post-render
+    asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
+    asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template post-render
+    asserte(render((v,m) => v.eq(['span', 'ipsum']), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<span>ipsum</span>'); // New dom template post-render
+    asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New subtemplate pre-render
+    asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<p>ipsum</p>'); // New subtemplate post-render
 
     // Diff single updates 
-    asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).render().outerHTML, '<p>lorem</p>'); // Subtemplate display
-    asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p><!----></p>'); // Subtemplate delete
-    asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'ipsum')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate undelete
-    asserte(render2(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p>ipsum</p>'); // Subtemplate swap
-    asserte(render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate swap identical
-    asserte(render2(['p', (v,m) => m.eq(list('ipsum', 'dolor')).conj(m.membero(v))], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Expand fail to branch
-    asserte(render2(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
+    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).render().outerHTML, '<p>lorem</p>'); // Subtemplate display
+    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p><!----></p>'); // Subtemplate delete
+    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'ipsum')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate undelete
+    asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p>ipsum</p>'); // Subtemplate swap
+    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate swap identical
+    asserte(render(['p', (v,m) => m.eq(list('ipsum', 'dolor')).conj(m.membero(v))], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Expand fail to branch
+    asserte(render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
 
-    { let v = render2(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model);
-      let n = v.render().firstChild;
-      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
-    { let v = render2(['p', (v,m) => m.eq('lorem').conj(v.eq(['span', 'lorem']))], list(cons(model,'lorem')), model);
-      let n = v.render().firstChild;
-      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
 
-    asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
-    //console.log(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
+    asserte(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
+    //console.log(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
 
     
-    //subview asserte(render2([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
-    asserte(render2([v => conde(v.eq('lorem'), v.eq('ipsum')), (v,m) => v.eq(m)]).render().textContent, 'loremipsum');
-    asserte(render2(['p', [v => conde(v.eq('lorem'), v.eq('ipsum')), ['span', (v,m) => v.eq(m)]]]).render().outerHTML, '<p><span>lorem</span><span>ipsum</span></p>');
+    //subview asserte(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
+    asserte(render([v => conde(v.eq('lorem'), v.eq('ipsum')), (v,m) => v.eq(m)]).render().textContent, 'loremipsum');
+    asserte(render(['p', [v => conde(v.eq('lorem'), v.eq('ipsum')), ['span', (v,m) => v.eq(m)]]]).render().outerHTML, '<p><span>lorem</span><span>ipsum</span></p>');
 
     /*subview
-    asserte(render2([(v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')]),
+    asserte(render([(v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')]),
                      (v,m) => fresh(x => v.eq(m))],
                     list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
     */
 
     // MODEL
-    asserte(render2(view((v,m) => v.eq(m)), list(cons(model,'lorem')), model).render().textContent, 'lorem');
-    asserte(render2(view((v,m) => v.eq(m)).model((v,m) => v.eq('ipsum')), list(cons(model,'lorem')), model).render().textContent, 'ipsum');
+    asserte(render(view((v,m) => v.eq(m)), list(cons(model,'lorem')), model).render().textContent, 'lorem');
+    asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq('ipsum')), list(cons(model,'lorem')), model).render().textContent, 'ipsum');
     
     // ORDER
-    asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
+    asserte(render((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
 
-    asserte(render2(['p', (v,m,o) => m.membero(v).conj(v.eq(o))], list(cons(model,list(1,2))), model).prerender().rerender(list(cons(model, list(2,1)))).render().outerHTML, '<p>12</p>'); // Exchange cached
+    asserte(render(['p', (v,m,o) => m.membero(v).conj(v.eq(o))], list(cons(model,list(1,2))), model).prerender().rerender(list(cons(model, list(2,1)))).render().outerHTML, '<p>12</p>'); // Exchange cached
 
 
     // MODEL & ORDER
-    //asserte(render2(view().model((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)]))).render().textContent, 'loremipsum'); // Render order
+    asserte(render(view((v,m) => v.eq(m)).model((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)]))).render().textContent, 'loremipsum'); // Render order
+
+
+    // CACHING
+    { let v = render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model);
+      let n = v.render().firstChild; // Failing text nodes hold renders unless overwritten
+      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
     
-    //asserte(render2((v,m,o) => conde([v.eq('ipsum'), o.eq(m)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Rerender order
-    //asserte(render2(['p', [(v,m) => conde([v.eq('lorem'), v.eq(m)], [v.eq('ipsum'), v.eq(m)]), ['span', (v,m) => v.eq(m)]]], list(cons(model, 'lorem'))).render().outerHTML, '<p><span><!---->lorem</span><span><!---->ipsum</span></p>');
-
-    //asserte(render2(['p', (v,m) => conde([m.eq('lorem'), v.eq(m)], [m.eq('ipsum'), v.eq(m)])], list(cons(model,'lorem')), model).render().outerHTML, '<p><!---->lorem</p>'); // New subtemplate post-render
-
-
+    { let v = render(['p', (v,m) => m.eq('lorem').conj(v.eq(['span', 'lorem']))], list(cons(model,'lorem')), model);
+      let n = v.render().firstChild; // Failing dom nodes hold renders
+      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
     
-    //let a = render2((v,m) => v.eq(m), list(cons(model,'lorem')), model);
-    //a[1].update(list(cons(model,'ipsum')));
-    //asserte(a[0].textContent, 'ipsum');
+    { let v = render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem', 'ipsum'))), model);
+      let n = v.render().childNodes[1]; // View reuses eq templates in different positions
+      asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
 
+    logging('render')
+    //logging('unify')
+    { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model);
+      let n = v.render().childNodes[1]; // View reuses eq templates in different positions
+      console.log(n)
+      asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
 }
 
 
-
-//fresh(y => [m.membero(y), x.eq(['div', []])])
-//[m.isPairo(), x.eq(['div', (x,m) => [m.membero(x), treelist]])]
-
-/*
-function treelist(x,m) {
-    return fresh((e,y) =>
-        [m.membero(e),
-         conde([e.isPairo(), treelist(y,e), x.eq(['div', y])],
-               [e.isStringo(), x.eq(e)])]
-    );
-}
-
-function treelist(x,m) {
-    return fresh((e,y) =>
-        [m.membero(e),
-         conde([e.isPairo(), x.eq(['div', [e.membero(y), treelist]])],
-               [e.isStringo(), x.eq(e)])]
-    );
-}
-
-
-
-
-logging('render')
-let app = new App(list(list(1, 2), 3), treelist);
-console.log(app.node)
-asserte(app.node.textContent, 'lorem')
-*/
-
-//asserte(new App(list(list(1, 2), 3), treelist).node.innerHTML, 'lorem');
-
-//asserte(new App(list(list(1, 2), 3), (x,m) => [m.membero(x), treelist]).node.innerHTML, 'lorem');
-
-
-// 0 or bare
-// string -> text node
-// list -> text node of appended
-// object -> object props, no children
-// goal -> ERR
-// fn -> string -> textnode
-// fn -> list -> textnode
-// fn -> goal -> fail -> comment node
-// fn -> goal -> string -> dynamic (text)
-// fn -> goal -> list -> dynamic (text)
-// fn -> goal -> array -> ????
-// fn -> goal -> multi -> ???
-
-// 1 child
-// string -> parent tag name
-// obj -> parent props
-// list -> ERR
-// goal -> fail -> comment
-// goal -> succeed -> swap in child
-// fn -> string -> parent tag name
-// fn -> object -> parent props
-// fn -> list -> static iterate with new models
-// fn -> goal -> fail -> comment
-// fn -> goal -> value -> rebuild child with new model (only need rebuild if binding variable changes)
-// 
-
-
-
-
-/*
-// Static
-
-
-
-
-asserte(render(['div', ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-
-// Dynamic
-var [n,,o] = render(s.walk(m).a, s, o, m);
-asserte(n.textContent, '1');
-//update(s.acons(s.walk(m).a, 2), o);
-//asserte(n.textContent, '2');
-
-// Lists
-asserte(render([list('ipsum', 'dolor'), ['div', 'lorem']], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([list('ipsum', 'dolor'), ['div', function (v) { return unify(v, 'lorem') }]], s, o, m)[0].childNodes[0].innerHTML, 'lorem');
-asserte(render([list('ipsum', 'dolor'), ['div', function (v, m) { return unify(v, m) }]], s, o, m)[0].childNodes[0].innerHTML, 'ipsum');
-
-// TDList
-let data = {todos: [{title: 'get tds displaying', done: false},
-                    {title: 'streamline api', done: true}],
-            selected: quote({title: 'Untitled', done: false})};
-let template = (_,m) => ['div',
-                         [todos => m.unify({todos: todos}),
-                          [{style: {color: (color, todo) => conde([todo.unify({done: true}), color.unify('green')],
-                                                                  [todo.unify({done: false}), color.unify('black')])}},
-                           [{tagName: 'input', type: 'checkbox', checked: (done, todo) => todo.unify({done: done}),
-                             onchange: conde([m.unify({done: true}), reunify(m, {done: false})], //TODO make goals directly returnable?
-                                             [m.unify({done: false}), reunify(m, {done: true})])}],
-                           [{tagName: 'span',
-                             onclick: todo => reunify(m, {selected: todo.quote()})},
-                            (title, todo) => todo.eq({title: title.name('selected.title/set')})]]],
-                         [{onclick: reunify(m, {selected: {title: 'SETTITLE'}})},
-                          (selected, todo) => todo.eq({selected: quote({title: selected.name('selected.title/get')})})]];
-*/
-
-//let app = new App(data, template);
-//document.body.appendChild(app.node);
 console.log('Tests Complete');
