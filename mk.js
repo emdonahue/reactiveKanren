@@ -798,13 +798,12 @@ class IterableViewFailedItem extends IterableViewFailure { // Rerender failures 
         return new IterableViewItem(this.goal, sub.reify(vvar), this.child, sub.reify(ovar)); }}
 
 class IterableViewItem extends IterableSubView { // Displayable iterable item
-    constructor(goal, template=null, child=null, order=null, model=null) {
+    constructor(goal, template=null, child=null, order=null) {
         super(goal);
         console.assert(!(template instanceof LVar));
         this.child = child;
         this.template = template;
-        this.order = order;
-        this.model = model; }
+        this.order = order; }
 
     key() { return this.template; }
     
@@ -833,7 +832,23 @@ class IterableViewItem extends IterableSubView { // Displayable iterable item
 
 class IterableModelItem extends IterableViewItem {
 
-}
+    constructor(model, ...args) {
+        super(...args);
+        this.model = model; }
+
+    key() { return this.model; }
+
+    rerender(sub, mvar, vvar, ovar) {
+        return super.rerender(sub.extend(mvar, this.model), mvar, vvar, ovar);
+    }
+    
+    static render(goal, sub, tmpl, mvar, ovar) {
+        if (!sub) return new IterableViewFailure(goal);
+        let mdl = sub.reify(mvar);
+        log('render', 'model', mdl, toString(sub));
+        return new this(mdl, goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar), sub.reify(mvar));
+    
+    }}
 
 class ViewDOMNode extends View { 
     constructor(properties, children=[], node=null) { //TODO a domnode can prune all non dynamic children at the start since they will never update. may not be necessary if we only need 1 level of matching (and nested levels handled with pure updating), but if it is make sure to check for recursive loops like building <ul>
@@ -893,7 +908,7 @@ class ModelTemplate extends Template {
     render(sub, mdl) {
         let v = new LVar(), o = new LVar(), g = this.mdl(v, mdl, o);
         log('render', 'template', g);
-        let c = g.expand_run(sub, (g, s) => IterableSubView.rendermodel(g, s, this.template, v, o, mdl));
+        let c = g.expand_run(sub, (g, s) => IterableModelItem.render(g, s, this.template, v, o));
         return new IterableModelRoot(v, this.template, o, c); }
 }
 
