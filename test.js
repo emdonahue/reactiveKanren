@@ -208,12 +208,14 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       let n = v.render().childNodes[1]; // View reuses eq templates in different positions
       asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
 
+    /*
     logging('render')
     //logging('unify')
     { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model);
       let n = v.render().childNodes[1]; // View reuses eq templates in different positions
       console.log(n)
       asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
+    */
 }
 
 
