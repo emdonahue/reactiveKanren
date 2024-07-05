@@ -691,7 +691,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let lcs = [...new Array(subviews.length+1)].map(() => new Array(delta.length+1).fill(0));
         for (let i=1; i<=subviews.length; i++) { // Start with an m x n table of zeroes where m is the length of the new iterable and n is the old.
             for (let j=1; j<=delta.length; j++) { // Walk all cells and, if the templates match at i,j advance each counter and the length of the longest subsequence.
-                if (equals(subviews[i-1].template, delta[j-1].template)) { //TODO expand view fns before testing equality, preferably at the start so everything is expanded always
+                if (equals(subviews[i-1].key(), delta[j-1].key())) { //TODO expand view fns before testing equality, preferably at the start so everything is expanded always
                     lcs[i][j] = lcs[i-1][j-1] + 1; }
                 else { // Otherwise, preserve the maximum subsequence length coming from advancing either index to this step.
                     lcs[i][j] = Math.max(lcs[i][j-1], lcs[i-1][j]); }}}
@@ -702,14 +702,14 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
 
         while (i || j) { // Go all the way to 0 to ensure all insertions/deletions.
 
-            if (i && j && equals(subviews[i-1].template, delta[j-1].template)) { // If we can reuse a template,
+            if (i && j && equals(subviews[i-1].key(), delta[j-1].key())) { // If we can reuse a template,
                 log('render', 'rerender', 'iterroot', 'swap', subviews[i-1], delta[j-1]);
                 delta[j-1].child = subviews[i-1].child.rerender(sub, model, this.vvar); // steal the previous child and rerender it.
                 i--; j--; }
             
             else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // If we need to skip a delta, insert it at current position
                 //delta[j-1].child = render(delta[j-1].template, sub, model);
-                delta[j-1].rerender_child(delta[j-1].template, sub, model);
+                delta[j-1].rerender_child(delta[j-1].template, sub, model); //TODO can we reuse model value here if cached in model item
                 if (!subviews.length) this.comment.after(delta[j-1].render()); // If no previous subviews, comment must have been added by render
                 else if (j === delta.length) { // If we haven't yet added any new deltas, use the last previous subview (if attached).
                     if (subviews[subviews.length-1].lastNode()) subviews[subviews.length-1].lastNode().after(delta[j-1].render());
@@ -749,9 +749,7 @@ class IterableSubView {
         if (!sub) return new IterableViewFailure(goal);
         let tmpl = sub.reify(lvar);
         log('render', 'render_template', tmpl, toString(sub.substitution));
-        if (tmpl instanceof LVar) throw Error('Iterable templates must not be free');
-        return new IterableViewItem(goal, tmpl, render(tmpl, sub, model), sub.reify(order)); }
-}
+        return new IterableViewItem(goal, tmpl, render(tmpl, sub, model), sub.reify(order)); }}
 
 class IterableViewBranch extends IterableSubView {
     constructor(lhs, rhs, ...args) {
@@ -795,13 +793,16 @@ class IterableViewFailedItem extends IterableViewFailure { // Rerender failures 
 class IterableViewItem extends IterableSubView { // Displayable iterable item
     constructor(goal, template=null, child=null, order=null) {
         super(goal);
+        console.assert(!(template instanceof LVar));
         this.child = child;
         this.template = template;
         this.order = order; }
+
+    key() { return this.template; }
     
-    render(parent) { // Parent may be undefined on rerender during diff add phase, but children can handle it.
-        log('render', 'item', parent, parent && parent.outerHTML, toString(this.template));
-        return this.child.render(parent); }
+    render() { // Parent may be undefined on rerender during diff add phase, but children can handle it.
+        log('render', 'item', toString(this.template));
+        return this.child.render(); }
     
     rerender(sub, model, vvar, ovar) {
         log('render', 'rerender', 'iteritem', this.goal, sub.reify(vvar), sub.reify(model), sub.reify(ovar));
@@ -822,6 +823,21 @@ class IterableViewItem extends IterableSubView { // Displayable iterable item
         a.push(this);
         return a; }
     toArray(a) { a.push(this); return a; }}
+
+class IterableModelItem extends IterableViewItem {
+    constructor(model, ...args) {
+        super(...args);
+        this.model = model;
+    }
+
+    key() { return this.model; }
+    
+    static render(goal, sub, lvar, model, order, mvar) {
+        if (!sub) return new IterableViewFailure(goal);
+        let tmpl = sub.reify(lvar);
+        log('render', 'render_template', tmpl, toString(sub.substitution));
+        return new this(sub.reify(mvar), goal, tmpl, render(tmpl, sub, model), sub.reify(order)); }
+}
 
 
 class ViewDOMNode extends View { 
@@ -882,7 +898,7 @@ class ModelTemplate extends Template {
     render(sub, mdl) {
         let v = new LVar(), o = new LVar(), g = this.mdl(v, mdl);
         log('render', 'template', g);
-        let c = g.expand_run(sub, (g, s) => IterableSubView.render(g, s, this.template, v, o));
+        let c = g.expand_run(sub, (g, s) => IterableModelItem.render(g, s, this.template, v, o, mdl));
         return new IterableModelRoot(v, this.template, o, c); }
 }
 
