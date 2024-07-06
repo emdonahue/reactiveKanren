@@ -182,8 +182,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     */
 
     // MODEL
-    asserte(render(view((v,m) => v.eq(m)), list(cons(model,'lorem')), model).render().textContent, 'lorem');
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq('ipsum')), list(cons(model,'lorem')), model).render().textContent, 'ipsum');
+    asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq('ipsum')), list(cons(model,'lorem')), model).render().textContent, 'ipsum'); // Static text
+    asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq(m)), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); // dynamic text
+    asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('ipsum'), v.eq('ipsum')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); //Fail -> display
+    //asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('lorem'), v.eq('lorem')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).rerender(list(cons(model,'lorem')), model).render().textContent, 'lorem'); //Show -> hide -> show
     
     // ORDER
     asserte(render((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
