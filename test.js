@@ -170,7 +170,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
 
     asserte(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
-    //console.log(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender())
+
 
     
     //subview asserte(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
@@ -188,9 +188,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq(m)), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); // dynamic text
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('ipsum'), v.eq('ipsum')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); //Fail -> display
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('lorem'), v.eq('lorem')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).rerender(list(cons(model,'lorem')), model).render().textContent, 'lorem'); //Show -> hide -> show
-    logging('render') || logging('parse') || logging('rerender')
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => m.membero(v)), list(cons(model,list('lorem', 'ipsum'))), model).prerender().rerender(list(cons(model,list('ipsum', 'dolor')))).render().textContent, 'ipsumdolor');
-
+    asserte(render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model).render().outerHTML, '<p>loremipsum</p>');
+    asserte(render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>');
     
     // ORDER
     asserte(render((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
@@ -221,7 +221,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
 
     { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model);
-      let n = v.render().childNodes[1]; // Model reuses eq templates in different positions
+      let n = v.render().childNodes[1]; // Model reuses eq models in different positions
       asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
     
     /*

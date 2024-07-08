@@ -673,11 +673,12 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
     
     render() {
-        let subviews = this.subviews();
-        log('render', this.constructor.name, subviews);
-        if (!subviews.length) return this.comment;
-        if (subviews.length === 1) return subviews[0].render();
-        return subviews.reduce((f,s) => f.appendChild(s.render()) && f, document.createDocumentFragment()); }
+        let n, subviews = this.subviews();        
+        if (!subviews.length) n = this.comment;
+        else if (subviews.length === 1) n = subviews[0].render();
+        else n = subviews.reduce((f,s) => f.appendChild(s.render()) && f, document.createDocumentFragment());
+        log('render', this.constructor.name, n.outerHTML ? n.outerHTML : n.textContent, subviews);
+        return n; }
     
     rerender(sub, model) {
         log('rerender', this.constructor.name, this, toString(sub), model+'');
@@ -726,7 +727,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
                 j--; }
             
             else { // Skipping a dom node, so remove it
-                log('rerender', this.constructor.name, 'delete', subviews[i-1].key(), subviews[i-1]);
+                log('rerender', this.constructor.name, 'delete', subviews[i-1].key(), delta[j-1] && delta[j-1].key(), subviews[i-1]);
                 subviews[i-1].remove();
                 i--; }}}
 
@@ -804,7 +805,10 @@ class IterableViewItem { // Displayable iterable item
         a.push(this);
         return a; }
     toArray(a) { a.push(this); return a; }
-    render() { return this.child.render(); }
+    render() {
+        let n = this.child.render();
+        log('render', this.constructor.name, n);
+        return n; }
     
     rerender(sub, mvar, vvar, ovar) {
         log('rerender', this.constructor.name, this.goal+'', vvar+'', toString(sub), mvar+'');
@@ -818,7 +822,7 @@ class IterableViewItem { // Displayable iterable item
         else this.child = render(this.template, sub, mvar);
         return this; }
 
-    adoptChild(previtem, sub, mvar, vvar) {
+    adoptChild(previtem, sub, mvar, vvar) { //TODO try to merge adopt and rerender child
         log('rerender', this.constructor.name, 'adopt', this, previtem);
         this.child = previtem.child.rerender(sub, mvar, vvar);
         delete previtem.child;
@@ -836,7 +840,8 @@ class IterableModelItem extends IterableViewItem {
     static create(sub, goal, vvar, mvar, ovar) {
         return new this(sub.reify(mvar), goal, vvar, render(vvar, sub, mvar), sub.reify(ovar)); }
     recreate(sub, goal, vvar, mvar, ovar) {
-        return new this.constructor(sub.reify(mvar), this.goal, vvar, this.child, sub.reify(ovar)); }
+        let model = sub.reify(mvar);
+        return new this.constructor(model, this.goal, vvar, model === this.model ? this.child : null, sub.reify(ovar)); }
     key() { return this.model; }
     extend(sub, mvar) { return sub.extend(mvar, this.model); }
     adoptChild(previtem, sub, mvar, vvar) { return super.adoptChild(previtem, this.extend(sub, mvar), mvar, vvar); }
@@ -849,7 +854,7 @@ class ViewDOMNode extends View {
         this.node = node;
         this.children = children; }
     render() {
-        log('render', 'dom', this.node);
+        log('render', this.constructor.name, this.node && this.node.outerHTML);
         console.assert(is_string(this.properties)); //TODO allow full property objects
         if (this.node) return this.node;
         this.node = document.createElement(this.properties);
