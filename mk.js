@@ -12,6 +12,18 @@ import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boo
 
 //TODO reduce bundle size by deleting error message strings from production minification
 
+// APP INTERFACE
+class RK {
+    constructor(template, data) {
+        this.template = template;
+        this.mvar = new LVar().name('base model');
+        this.substitution = nil.extend(this.mvar, data); }
+    render(parent) {
+        this.view = render(this.template, this.substitution, this.mvar);
+        let n = this.view.render();
+        if (parent) parent.appendChild(n);
+        return n; }}
+
 // Lists
 class List {
     static fromTree(a) {
@@ -903,4 +915,4 @@ class ModelTemplate extends Template {
 
 function view(template) { return new Template(template); }
 
-export {nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, render, view};
+export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, render, view};
