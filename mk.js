@@ -8,6 +8,7 @@ import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boo
 //TODO look into event delegation
 //TODO can we generalize LCS to use partial reuse instead of binary equality
 //TODO reuse old node even on new template in case it has some common sub templates (eg can reuse a text node we are about to throw away just by textContent =)
+//TODO test that swapping children doesnt duplicate them
 
 //TODO reduce bundle size by deleting error message strings from production minification
 
@@ -598,7 +599,7 @@ const failure = new Failure;
 // DOM
 
 function render(tmpl, sub=nil, model=null) {
-    log('render', tmpl);
+    log('parse', tmpl, toString(sub));
     if (is_string(tmpl) || is_number(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
     /*
     else if (tmpl instanceof LVar) { // Build a dynamic node keyed to a single static model var
@@ -650,7 +651,7 @@ class View {
         return this.rerender(s); }
     prerender() {
         let r = this.render();
-        log('render', 'prerender', r.outerHTML, r.textContent);
+        log('render', 'prerender', r.outerHTML, r.textContent, this);
         return this; }}
 
 
@@ -667,7 +668,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     subviews(child=this.child) { return child.items().sort(this.sortfn()); }
     static render(f, sub, model) { //TODO can view vars all be the same physical var?
         let v = new LVar(), o = new LVar(), g = to_goal(f(v, model, o));
-        log('render', 'fn', g);
+        log('parse', this.name, g, toString(sub));
         return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
     
     render() {
@@ -678,11 +679,11 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         return subviews.reduce((f,s) => f.appendChild(s.render()) && f, document.createDocumentFragment()); }
     
     rerender(sub, model) {
-        log('render', 'rerender', this.constructor.name, toString(sub));
+        log('rerender', this.constructor.name, toString(sub));
         let subviews = this.subviews();
         let child = this.child.rerender(sub, model, this.vvar, this.ovar);
         let delta = this.subviews(child);
-        log('render', 'rerender', this.constructor.name, 'delta', subviews, delta, child, toString(sub));
+        log('rerender', this.constructor.name, 'delta', subviews, delta, child, toString(sub));
 
         if (!delta.length) subviews[0].firstNode().before(this.comment);
         this.diffDOM(this.buildLCSTable(subviews, delta), subviews, delta, sub, model);
@@ -706,13 +707,13 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         while (i || j) { // Go all the way to 0 to ensure all insertions/deletions.
 
             if (i && j && equals(subviews[i-1].key(), delta[j-1].key())) { // If we can reuse a template,
-                log('render', 'rerender', this.constructor.name, 'swap', subviews[i-1], delta[j-1]);
-                delta[j-1].child = subviews[i-1].child.rerender(sub, model, this.vvar); // steal the previous child and rerender it.
+                log('rerender', this.constructor.name, 'swap', subviews[i-1], delta[j-1]);
+                delta[j-1] = delta[j-1].adoptChild(subviews[i-1], sub, model, this.vvar); // steal the previous child and rerender it.
                 i--; j--; }
             
             else if (!i || lcs[i-1][j] <= lcs[i][j-1]) { // If we need to skip a delta, insert it at current position
                 //delta[j-1].child = render(delta[j-1].template, sub, model);
-                delta[j-1].rerender_child(sub, model); //TODO can we reuse model value here if cached in model item
+                delta[j-1].rerenderChild(sub, model); //TODO can we reuse model value here if cached in model item
                 if (!subviews.length) this.comment.after(delta[j-1].render()); // If no previous subviews, comment must have been added by render
                 else if (j === delta.length) { // If we haven't yet added any new deltas, use the last previous subview (if attached).
                     if (subviews[subviews.length-1].lastNode()) subviews[subviews.length-1].lastNode().after(delta[j-1].render());
@@ -724,7 +725,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
             }
             
             else { // Skipping a dom node, so remove it
-                log('render', 'rerender', this.constructor.name, 'delete', subviews[i-1]);
+                log('rerender', this.constructor.name, 'delete', subviews[i-1]);
                 subviews[i-1].remove();
                 i--; }}}
 
@@ -777,13 +778,13 @@ class IterableViewFailedItem { // Rerender failures of atomic leaves that may ca
         this.child = child; }
     items(a=[]) { return a; }
     rerender(sub, mvar, vvar, ovar) {
-        log('render', 'rerender', this.constructor.name, this.child, sub.reify(vvar), sub.reify(mvar));
+        log('rerender', this.constructor.name, this.child, sub.reify(vvar), sub.reify(mvar));
         return this.child.rerender(sub, mvar, vvar, ovar); }}
 
 class IterableViewItem { // Displayable iterable item
     constructor(goal, template=null, child=null, order=null) {
         this.goal = goal;
-        console.assert(!(template instanceof LVar));
+        if (template instanceof LVar) throw Error('unbound template: ' + template + ' ' + goal);
         this.child = child;
         this.template = template;
         this.order = order; }
@@ -801,24 +802,26 @@ class IterableViewItem { // Displayable iterable item
         a.push(this);
         return a; }
     toArray(a) { a.push(this); return a; }
-    
-    render() {
-        log('render', 'item', toString(this.template));
-        return this.child.render(); }
+    render() { return this.child.render(); }
     
     rerender(sub, model, vvar, ovar) {
-        log('render', 'rerender', this.constructor.name, this.goal, sub.reify(vvar), sub.reify(model), sub.reify(ovar), toString(sub));
+        log('rerender', this.constructor.name, this.goal, sub.reify(vvar), sub.reify(model), sub.reify(ovar), toString(sub));
         var sub = this.goal.apply(sub);
         if (sub.isFailure()) return new IterableViewFailedItem(this);
         return this.recreate(sub, this.goal, vvar, model, ovar); }
 
-    rerender_child(sub, model) { // TODO consider avoiding mutation in child rerender
+    rerenderChild(sub, model) { // TODO consider avoiding mutation in child rerender
         log('render', 'render_child', this.template, this.child);
         if (this.child) this.child = this.child.rerender(sub, model);
         else this.child = render(this.template, sub, model); }
+
+    adoptChild(previtem, sub, mvar, vvar) {
+        this.child = previtem.child.rerender(sub, mvar, vvar);
+        delete previtem.child;
+        return this; }
     
     static render(goal, sub, vvar, model, order) {
-        log('render', 'parse', this.constructor.name, toString(sub));
+        log('parse', this.name, goal, toString(sub));
         if (!sub) return new IterableFailure(this, goal);
         return this.create(sub, goal, vvar, model, order); }}
 
@@ -831,7 +834,7 @@ class IterableModelItem extends IterableViewItem {
     recreate(sub, goal, vvar, mvar, ovar) {
         return new this.constructor(sub.reify(mvar), this.goal, vvar, this.child, sub.reify(ovar)); }
     key() { return this.model; }
-    rerender_child(sub, model) { return super.rerender_child(sub.extend(model, this.model), model); }}
+    rerenderChild(sub, model) { return super.rerenderChild(sub.extend(model, this.model), model); }}
 
 class ViewDOMNode extends View { 
     constructor(properties, children=[], node=null) { //TODO a domnode can prune all non dynamic children at the start since they will never update. may not be necessary if we only need 1 level of matching (and nested levels handled with pure updating), but if it is make sure to check for recursive loops like building <ul>
@@ -869,28 +872,20 @@ class ViewTextNode extends View {
 
 class Template {
     constructor(template) {
-        this.template = template;
-        this.mdl = null; }
+        this.template = template; }
     render(sub, mdl) {
-        if (this.mdl) {
-            let v = new LVar(), o = new LVar(), g = to_goal(this.mdl(v, mdl));
-            log('render', 'template', g);
-            console.assert(this.template)
-            let c = g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, this.template, v, o));
-            return new IterableModelRoot(v, this.template, o, c);
-        }
-        return render(this.template, sub, mdl);
-    }
+        log('parse', this.constructor.name, this.template, toString(sub))
+        return render(this.template, sub, mdl); }
     model(m) { return new ModelTemplate(m, this.template); }
 }
 
 class ModelTemplate extends Template {
     constructor(model, ...args) {
         super(...args);
-        this.mdl = model; }
+        this.modelf = model; }
     render(sub, mdl) {
-        let v = new LVar(), o = new LVar(), g = to_goal(this.mdl(v, mdl, o));
-        log('render', 'template', g);
+        let v = new LVar(), o = new LVar(), g = to_goal(this.modelf(v, mdl, o));
+        log('parse', this.constructor.name, this.template, g, toString(sub))
         let c = g.expand_run(sub, (g, s) => IterableModelItem.render(g, s, this.template, v, o));
         return new IterableModelRoot(v, this.template, o, c); }
 }
