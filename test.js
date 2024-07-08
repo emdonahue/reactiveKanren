@@ -167,21 +167,13 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate swap identical
     asserte(render(['p', (v,m) => m.eq(list('ipsum', 'dolor')).conj(m.membero(v))], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Expand fail to branch
     asserte(render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
-
-
-    asserte(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
-
-
-    
-    //subview asserte(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
+    asserte(render([(v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))]), (v,m) => v.eq(m)], list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');    
+    asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
     asserte(render([v => conde(v.eq('lorem'), v.eq('ipsum')), (v,m) => v.eq(m)]).render().textContent, 'loremipsum');
     asserte(render(['p', [v => conde(v.eq('lorem'), v.eq('ipsum')), ['span', (v,m) => v.eq(m)]]]).render().outerHTML, '<p><span>lorem</span><span>ipsum</span></p>');
+    asserte(render(view((v,m) => fresh(x => v.eq(m))).model((v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')])),
+            list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
 
-    /*subview
-    asserte(render([(v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')]),
-                     (v,m) => fresh(x => v.eq(m))],
-                    list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
-    */
 
     // MODEL
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq('ipsum')), list(cons(model,'lorem')), model).render().textContent, 'ipsum'); // Static text
@@ -223,15 +215,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model);
       let n = v.render().childNodes[1]; // Model reuses eq models in different positions
       asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
-    
-    /*
-    logging('render')
-    //logging('unify')
-    { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model);
-      let n = v.render().childNodes[1]; // View reuses eq templates in different positions
-      console.log(n)
-      asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
-    */
+
 }
 
 
