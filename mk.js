@@ -668,7 +668,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     sortfn() { return (a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1; }
     subviews(child=this.child) { return child.items().sort(this.sortfn()); }
     static render(f, sub, model) { //TODO can view vars all be the same physical var?
-        let v = new LVar(), o = new LVar(), g = to_goal(f(v, model, o));
+        let v = new LVar().name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
         log('parse', this.name, g, toString(sub));
         return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
     
@@ -806,27 +806,28 @@ class IterableViewItem { // Displayable iterable item
     toArray(a) { a.push(this); return a; }
     render() { return this.child.render(); }
     
-    rerender(sub, model, vvar, ovar) {
-        log('rerender', this.constructor.name, this.goal+'', sub.reify(vvar), model+'', sub.reify(model), sub.reify(ovar), toString(sub));
+    rerender(sub, mvar, vvar, ovar) {
+        log('rerender', this.constructor.name, this.goal+'', vvar+'', toString(sub), mvar+'');
         var sub = this.goal.apply(sub);
         if (sub.isFailure()) return new IterableFailedItem(this);
-        return this.recreate(sub, this.goal, vvar, model, ovar); }
+        return this.recreate(sub, this.goal, vvar, mvar, ovar); }
 
-    rerenderChild(sub, model) { // TODO consider avoiding mutation in child rerender
+    rerenderChild(sub, mvar) { // TODO consider avoiding mutation in child rerender
         log('rerender', 'child', this.constructor.name, this.template, this.child, toString(sub));
-        if (this.child) this.child = this.child.rerender(sub, model);
-        else this.child = render(this.template, sub, model);
+        if (this.child) this.child = this.child.rerender(sub, mvar);
+        else this.child = render(this.template, sub, mvar);
         return this; }
 
     adoptChild(previtem, sub, mvar, vvar) {
+        log('rerender', this.constructor.name, 'adopt', this, previtem);
         this.child = previtem.child.rerender(sub, mvar, vvar);
         delete previtem.child;
         return this; }
     
-    static render(goal, sub, vvar, model, order) {
-        log('parse', this.name, goal, toString(sub));
+    static render(goal, sub, vvar, mvar, order) {
+        log('parse', this.name, goal+'', toString(sub));
         if (!sub) return new IterableFailure(this, goal);
-        return this.create(sub, goal, vvar, model, order); }}
+        return this.create(sub, goal, vvar, mvar, order); }}
 
 class IterableModelItem extends IterableViewItem {
     constructor(model, ...args) {
@@ -837,7 +838,9 @@ class IterableModelItem extends IterableViewItem {
     recreate(sub, goal, vvar, mvar, ovar) {
         return new this.constructor(sub.reify(mvar), this.goal, vvar, this.child, sub.reify(ovar)); }
     key() { return this.model; }
-    rerenderChild(sub, model) { return super.rerenderChild(sub.extend(model, this.model), model); }}
+    extend(sub, mvar) { return sub.extend(mvar, this.model); }
+    adoptChild(previtem, sub, mvar, vvar) { return super.adoptChild(previtem, this.extend(sub, mvar), mvar, vvar); }
+    rerenderChild(sub, mvar) { return super.rerenderChild(this.extend(sub, mvar), mvar); }}
 
 class ViewDOMNode extends View { 
     constructor(properties, children=[], node=null) { //TODO a domnode can prune all non dynamic children at the start since they will never update. may not be necessary if we only need 1 level of matching (and nested levels handled with pure updating), but if it is make sure to check for recursive loops like building <ul>
@@ -887,7 +890,7 @@ class ModelTemplate extends Template {
         super(...args);
         this.modelf = model; }
     render(sub, mdl) {
-        let v = new LVar(), o = new LVar(), g = to_goal(this.modelf(v, mdl, o));
+        let v = new LVar().name('modelview'), o = new LVar().name('order'), g = to_goal(this.modelf(v, mdl, o));
         log('parse', this.constructor.name, this.template, g, toString(sub))
         let c = g.expand_run(sub, (g, s) => IterableModelItem.render(g, s, this.template, v, o));
         return new IterableModelRoot(v, this.template, o, c); }

@@ -139,7 +139,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 // DOM
 
 {
-    let model = new LVar();
+    let model = new LVar().name('basemodel');
 
     // Static renders
     asserte(render('lorem').render().textContent, 'lorem');
@@ -188,7 +188,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq(m)), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); // dynamic text
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('ipsum'), v.eq('ipsum')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); //Fail -> display
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('lorem'), v.eq('lorem')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).rerender(list(cons(model,'lorem')), model).render().textContent, 'lorem'); //Show -> hide -> show
-
+    logging('render') || logging('parse') || logging('rerender')
+    asserte(render(view((v,m) => v.eq(m)).model((v,m) => m.membero(v)), list(cons(model,list('lorem', 'ipsum'))), model).prerender().rerender(list(cons(model,list('ipsum', 'dolor')))).render().textContent, 'ipsumdolor');
 
     
     // ORDER
@@ -218,6 +219,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.eq('lorem').conj(v.eq(m)))], list(cons(model,'lorem')), model);
       let n = v.render().firstChild; // Failing text nodes hold renders unless overwritten
       asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
+
+    { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model);
+      let n = v.render().childNodes[1]; // Model reuses eq templates in different positions
+      asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
     
     /*
     logging('render')
