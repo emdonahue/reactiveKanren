@@ -49,7 +49,7 @@ import {logging} from '../../../util.js';
                 (v,m,o) =>
                 fresh((todos, title) =>
                     [m.eq({todos: todos}),
-                     todos.membero(title),
+                     todos.membero({title: title}),
                      v.eq([{tagName: 'li', className: 'completed'},
                            [{tagName: 'div', className: 'view'},
                             [{tagName: 'input', className: 'toggle', type: 'checkbox', checked: true}],

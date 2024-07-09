@@ -154,7 +154,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><span>lorem</span></div>');
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).render().textContent, 'lorem');
     asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
-
+    asserte(render((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).render().outerHTML, '<span>lorem</span>');
+    
     // Updates before/after render
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template post-render
