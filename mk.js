@@ -91,6 +91,7 @@ class List {
         if (x instanceof LVar) return this.extend(x, y_var); // Align to equivalence class, not bound value.
         if (y instanceof LVar) return this.extend(y, x_var);
         if (primitive(x) || primitive(y)) return failure; // Primitives but not ===
+        if (Object.getPrototypeOf(x) !== Object.getPrototypeOf(y)) return failure;
         let s = this;
         for (let k of Object.keys(x).filter(k => Object.hasOwn(y, k))) {
             s = s.unify(x[k], y[k]);
@@ -212,6 +213,7 @@ class Pair extends List {
 
 
     _toString() {
+                window.lst = this
         return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + toString(this.cdr)}`;
     }
 }
@@ -309,7 +311,7 @@ class Goal {
     }
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
     expand_ctn(s, cjs, v) {
-        log('expand', 'ctn', this, cjs, s);
+        log('expand', 'ctn', this+'', cjs, s);
         return s.isFailure() ? v(cjs.conj(this)) : this.expand(s, succeed, cjs, v); }
     suspend(s) { return new Suspended(s, this) }
     apply(sub) { return sub.isFailure() ? failure : this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
@@ -322,7 +324,7 @@ class Succeed extends Goal {
     suspend(s, ctn=succeed) { return ctn.cont(s); }
     cont(s) { return s; }
     expand_ctn(s, cjs, v) {
-        log('expand', 'return', this, cjs, s);
+        log('expand', 'return', this+'', cjs, s.substitution+'');
         return v(cjs,s.substitution);
     }
     conj(g) { return g; }
@@ -352,7 +354,7 @@ class Conj extends Goal {
         return this.lhs.eval(s, this.rhs.conj(ctn));
     }
     expand(s, ctn, cjs, v) {
-        log('expand', 'conj', this, ctn, cjs);
+        log('expand', 'conj', this+'', ctn, cjs);
         return this.lhs.expand(s, ctn.conj(this.rhs), cjs, v);
     }
     toString() { return `(${this.lhs} & ${this.rhs})`; }
@@ -369,7 +371,7 @@ class Disj extends Goal {
         return this.lhs.eval(s, ctn).mplus(this.rhs.eval(s, ctn));
     }
     expand(s, ctn, cjs, v) {
-        log('expand', 'disj', this, ctn, cjs);
+        log('expand', 'disj', this+'', ctn, cjs);
         return new IterableViewBranch(this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v), cjs);
     }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
@@ -404,7 +406,7 @@ class Unification extends Goal {
         return ctn.cont(s.unify(this.lhs, this.rhs));
     }
     expand(s, ctn, cjs, v) {
-        log('expand', '==', this, ctn, cjs);
+        log('expand', '==', this+'', ctn+'', cjs);
         s = s.unify(this.lhs, this.rhs);
         return s.expand_ctn(ctn, cjs.conj(this), v);
     }
@@ -422,7 +424,7 @@ class Constraint extends Goal {
         return failure;
     }
     expand(s, ctn, cjs, v) {
-        log('expand', 'constraint', this, ctn, cjs);
+        log('expand', 'constraint', this+'', ctn, cjs);
         s = (this.f.apply(null, this.lvars.map(x => s.walk(x)))) ? s : failure;
         return s.expand_ctn(ctn, cjs.conj(this), v);
     }
@@ -606,6 +608,7 @@ const failure = new Failure;
 
 function render(tmpl, sub=nil, model=null) {
     log('parse', tmpl, toString(sub));
+    if (sub.length() > 20) throw Error('inf recurs')
     if (is_string(tmpl) || is_number(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
     /*
     else if (tmpl instanceof LVar) { // Build a dynamic node keyed to a single static model var
@@ -621,7 +624,7 @@ function render(tmpl, sub=nil, model=null) {
         throw Error('Unrecognized render template: ' + toString(tmpl)); }}
 
 function render_head([tmpl_head, ...tmpl_children], sub, model) {
-    log('render', 'head', tmpl_head, tmpl_children);
+    log('parse', 'head', tmpl_head, tmpl_children);
     if (is_string(tmpl_head)) return render_head([{tagName: tmpl_head}, ...tmpl_children], sub, model);
     else if (is_pojo(tmpl_head)) return new ViewDOMNode(tmpl_head, tmpl_children.map(c => render(c, sub, model)));
     else throw Error('Unrecognized render head template: ' + toString(tmpl_head));
@@ -811,7 +814,7 @@ class IterableViewItem { // Displayable iterable item
         return this; }
     
     static render(goal, sub, vvar, mvar, order) {
-        log('parse', this.name, goal+'', toString(sub));
+        log('parse', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
         if (!sub) return new IterableFailure(this, goal);
         return this.create(sub, goal, vvar, mvar, order); }}
 

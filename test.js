@@ -41,6 +41,7 @@ asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], 
 asserte(fresh((x,y) => [unify(x,cons(1, y)), unify(y,cons(2, nil))]).run(), List.fromTree([[list(1, 2), list(2)]]));
 asserte(fresh(x => [conde(unify(x,1), unify(x,1)), unify(x,1)]).run(), List.fromTree([[1], [1]]));
 asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
+asserte(fresh((x) => unify({car:x}, cons(1,2))).run(), list());
 
 // Lists
 asserte(fresh(xs => [xs.eq(nil), xs.membero(1)]).run(), nil);
