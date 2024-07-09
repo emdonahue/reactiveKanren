@@ -1,5 +1,5 @@
 "use strict"
-import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boolean} from './util.js';
+import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boolean, is_pojo} from './util.js';
 //TODO global generic 'model' variable object as a shortcut for (v,m) => v.eq(m), maybe generalize to path vars
 //TODO let query variables be added manually not just extracted from fresh
 //TODO use clone node over create element for speed when applicable (eg dynamic model)
@@ -622,20 +622,9 @@ function render(tmpl, sub=nil, model=null) {
 
 function render_head([tmpl_head, ...tmpl_children], sub, model) {
     log('render', 'head', tmpl_head, tmpl_children);
-    if (is_string(tmpl_head)) {
-        let parent = new ViewDOMNode(tmpl_head, tmpl_children.map(c => render(c, sub, model)));
-        /*
-        for (let c of tmpl_children) {
-            let [n,o] = render(c, sub, model);
-            parent.appendChild(n);
-        }*/
-        //return [parent, []];
-        return parent;
-    }
-    
-    else {
-        console.error('Unrecognized render head template', tmpl_head); //TODO remove debug print when done developing
-        throw Error('Unrecognized render head template: ' + toString(tmpl_head)); }
+    if (is_string(tmpl_head)) return render_head([{tagName: tmpl_head}, ...tmpl_children], sub, model);
+    else if (is_pojo(tmpl_head)) return new ViewDOMNode(tmpl_head, tmpl_children.map(c => render(c, sub, model)));
+    else throw Error('Unrecognized render head template: ' + toString(tmpl_head));
 }
 
 
@@ -720,7 +709,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
                 j--; }
             
             else { // Skipping a dom node, so remove it
-                log('rerender', this.constructor.name, 'delete', subviews[i-1].key(), delta[j-1] && delta[j-1].key(), subviews[i-1]);
+                log('rerender', this.constructor.name, 'delete', subviews[i-1].key(), delta[j-1]?.key(), subviews[i-1]);
                 subviews[i-1].remove();
                 i--; }}}
 
@@ -847,11 +836,11 @@ class ViewDOMNode extends View {
         this.node = node;
         this.children = children; }
     render() {
-        log('render', this.constructor.name, this.node && this.node.outerHTML);
-        console.assert(is_string(this.properties)); //TODO allow full property objects
+        log('render', this.constructor.name, this.node?.outerHTML);
         if (this.node) return this.node;
-        this.node = document.createElement(this.properties);
-        this.children.forEach(c => this.node.appendChild(c.render()));
+        this.node = document.createElement(this.properties.tagName || 'div');
+        for (let k in this.properties) { if (k !== 'tagName') this.node[k] = this.properties[k]; }
+        for (let c of this.children) this.node.appendChild(c.render());
         return this.node; }
     rerender(sub, model) {
         return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, model)), this.node);

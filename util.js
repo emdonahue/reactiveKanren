@@ -41,5 +41,7 @@ function equals(x, y) {
 function is_string(x) { return Object.prototype.toString.call(x) === '[object String]'; }
 function is_number(x) { return Object.prototype.toString.call(x) === '[object Number]'; }
 function is_boolean(x) { return Object.prototype.toString.call(x) === '[object Boolean]'; };
+function is_pojo(x) { return !!x && Object.getPrototypeOf(x) === Object.prototype; };
 
-export {logging, log, dlog, copy, toString, equals, is_string, is_number, is_boolean}
+
+export {logging, log, dlog, copy, toString, equals, is_string, is_number, is_boolean, is_pojo}
