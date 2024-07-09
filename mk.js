@@ -2,15 +2,11 @@
 import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boolean} from './util.js';
 //TODO global generic 'model' variable object as a shortcut for (v,m) => v.eq(m), maybe generalize to path vars
 //TODO let query variables be added manually not just extracted from fresh
-//TODO redo render so its purely a return value
-//TODO investigate caching properties of iterable views and models
 //TODO use clone node over create element for speed when applicable (eg dynamic model)
 //TODO look into event delegation
 //TODO can we generalize LCS to use partial reuse instead of binary equality
 //TODO reuse old node even on new template in case it has some common sub templates (eg can reuse a text node we are about to throw away just by textContent =)
-//TODO test that swapping children doesnt duplicate them
 
-//TODO reduce bundle size by deleting error message strings from production minification
 
 // APP INTERFACE
 class RK {
@@ -18,11 +14,9 @@ class RK {
         this.template = template;
         this.mvar = new LVar().name('base model');
         this.substitution = nil.extend(this.mvar, data); }
-    render(parent) {
+    render() {
         this.view = render(this.template, this.substitution, this.mvar);
-        let n = this.view.render();
-        if (parent) parent.appendChild(n);
-        return n; }}
+        return this.view.render(); }}
 
 // Lists
 class List {
@@ -638,20 +632,7 @@ function render_head([tmpl_head, ...tmpl_children], sub, model) {
         //return [parent, []];
         return parent;
     }
-    else if (tmpl_head instanceof Function) {
-        let v = new LVar();
-        let o = new LVar();
-        let g = to_goal(tmpl_head(v, model));
-        log('render', 'head', 'fn', g);
-        //let o = g.expand_run(sub, (g,s) => render(tmpl_children[0], s, v));
-        //return new ModelView(v, o);
-
-        let c = g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, tmpl_children[0], v, o));
-        return new IterableModelRoot(v, tmpl_children[0],o,c);
-        //return [o.render(sub, v, [...tmpl_children]), ]
-
-        ;
-    }
+    
     else {
         console.error('Unrecognized render head template', tmpl_head); //TODO remove debug print when done developing
         throw Error('Unrecognized render head template: ' + toString(tmpl_head)); }
