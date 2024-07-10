@@ -7,6 +7,9 @@ import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boo
 //TODO can we generalize LCS to use partial reuse instead of binary equality
 //TODO reuse old node even on new template in case it has some common sub templates (eg can reuse a text node we are about to throw away just by textContent =)
 
+//TODO disable reuse of dynamic nodes for the time being
+//TODO if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
+//TODO check out https://github.com/facebook/react/issues/10382
 
 // APP INTERFACE
 class RK {
@@ -608,16 +611,10 @@ const failure = new Failure;
 
 function render(tmpl, sub=nil, model=null) {
     log('parse', tmpl, toString(sub));
-    if (sub.length() > 20) throw Error('inf recurs')
     if (is_string(tmpl) || is_number(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
-    /*
-    else if (tmpl instanceof LVar) { // Build a dynamic node keyed to a single static model var
-        log('render', 'var', tmpl);
-        return DynamicNode.render(tmpl, sub, obs, model, update, goals); }*/
     else if (tmpl instanceof Template) return tmpl.render(sub, model);
     else if (tmpl instanceof Function) return IterableViewRoot.render(tmpl, sub, model); // Build a dynamic node using the model
-
-    //else if (tmpl instanceof LVar) { return render(sub.walk(tmpl), sub, model); }
+    else if (tmpl instanceof LVar) { return render(v => v.eq(tmpl), sub, model); }
     else if (Array.isArray(tmpl)) return render_head(tmpl, sub, model);
     else {
         console.error('Unrecognized render template', tmpl); //TODO remove debug print when done developing
@@ -672,8 +669,12 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let delta = this.subviews(child);
         log('rerender', this.constructor.name, 'delta', subviews, delta, child, toString(sub));
 
+        //if (subviews.length && subviews[0].firstNode()) subviews[0].firstNode().before(this.comment);
+        //for (let v of subviews) v.remove();
+        //for (let v of delta) this.comment.before(v.render());
         if (!delta.length) subviews[0].firstNode().before(this.comment);
         this.diffDOM(this.buildLCSTable(subviews, delta), subviews, delta, sub, model);
+        
         if (delta.length) this.comment.remove();
         //return new this.constructor(this.vvar, this.ovar, child, this.comment);
         return this.recreate(child);
@@ -770,18 +771,21 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
         return this.child.rerender(sub, mvar, vvar, ovar); }}
 
 class IterableViewItem { // Displayable iterable item
-    constructor(goal, template=null, child=null, order=null) {
+    constructor(goal, template=null, child=null, order=null, tplt=null) {
         this.goal = goal;
         if (template instanceof LVar) throw Error('unbound template: ' + template + ' ' + goal);
         this.child = child;
         this.template = template;
+        this.tplt = null;
         this.order = order; }
     static create(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.reify(vvar);
-        return new this(goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); }
+        let t = sub.walk(vvar);
+        return new this(goal, tmpl, render(t, sub, mvar), sub.reify(ovar), t); } //wip viewitem
     recreate(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.reify(vvar);
-        return new this.constructor(this.goal, tmpl, equals(tmpl, this.template) ? this.child : null, sub.reify(ovar)); }
+        let t = sub.walk(vvar);
+        return new this.constructor(this.goal, tmpl, equals(tmpl, this.template) ? this.child : null, sub.reify(ovar), t); }
     key() { return this.template; }
     remove() { this.child.remove(); }
     firstNode() { return this.child.firstNode(); }
