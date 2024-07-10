@@ -670,11 +670,11 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let delta = this.subviews(child);
         log('rerender', this.constructor.name, 'delta', subviews, delta, child, toString(sub));
 
-        //if (subviews.length && subviews[0].firstNode()) subviews[0].firstNode().before(this.comment);
-        //for (let v of subviews) v.remove();
-        //for (let v of delta) this.comment.before(v.render());
-        if (!delta.length) subviews[0].firstNode().before(this.comment);
-        this.diffDOM(this.buildLCSTable(subviews, delta), subviews, delta, sub, model);
+        if (subviews.length && subviews[0].firstNode()) subviews[0].firstNode().before(this.comment);
+        for (let v of subviews) v.remove();
+        for (let v of delta) this.comment.before(v.render());
+        //if (!delta.length) subviews[0].firstNode().before(this.comment);
+        //this.diffDOM(this.buildLCSTable(subviews, delta), subviews, delta, sub, model);
         
         if (delta.length) this.comment.remove();
         //return new this.constructor(this.vvar, this.ovar, child, this.comment);
@@ -783,7 +783,7 @@ class IterableViewItem { // Displayable iterable item
         return new this(goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem
     recreate(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
-        return new this.constructor(this.goal, tmpl, null, sub.reify(ovar)); } //TODO equals(tmpl, this.template) ? this.child : 
+        return new this.constructor(this.goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //TODO equals(tmpl, this.template) ? this.child : 
     key() { return this.template; }
     remove() { this.child.remove(); }
     firstNode() { return this.child.firstNode(); }

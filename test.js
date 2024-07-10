@@ -163,6 +163,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render((v,m) => v.eq(['span', 'ipsum']), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<span>ipsum</span>'); // New dom template post-render
     asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New subtemplate pre-render
     asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<p>ipsum</p>'); // New subtemplate post-render
+    asserte(render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).prerender().rerender(nil).render().outerHTML, '<span>lorem</span>');
 
     // Diff single updates 
     asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).render().outerHTML, '<p>lorem</p>'); // Subtemplate display
