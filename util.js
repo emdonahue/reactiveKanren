@@ -12,10 +12,9 @@ function log(...args) {
     return args[args.length-1];
 }
 
-function dlog(...args) {
-    console.log.apply(console, args.map(toString));
-    return args[args.length-1];
-}
+function assert(...assertions) {
+    let as = [...assertions];
+    for (let i in as) if (!as[i]) throw Error('Assertion Failed: ' + i); }
 
 function toString(x) {
     if (x instanceof Node) return x;
@@ -44,4 +43,4 @@ function is_boolean(x) { return Object.prototype.toString.call(x) === '[object B
 function is_pojo(x) { return !!x && Object.getPrototypeOf(x) === Object.prototype; };
 
 
-export {logging, log, dlog, copy, toString, equals, is_string, is_number, is_boolean, is_pojo}
+    export {logging, log, copy, toString, equals, is_string, is_number, is_boolean, is_pojo, assert}

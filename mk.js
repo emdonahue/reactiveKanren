@@ -1,5 +1,5 @@
 "use strict"
-import {logging, log, dlog, toString, copy, equals, is_string, is_number, is_boolean, is_pojo} from './util.js';
+import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, is_pojo, assert} from './util.js';
 //TODO global generic 'model' variable object as a shortcut for (v,m) => v.eq(m), maybe generalize to path vars
 //TODO let query variables be added manually not just extracted from fresh
 //TODO use clone node over create element for speed when applicable (eg dynamic model)
@@ -506,6 +506,7 @@ class Failure extends Stream {
 class State extends Stream {
     constructor(sub=nil, updates=nil) {
         super();
+        assert(sub instanceof List);
         this.substitution = sub;
         this.updates = updates;
     }
@@ -771,21 +772,18 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
         return this.child.rerender(sub, mvar, vvar, ovar); }}
 
 class IterableViewItem { // Displayable iterable item
-    constructor(goal, template=null, child=null, order=null, tplt=null) {
+    constructor(goal, template=null, child=null, order=null) {
         this.goal = goal;
         if (template instanceof LVar) throw Error('unbound template: ' + template + ' ' + goal);
         this.child = child;
         this.template = template;
-        this.tplt = null;
         this.order = order; }
     static create(sub, goal, vvar, mvar, ovar) {
-        let tmpl = sub.reify(vvar);
-        let t = sub.walk(vvar);
-        return new this(goal, tmpl, render(t, sub, mvar), sub.reify(ovar), t); } //wip viewitem
+        let tmpl = sub.walk(vvar);
+        return new this(goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem
     recreate(sub, goal, vvar, mvar, ovar) {
-        let tmpl = sub.reify(vvar);
-        let t = sub.walk(vvar);
-        return new this.constructor(this.goal, tmpl, equals(tmpl, this.template) ? this.child : null, sub.reify(ovar), t); }
+        let tmpl = sub.walk(vvar);
+        return new this.constructor(this.goal, tmpl, null, sub.reify(ovar)); } //TODO equals(tmpl, this.template) ? this.child : 
     key() { return this.template; }
     remove() { this.child.remove(); }
     firstNode() { return this.child.firstNode(); }

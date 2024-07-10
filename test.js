@@ -6,7 +6,7 @@
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
 import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render, view} from './mk.js'
-import {logging, log, dlog, copy, toString, equals} from './util.js'
+import {logging, log, copy, toString, equals} from './util.js'
 
 function test(f, test_name) {
     try {
@@ -155,6 +155,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).render().textContent, 'lorem');
     //asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
     asserte(render((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).render().outerHTML, '<span>lorem</span>');
+    asserte(render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).render().outerHTML, '<span>lorem</span>');
     
     // Updates before/after render
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
