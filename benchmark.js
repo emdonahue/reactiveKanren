@@ -26,21 +26,21 @@ function bench(f) {
 
 
 
-document.getElementById('create.appendChild').textContent = bench(() => { for (let i=0; i<10000; i++) root.appendChild(document.createElement('div'))});
+document.querySelector('#create #appendchild').textContent = bench(() => { for (let i=0; i<10000; i++) root.appendChild(document.createElement('div'))});
 
-document.getElementById('create.append').textContent = bench(() => {
+document.querySelector('#create #append').textContent = bench(() => {
     let children = [];
     for (let i=0; i<10000; i++) children.push(document.createElement('div'));
     root.append(...children);
 });
 
-document.getElementById('create.documentfragment').textContent = bench(() => {
+document.querySelector('#create #documentfragment').textContent = bench(() => {
     let children = document.createDocumentFragment();
     for (let i=0; i<10000; i++) children.append(document.createElement('div'));
     root.append(children);
 });
 
-document.getElementById('create.replacewith').textContent = bench(() => {
+document.querySelector('#create #replacewith').textContent = bench(() => {
     let children = document.createElement('div');
     for (let i=0; i<10000; i++) children.append(document.createElement('div'));
     root.replaceWith(children);
