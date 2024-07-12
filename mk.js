@@ -7,9 +7,11 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //TODO can we generalize LCS to use partial reuse instead of binary equality
 //TODO reuse old node even on new template in case it has some common sub templates (eg can reuse a text node we are about to throw away just by textContent =)
 
-//TODO disable reuse of dynamic nodes for the time being
-//TODO if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
-//TODO check out https://github.com/facebook/react/issues/10382
+//diffing
+//if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
+//check out https://github.com/facebook/react/issues/10382
+//if only additions, no diffing needed. if only deletions, no diffing needed.
+//cloning only makes sense if templates arent recursive, so is there a way to check/annotate that? maybe recursiveness could trigger more advanced diffing, since each subtree may have to trash the previous structurally distinct subtree. alternatively, maybe we only clone the parent stump and then children overwrite the placeholders (can use comments or text nodes as placeholders, and then if the placeholder turns out to be a text node, we're already done, otherwise we just sacrifice a textnode
 
 // APP INTERFACE
 class RK {
