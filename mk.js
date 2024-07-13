@@ -27,7 +27,9 @@ class RK {
     static render(template, data) {
         let mvar = new LVar().name('model');
         let sub = nil.extend(mvar, data);
-        if (is_string(template) || is_number(template)) return ViewTextNode.render(template, sub, mvar);
+        if (is_string(template) || is_number(template)) return new this(ViewTextNode.render(template, sub, mvar));
+        else if (Array.isArray(template)) return new this(ViewDOMNode.render(template, sub, mvar));
+        else throw Error('Unrecognized template: ' + template);
     }
     root() { return this.child.root(); }
     render() {
@@ -856,6 +858,12 @@ class ViewDOMNode extends View {
         this.properties = properties;
         this.node = node;
         this.children = children; }
+    static render(template, sub, mvar) {
+        let node = document.createElement(template[0]);
+        
+        return new this(template, [], node);
+    }
+    root() { return this.node; }
     render() {
         log('render', this.constructor.name, this.node?.outerHTML);
         if (this.node) return this.node;
