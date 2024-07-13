@@ -875,12 +875,22 @@ class ViewDOMNode extends View {
         this.node = node;
         this.children = children; }
     static render([tparent, ...tchildren], sub, mvar) {
-        let node = document.createElement(tparent);
-        for (let child of [...tchildren]) {
-            if (is_string(child) || is_number(child)) node.append(document.createTextNode(child));
+        log('render', this.name, tparent, [...tchildren], sub, mvar);
+        let parent = document.createElement(tparent);
+        this.render_children(parent, [...tchildren]);
+        return new this(tparent, [], parent);
+    }
+    static render_children(parent, children) {
+        log('render', this.name, 'children', parent, children);
+        for (let child of children) {
+            if (is_string(child) || is_number(child)) parent.append(document.createTextNode(child));
+            else if (Array.isArray(child)) {
+                let subparent = document.createElement(child[0]);
+                this.render_children(subparent, child.slice(1));
+                parent.append(subparent);
+            }
             else throw Error('nyi');
         }
-        return new this(tparent, [], node);
     }
     root() { return this.node; }
     render() {
