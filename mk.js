@@ -6,6 +6,9 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //TODO look into event delegation
 //TODO can we generalize LCS to use partial reuse instead of binary equality
 //TODO reuse old node even on new template in case it has some common sub templates (eg can reuse a text node we are about to throw away just by textContent =)
+//TODO rewrite entire mk engine to be non recursive to handle large cases
+
+
 
 //diffing
 //if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
@@ -15,10 +18,18 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 
 // APP INTERFACE
 class RK {
-    constructor(template, data) {
-        this.template = template;
-        this.mvar = new LVar().name('base model');
-        this.substitution = nil.extend(this.mvar, data); }
+    constructor(child) {
+        this.child = child;
+        //this.template = template;
+        //this.mvar = new LVar().name('base model');
+        //this.substitution = nil.extend(this.mvar, data);
+    }
+    static render(template, data) {
+        let mvar = new LVar().name('model');
+        let sub = nil.extend(mvar, data);
+        if (is_string(template) || is_number(template)) return ViewTextNode.render(template, sub, mvar);
+    }
+    root() { return this.child.root(); }
     render() {
         this.view = render(this.template, this.substitution, this.mvar);
         return this.view.render(); }}
@@ -46,6 +57,14 @@ class List {
     member(e) {
         return this.memp((x) => x == e);
     }
+    assoc(key) {
+        let self = this;
+        while (self instanceof Pair) {
+            if (self.car instanceof Pair && self.car.car === key) return self.car;
+            self = self.cdr;
+        }
+        return false;
+    }
     sort(f) { return list(...this.toArray().sort(f)); }
     static repeat(n, f) {
         return nil.repeat(n, f);
@@ -54,6 +73,17 @@ class List {
     repeat(n, f) {
         if (n <= 0) return this;
         return this.cons(f()).repeat(n-1, f);
+    }
+    filter(p) {
+        let self = this, head = null, tail = null;
+        while (self instanceof Pair) {
+            if (p(self.car)) {
+                if (!head)  tail = head = new Pair(self.car, null);
+                else tail = tail.cdr = new Pair(self.car, null); }
+            self = self.cdr; }
+        if (tail) tail.cdr = self;
+        else head = self;
+        return head;
     }
     walk(lvar) {
         if (!(lvar instanceof LVar)) return lvar;
@@ -104,7 +134,7 @@ class List {
         }
         return s;
     }
-    update_binding(x, y, prev=nil, next=nil, updates=nil) {
+    update_binding(x, y, prev=nil, next=nil, updates=nil) { //TODO create an atomic quote wrapping form that prevents us from normalizing the substructure of a term, so we can decide where to let the system insert indirection
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = prev.walk_binding(x);
 
@@ -175,22 +205,10 @@ class Pair extends List {
     toArray() {
         return [this.car].concat((this.cdr instanceof List) ? this.cdr.toArray() : [this.cdr]);
     }
-    assoc(key) {
-        if (this.car instanceof Pair && this.car.car == key) {
-            return this.car;
-        }
-        else {
-            return this.cdr.assoc(key);
-        }
-    }
     firstAnswer() { return this.car.substitution; }
     memp(p) {
         if (p(this.car)) return this.car;
         return this.cdr.memp(p);
-    }
-    filter(p) {
-        if (p(this.car)) return this.cdr.filter(p).cons(this.car);
-        return this.cdr.filter(p);
     }
     remove(x) {
         if (this.car == x) return this.cdr;
@@ -228,11 +246,7 @@ class Empty extends List {
         return [];
     }
 
-    assoc(key) {
-        return false;
-    }
     memp(p) { return undefined; };
-    filter(p) { return this; };
     map(f) { return this; };
     update_substitution(s) { return s; }
     append(xs) { return xs; }
@@ -617,7 +631,7 @@ function render(tmpl, sub=nil, model=null) {
     if (is_string(tmpl) || is_number(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
     else if (tmpl instanceof Template) return tmpl.render(sub, model);
     else if (tmpl instanceof Function) return IterableViewRoot.render(tmpl, sub, model); // Build a dynamic node using the model
-    else if (tmpl instanceof LVar) { return render(v => v.eq(tmpl), sub, model); }
+    else if (tmpl instanceof LVar) { return render(v => v.eq(tmpl), sub, model); } //TODO make tmpl the view var and skip creating new one
     else if (Array.isArray(tmpl)) return render_head(tmpl, sub, model);
     else {
         console.error('Unrecognized render template', tmpl); //TODO remove debug print when done developing
@@ -857,10 +871,14 @@ class ViewDOMNode extends View {
     lastNode() { return this.node; }}
 
 class ViewTextNode extends View {
-    constructor(text) {
+    constructor(text, node=null) {
         super();
         this.text = text;
-        this.node = null; }
+        this.node = node; }
+    static render(template, sub, mvar) {
+        return new this(template, document.createTextNode(template));
+    }
+    root() { return this.node; }
     render() {
         log('render', this.constructor.name, this.text, this.node); //TODO find out why we have to add to parent & whether that applies to dom node as well
         return this.node = this.node || document.createTextNode(this.text); }

@@ -5,7 +5,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render, view} from './mk.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render, view, rk} from './mk.js'
 import {logging, log, copy, toString, equals} from './util.js'
 
 function test(f, test_name) {
@@ -143,7 +143,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let model = new LVar().name('basemodel');
 
     // Static renders
-    asserte(render('lorem').render().textContent, 'lorem');
+    asserte(RK.render('lorem').root().textContent, 'lorem');
     asserte(render(['span', 'lorem']).render().outerHTML, '<span>lorem</span>');
     asserte(render([{tagName: 'span'}, 'lorem']).render().outerHTML, '<span>lorem</span>');
     asserte(render([{}, 'lorem']).render().outerHTML, '<div>lorem</div>');

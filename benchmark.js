@@ -5,43 +5,68 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render, view} from './mk.js'
-import {logging, log, copy, toString, equals} from './util.js'
+import {RK, list, fresh} from './mk.min.js'
 
-let root = document.getElementById('root');
+let data = new Array(1000).fill(0);
+data = list(...data);
+
+function createnode() {
+    let node = document.createElement('div');
+    let loremipsumdolor = document.createElement('div');
+    loremipsumdolor.textContent = 'loremipsumdolor';
+    let sitamet = document.createElement('div');
+    loremipsumdolor.textContent = 'sitamet';
+    node.append(loremipsumdolor, sitamet);
+    return node;
+}
 
 function bench(f) {
     let measures = [];
-    for (let i=0; i<10; i++) {
+    for (let i=0; i<=10; i++) {
+        let scratchdom = document.createElement('div');
+        document.getElementById('root').appendChild(scratchdom);
         performance.mark('start');
-        f();
+        f(scratchdom);
         performance.mark('end');
+        document.getElementById('root').replaceChildren();
         measures.push(performance.measure('bench', 'start', 'end').duration);
     }
-    root.replaceChildren();
     measures.sort();
     return measures[Math.floor(measures.length / 2)];
 }
 
+document.querySelector('#create #appendchild').textContent = bench((root) => {
+    for (let i=0; i<10000; i++) root.appendChild(createnode())});
 
-
-
-document.querySelector('#create #appendchild').textContent = bench(() => { for (let i=0; i<10000; i++) root.appendChild(document.createElement('div'))});
-
-document.querySelector('#create #append').textContent = bench(() => {
+document.querySelector('#create #append').textContent = bench((root) => {
     let children = [];
-    for (let i=0; i<10000; i++) children.push(document.createElement('div'));
+    for (let i=0; i<10000; i++) children.push(createnode());
     root.append(...children);
 });
 
-document.querySelector('#create #documentfragment').textContent = bench(() => {
+document.querySelector('#create #documentfragment').textContent = bench((root) => {
     let children = document.createDocumentFragment();
-    for (let i=0; i<10000; i++) children.append(document.createElement('div'));
+    for (let i=0; i<10000; i++) children.append(createnode());
     root.append(children);
 });
 
-document.querySelector('#create #replacewith').textContent = bench(() => {
-    let children = document.createElement('div');
-    for (let i=0; i<10000; i++) children.append(document.createElement('div'));
+document.querySelector('#create #replacewith').textContent = bench((root) => {
+    let children = createnode();
+    for (let i=0; i<10000; i++) children.append(createnode());
     root.replaceWith(children);
 });
+
+document.querySelector('#create #clonenode').textContent = bench((root) => {
+    let children = [createnode()];
+    for (let i=1; i<10000; i++) children.push(children[0].cloneNode(true));
+    root.append(...children);
+});
+
+
+document.querySelector('#create #rk').textContent = bench((root) => {
+    root.append((new RK((v,m) => fresh(x => [m.membero(x), v.eq(['div', ['div', 'loremipsumdolor'], ['div', 'sitamet']])]), data)).render());
+});
+
+
+
+
