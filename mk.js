@@ -858,10 +858,13 @@ class ViewDOMNode extends View {
         this.properties = properties;
         this.node = node;
         this.children = children; }
-    static render(template, sub, mvar) {
-        let node = document.createElement(template[0]);
-        
-        return new this(template, [], node);
+    static render([tparent, ...tchildren], sub, mvar) {
+        let node = document.createElement(tparent);
+        for (let child of [...tchildren]) {
+            if (is_string(child) || is_number(child)) node.append(document.createTextNode(child));
+            else throw Error('nyi');
+        }
+        return new this(tparent, [], node);
     }
     root() { return this.node; }
     render() {

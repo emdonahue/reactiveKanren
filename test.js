@@ -145,7 +145,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     // Static renders
     asserte(RK.render('lorem').root().textContent, 'lorem');
     asserte(RK.render(['span']).root().outerHTML, '<span></span>');
-    asserte(render(['span', 'lorem']).render().outerHTML, '<span>lorem</span>');
+    asserte(RK.render(['span', 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(render([{tagName: 'span'}, 'lorem']).render().outerHTML, '<span>lorem</span>');
     asserte(render([{}, 'lorem']).render().outerHTML, '<div>lorem</div>');
     asserte(render([{name: 'ipsum'}, 'lorem']).render().name, 'ipsum');
