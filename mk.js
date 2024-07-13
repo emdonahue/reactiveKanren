@@ -27,14 +27,19 @@ class RK {
     static render(template, data) {
         let mvar = new LVar().name('model');
         let sub = nil.extend(mvar, data);
-        if (is_string(template) || is_number(template)) return new this(ViewTextNode.render(template, sub, mvar));
-        else if (Array.isArray(template)) return new this(ViewDOMNode.render(template, sub, mvar));
-        else throw Error('Unrecognized template: ' + template);
+        return new this(render2(template, sub, mvar));
     }
     root() { return this.child.root(); }
     render() {
         this.view = render(this.template, this.substitution, this.mvar);
         return this.view.render(); }}
+
+function render2(template, sub, mvar) {
+    if (is_string(template) || is_number(template)) return ViewTextNode.render(template, sub, mvar);
+    else if (Array.isArray(template)) return ViewDOMNode.render(template, sub, mvar);
+    else if (template instanceof Function) return IterableViewRoot.render2(template, sub, mvar);
+    else throw Error('Unrecognized template: ' + template);
+}
 
 // Lists
 class List {
@@ -665,6 +670,11 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         this.child = child; //Root of tree of views
         this.comment = comment; // Attached to DOM as placeholder if all children fail
     }
+    static render2(f, sub, model) { //TODO can view vars all be the same physical var?
+        let v = new LVar().name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
+        log('parse', this.name, g, toString(sub));
+        return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render2(g, s, v, model,o))); }
+    root() { return this.child.root(); }
     recreate(child) { return new this.constructor(this.vvar, this.ovar, child, this.comment); }
     sortfn() { return (a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1; }
     subviews(child=this.child) { return child.items().sort(this.sortfn()); }
@@ -796,6 +806,12 @@ class IterableViewItem { // Displayable iterable item
         this.child = child;
         this.template = template;
         this.order = order; }
+    static render2(goal, sub, vvar, mvar, order) {
+        log('parse', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
+        if (!sub) return new IterableFailure(this, goal);
+        let template = sub.walk(vvar);
+        return new this(goal, template, render2(template, sub, mvar), order); }
+    root() { return this.child.root(); }
     static create(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
         return new this(goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem

@@ -149,7 +149,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render([{tagName: 'span'}, 'lorem']).render().outerHTML, '<span>lorem</span>');
     asserte(render([{}, 'lorem']).render().outerHTML, '<div>lorem</div>');
     asserte(render([{name: 'ipsum'}, 'lorem']).render().name, 'ipsum');
-    asserte(render(v => v.eq('lorem')).render().textContent, 'lorem');
+    asserte(RK.render(v => v.eq('lorem')).root().textContent, 'lorem');
     asserte(render(v => fail).render().nodeType, Node.COMMENT_NODE);
     asserte(render(v => conde(v.eq('lorem'), v.eq('ipsum'))).render().textContent, 'loremipsum');
     asserte(render(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><span>lorem</span></div>');
