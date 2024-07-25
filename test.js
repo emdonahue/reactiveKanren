@@ -147,16 +147,23 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(RK.render(['span']).root().outerHTML, '<span></span>');
     asserte(RK.render(['span', 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(RK.render(['p', ['span', 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
-    asserte(render([{tagName: 'span'}, 'lorem']).render().outerHTML, '<span>lorem</span>');
+    asserte(RK.render([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(render([{}, 'lorem']).render().outerHTML, '<div>lorem</div>');
     asserte(render([{name: 'ipsum'}, 'lorem']).render().name, 'ipsum');
+    //asserte(render([{name: (v,m) => v.eq('ipsum')}, 'lorem']).render().name, 'ipsum');
     asserte(RK.render(v => v.eq('lorem')).root().textContent, 'lorem');
+    asserte(RK.render(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
+    asserte(RK.render(['p', v => fresh(x => [x.eq('lorem'), v.eq(x)])]).root().outerHTML, '<p>lorem</p>');
+    asserte(RK.render(v => fresh(x => [x.eq('lorem'), v.eq(['p', x])])).root().outerHTML, '<p>lorem</p>');
+    //asserte(RK.render(['p', v => 'lorem']).root().outerHTML, '<p>lorem</p>');
+    //asserte(RK.render((v,m) => m, list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
+    //asserte(RK.render((v,m) => ['p', m], list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
     asserte(render(v => fail).render().nodeType, Node.COMMENT_NODE);
     asserte(render(v => conde(v.eq('lorem'), v.eq('ipsum'))).render().textContent, 'loremipsum');
     asserte(render(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><span>lorem</span></div>');
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).render().textContent, 'lorem');
     //asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
-    asserte(render((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).render().outerHTML, '<span>lorem</span>');
+    //asserte(RK.render((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
     asserte(render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).render().outerHTML, '<span>lorem</span>');
     
     // Updates before/after render

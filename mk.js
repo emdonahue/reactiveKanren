@@ -7,7 +7,7 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //TODO can we generalize LCS to use partial reuse instead of binary equality
 //TODO reuse old node even on new template in case it has some common sub templates (eg can reuse a text node we are about to throw away just by textContent =)
 //TODO rewrite entire mk engine to be non recursive to handle large cases
-
+//TODO for an iterable, create an entire subtree with all sub-iterables generating only 1 copy, then clone that node and reuse it across all subsequent iterations
 
 
 //diffing
@@ -15,6 +15,11 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //check out https://github.com/facebook/react/issues/10382
 //if only additions, no diffing needed. if only deletions, no diffing needed.
 //cloning only makes sense if templates arent recursive, so is there a way to check/annotate that? maybe recursiveness could trigger more advanced diffing, since each subtree may have to trash the previous structurally distinct subtree. alternatively, maybe we only clone the parent stump and then children overwrite the placeholders (can use comments or text nodes as placeholders, and then if the placeholder turns out to be a text node, we're already done, otherwise we just sacrifice a textnode
+
+//TODO implement property list dom nodes
+//TODO implement iterable children of dom nodes
+//TODO implement static var children of dom nodes
+//TODO implement dynamic properties as children of dom nodes
 
 // APP INTERFACE
 class RK {
@@ -876,21 +881,38 @@ class ViewDOMNode extends View {
         this.children = children; }
     static render([tparent, ...tchildren], sub, mvar) {
         log('render', this.name, tparent, [...tchildren], sub, mvar);
-        let parent = document.createElement(tparent);
-        this.render_children(parent, [...tchildren]);
+        let parent = this.render_parent(tparent);
+        this.render_children(parent, [...tchildren], sub, mvar);
         return new this(tparent, [], parent);
     }
-    static render_children(parent, children) {
+    static render_parent(tparent) {
+        if (is_string(tparent)) return this.render_parent({tagName: tparent});
+        let parent = document.createElement(tparent.tagName ?? 'div');
+        for (let k in tparent) {
+            if (k === 'tagName') continue;
+            parent[k] = tparent[k];
+        }
+        return parent;
+    }
+    static render_children(parent, children, sub, mvar) {
         log('render', this.name, 'children', parent, children);
         for (let child of children) {
-            if (is_string(child) || is_number(child)) parent.append(document.createTextNode(child));
-            else if (Array.isArray(child)) {
-                let subparent = document.createElement(child[0]);
-                this.render_children(subparent, child.slice(1));
-                parent.append(subparent);
-            }
-            else throw Error('nyi');
+            this.render_child(parent, child, sub, mvar);
         }
+    }
+    static render_child(parent, child, sub, mvar) {
+        if (is_string(child) || is_number(child)) parent.append(document.createTextNode(child));
+        else if (Array.isArray(child)) {
+            let subparent = document.createElement(child[0]);
+            this.render_children(subparent, child.slice(1), sub, mvar);
+            parent.append(subparent);
+        }
+        else if (child instanceof Function) {
+            let c = IterableViewRoot.render2(child, sub, mvar);
+            parent.append(c.root());
+        }
+        else if (child instanceof LVar) this.render_child(parent, sub.walk(child), sub, mvar); //TODO needs a view to monitor changes in var
+        else throw Error('nyi');
     }
     root() { return this.node; }
     render() {
