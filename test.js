@@ -168,7 +168,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     // Dynamic renders
     asserte(RK.render((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
+    asserte(RK.render((v,m) => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');
     asserte(RK.render((v,m) => v.eq(m), 'lorem').rerender(m => m.set('ipsum')).root().textContent, 'ipsum');
+    //logging('rerender')
+    asserte(RK.render((v,m) => v.eq(m), 'lorem').rerender(m => m.set(['p', 'ipsum'])).root().outerHTML, '<p>ipsum</p>');
     
     // Updates before/after render
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
