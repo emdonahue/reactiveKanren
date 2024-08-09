@@ -785,6 +785,10 @@ class IterableViewBranch {
         this.goal = goal;
         this.lhs = lhs;
         this.rhs = rhs; }
+    root(fragment=document.createDocumentFragment()) {
+        this.lhs.root(fragment);
+        this.rhs.root(fragment);
+        return fragment; }
     remove() {
         this.lhs.remove();
         this.rhs.remove(); }
@@ -808,6 +812,7 @@ class IterableFailure { // Failures on the initial render that may expand to lea
         this.goal = goal;
         this.renderer = renderer; }
     items(a=[]) { return a; }
+    root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }}
 
 class IterableFailedItem { // Rerender failures of atomic leaves that may cache nodes
@@ -837,7 +842,9 @@ class IterableViewItem { // Displayable iterable item
         this.child = this.child.rerender2(sub, mvar, sub.walk(vvar));
         return this;
     }
-    root() { return this.child.root(); }
+    root(fragment) {
+        if (fragment) fragment.append(this.child.root());
+        else return this.child.root(); }
     static create(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
         return new this(goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem
