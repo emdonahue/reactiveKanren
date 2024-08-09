@@ -27,22 +27,24 @@ function is_text(x) { return is_string(x) || is_number(x); }
 
 // APP INTERFACE
 class RK {
-    constructor(child) {
+    constructor(child, sub, mvar) {
         this.child = child;
-        //this.template = template;
-        //this.mvar = new LVar().name('base model');
-        //this.substitution = nil.extend(this.mvar, data);
+        this.substitution = sub;
+        this.mvar = mvar;
     }
     static render(template, data) {
-        let mvar = new LVar().name('model');
+        let mvar = new SVar().name('model');
         let sub = mvar.set(data).reunify_substitution(nil);
-        return new this(render2(template, sub, mvar)); }
+        log('sub', this.constructor.name, 'render', toString(sub), sub, mvar.set(data));
+        return new this(render2(template, sub, mvar), sub, mvar); }
     root() { return this.child.root(); }
     render() {
         this.view = render(this.template, this.substitution, this.mvar);
         return this.view.render(); }
     rerender(g) {
-        
+        let s = g.reunify_substitution(this.substitution);
+        console.log(this.child)
+        this.child.rerender(s);
     }}
 
 function render2(template, sub, mvar) {
@@ -242,6 +244,7 @@ class Pair extends List {
         return new Pair(this.car, this.cdr.append(xs));
     }
     update_substitution(curr, prev=curr, next=this) { // Called on the updates substitution with the normal substitution as a parameter.
+        log('reunify', 'update_substitution', toString(curr));
         return curr.update_binding(this.caar(), this.cdar(), prev, next, this.cdr);
     }
     every(f) {
