@@ -307,7 +307,10 @@ class LVar {
     isStringo() { return this.constraint(v => is_string(v)); }
     isNumbero() { return this.constraint(v => is_number(v)); }
     isPairo() { return this.constraint(v => v instanceof Pair); }
+    isNotPairo() { return this.constraint(v => !(v instanceof Pair)); }
     membero(x) { return fresh((a,b) => [this.eq(cons(a,b)), conde(a.eq(x), b.membero(x))]); }
+    leafo(x) { return conde([this.isNotPairo(), this.eq(x)],
+                            [fresh((a,b) => [this.eq(cons(a,b)), conde(a.leafo(x), b.leafo(x))])]); }
     imembero(x,o,n=0) { return fresh((a,b) => [this.eq(cons(a,b)), conde([a.eq(x), o.eq(n)], b.imembero(x,o,n+1))]); } //TODO make imembero accept ground order terms
 }
 
