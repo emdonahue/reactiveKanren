@@ -23,6 +23,7 @@ function toString(x) {
 
 
 function copy(x) {//TODO convert to structuredclone?
+    if (x instanceof Array) return [...x];
     return Object.assign(Object.create(Object.getPrototypeOf(x)), x);
 }
 
