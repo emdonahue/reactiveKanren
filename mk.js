@@ -802,6 +802,13 @@ class IterableViewBranch {
     rerender(sub, model, vvar, ovar) {
         var sub = this.goal.apply(sub); //TODO make branches hold their own failure flag for early stopping
         return new IterableViewBranch(this.lhs.rerender(sub, model, vvar, ovar), this.rhs.rerender(sub, model, vvar, ovar), this.goal); }
+    rerender2(sub, model, vvar) {
+        sub = this.goal.apply(sub);
+        assert(sub !== failure);
+        this.lhs = this.lhs.rerender2(sub, model, vvar);
+        this.rhs = this.rhs.rerender2(sub, model, vvar);
+        return this;
+    }
     items(a=[]) {
         this.lhs.items(a);
         this.rhs.items(a);
@@ -816,6 +823,7 @@ class IterableFailure { // Failures on the initial render that may expand to lea
         this.renderer = renderer; }
     items(a=[]) { return a; }
     root(fragment=document.createDocumentFragment()) { return fragment; }
+    rerender2(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }
     rerender(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }}
 
 class IterableFailedItem { // Rerender failures of atomic leaves that may cache nodes
