@@ -41,10 +41,12 @@ class RK {
     render() {
         this.view = render(this.template, this.substitution, this.mvar);
         return this.view.render(); }
-    rerender(g) {
-        let s = g.reunify_substitution(this.substitution);
-        console.log(this.child)
-        this.child.rerender(s);
+    rerender(f) {
+        let g = f(this.mvar);
+        this.substitution = g.reunify_substitution(this.substitution);
+        log('rerender', this.constructor.name, toString(this.substitution));
+        this.child = this.child.rerender2(this.substitution, this.mvar);
+        return this;
     }}
 
 function render2(template, sub, mvar) {
@@ -696,7 +698,10 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let v = new LVar().name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
         log('parse', this.name, g, toString(sub));
         return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
-    
+    rerender2(sub, mvar) {
+        log('rerender', this.constructor.name, toString(sub));
+        this.child = this.child.rerender2(sub, mvar, this.vvar);
+        return this; }
     render() {
         let n, subviews = this.subviews();        
         if (!subviews.length) n = this.comment;
@@ -825,6 +830,13 @@ class IterableViewItem { // Displayable iterable item
         if (!sub) return new IterableFailure(this, goal);
         let template = sub.walk(vvar);
         return new this(goal, template, render2(template, sub, mvar), order); }
+    rerender2(sub, mvar, vvar) {
+        sub = this.goal.apply(sub);
+        log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
+        assert(sub !== failure);
+        this.child = this.child.rerender2(sub, mvar, sub.walk(vvar));
+        return this;
+    }
     root() { return this.child.root(); }
     static create(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
@@ -946,6 +958,15 @@ class ViewTextNode extends View {
         this.node = node; }
     static render(template, sub, mvar) {
         return new this(template, document.createTextNode(template));
+    }
+    rerender2(sub, mvar, template) {
+        log('rerender', this.constructor.name, template, this.text);
+        if (is_text(template)) {
+            if (this.text !== template) {
+                this.text = template;
+                this.node.textContent = template; }
+            return this; }
+        return render2(template, sub, mvar);
     }
     root() { return this.node; }
     render() {
