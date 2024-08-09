@@ -35,13 +35,15 @@ class RK {
     }
     static render(template, data) {
         let mvar = new LVar().name('model');
-        let sub = nil.extend(mvar, data);
-        return new this(render2(template, sub, mvar));
-    }
+        let sub = mvar.set(data).reunify_substitution(nil);
+        return new this(render2(template, sub, mvar)); }
     root() { return this.child.root(); }
     render() {
         this.view = render(this.template, this.substitution, this.mvar);
-        return this.view.render(); }}
+        return this.view.render(); }
+    rerender(g) {
+        
+    }}
 
 function render2(template, sub, mvar) {
     if (is_text(template)) return ViewTextNode.render(template, sub, mvar);
