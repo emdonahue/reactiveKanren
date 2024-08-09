@@ -902,12 +902,13 @@ class ViewDOMNode extends View {
         this.children = children; }
     static render([tparent, ...tchildren], sub, mvar) {
         log('render', this.name, tparent, [...tchildren], sub, mvar);
-        let parent = this.render_parent(tparent);
+        let parent = this.render_parent(tparent, sub);
         this.render_children(parent, [...tchildren], sub, mvar);
         return new this(tparent, [], parent);
     }
-    static render_parent(tparent) {
+    static render_parent(tparent, sub) {
         if (is_string(tparent)) return this.render_parent({tagName: tparent});
+        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub);
         let parent = document.createElement(tparent.tagName ?? 'div');
         for (let k in tparent) {
             if (k === 'tagName') continue;
