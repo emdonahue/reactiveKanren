@@ -21,6 +21,10 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //TODO implement static var children of dom nodes
 //TODO implement dynamic properties as children of dom nodes
 
+// TYPES
+
+function is_text(x) { return is_string(x) || is_number(x); }
+
 // APP INTERFACE
 class RK {
     constructor(child) {
@@ -40,7 +44,7 @@ class RK {
         return this.view.render(); }}
 
 function render2(template, sub, mvar) {
-    if (is_string(template) || is_number(template)) return ViewTextNode.render(template, sub, mvar);
+    if (is_text(template)) return ViewTextNode.render(template, sub, mvar);
     else if (Array.isArray(template)) return ViewDOMNode.render(template, sub, mvar);
     else if (template instanceof Function) return IterableViewRoot.render2(template, sub, mvar);
     else throw Error('Unrecognized template: ' + template);
@@ -640,7 +644,7 @@ const failure = new Failure;
 
 function render(tmpl, sub=nil, model=null) {
     log('parse', tmpl, toString(sub));
-    if (is_string(tmpl) || is_number(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
+    if (is_text(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
     else if (tmpl instanceof Template) return tmpl.render(sub, model);
     else if (tmpl instanceof Function) return IterableViewRoot.render(tmpl, sub, model); // Build a dynamic node using the model
     else if (tmpl instanceof LVar) { return render(v => v.eq(tmpl), sub, model); } //TODO make tmpl the view var and skip creating new one
@@ -890,7 +894,8 @@ class ViewDOMNode extends View {
         let parent = document.createElement(tparent.tagName ?? 'div');
         for (let k in tparent) {
             if (k === 'tagName') continue;
-            parent[k] = tparent[k];
+            if (is_text(tparent[k])) parent[k] = tparent[k];
+            else if (tparent[k] instanceof Function) ViewAttr.render(parent, k, tparent[k]);
         }
         return parent;
     }
@@ -901,7 +906,7 @@ class ViewDOMNode extends View {
         }
     }
     static render_child(parent, child, sub, mvar) {
-        if (is_string(child) || is_number(child)) parent.append(document.createTextNode(child));
+        if (is_text(child)) parent.append(document.createTextNode(child));
         else if (Array.isArray(child)) {
             let subparent = document.createElement(child[0]);
             this.render_children(subparent, child.slice(1), sub, mvar);
@@ -946,6 +951,16 @@ class ViewTextNode extends View {
     firstNode() { return this.node; }
     lastNode() { return this.node; }}
 
+class ViewAttr extends View {
+    constructor() {
+
+    }
+    static render(parent, attr, val, mvar) {
+        assert(val instanceof Function);
+        let v = new LVar(), g = val(mvar, v);
+        
+    }
+}
 
 class Template {
     constructor(template) {
