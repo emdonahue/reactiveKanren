@@ -180,7 +180,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(RK.render((v,m) => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
 
     asserte(RK.render((v,m) => m.leafo(v), cons('lorem', 'ipsum')).root().textContent, 'loremipsum');
-    //asserte(RK.render((v,m) => m.leafo(v), cons('lorem', 'dolor')).rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))])).root().textContent, 'loremipsumdolor');
+    asserte(RK.render((v,m) => m.leafo(v), cons('lorem', 'dolor')).rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))])).root().textContent, 'loremipsumdolor');
     
     // Updates before/after render
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render

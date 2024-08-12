@@ -654,7 +654,7 @@ const failure = new Failure;
 
 function render(tmpl, sub=nil, model=null) {
     log('parse', tmpl, toString(sub));
-    if (is_text(tmpl)) return new ViewTextNode(tmpl); // Simple Text nodes
+    if (is_text(tmpl)) return ViewTextNode.render(tmpl); // Simple Text nodes
     else if (tmpl instanceof Template) return tmpl.render(sub, model);
     else if (tmpl instanceof Function) return IterableViewRoot.render(tmpl, sub, model); // Build a dynamic node using the model
     else if (tmpl instanceof LVar) { return render(v => v.eq(tmpl), sub, model); } //TODO make tmpl the view var and skip creating new one
@@ -855,6 +855,7 @@ class IterableViewItem { // Displayable iterable item
         return this;
     }
     root(fragment) {
+        log('root', this.constructor.name, fragment);
         if (fragment) fragment.append(this.child.root());
         else return this.child.root(); }
     static create(sub, goal, vvar, mvar, ovar) {
@@ -972,11 +973,11 @@ class ViewDOMNode extends View {
     lastNode() { return this.node; }}
 
 class ViewTextNode extends View {
-    constructor(text, node=null) {
+    constructor(text, node) {
         super();
         this.text = text;
         this.node = node; }
-    static render(template, sub, mvar) {
+    static render(template) {
         return new this(template, document.createTextNode(template));
     }
     rerender2(sub, mvar, template) {
@@ -988,7 +989,10 @@ class ViewTextNode extends View {
             return this; }
         return render2(template, sub, mvar);
     }
-    root() { return this.node; }
+    root() {
+        log('root', this.constructor.name, this.text);
+        assert(this.node.textContent === this.text);
+        return this.node; }
     render() {
         log('render', this.constructor.name, this.text, this.node); //TODO find out why we have to add to parent & whether that applies to dom node as well
         return this.node = this.node || document.createTextNode(this.text); }
