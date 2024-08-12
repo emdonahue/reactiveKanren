@@ -703,7 +703,10 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
     rerender2(sub, mvar) {
         log('rerender', this.constructor.name, toString(sub));
-        this.child = this.child.rerender2(sub, mvar, this.vvar);
+        let add = [], del = [], nochange = [];
+        this.child.firstNode().before(this.comment);
+        this.child = this.child.rerender2(sub, mvar, this.vvar, add, del, nochange);
+        this.comment.remove();
         return this; }
     render() {
         let n, subviews = this.subviews();        
@@ -802,18 +805,18 @@ class IterableViewBranch {
     rerender(sub, model, vvar, ovar) {
         var sub = this.goal.apply(sub); //TODO make branches hold their own failure flag for early stopping
         return new IterableViewBranch(this.lhs.rerender(sub, model, vvar, ovar), this.rhs.rerender(sub, model, vvar, ovar), this.goal); }
-    rerender2(sub, model, vvar) {
+    rerender2(sub, model, vvar, add, del, nochange) {
         sub = this.goal.apply(sub);
         assert(sub !== failure);
-        this.lhs = this.lhs.rerender2(sub, model, vvar);
-        this.rhs = this.rhs.rerender2(sub, model, vvar);
+        this.lhs = this.lhs.rerender2(sub, model, vvar, add, del, nochange);
+        this.rhs = this.rhs.rerender2(sub, model, vvar, add, del, nochange);
         return this;
     }
     items(a=[]) {
         this.lhs.items(a);
         this.rhs.items(a);
         return a; }
-    firstNode() { return this.lhs.firstNode(); }
+    firstNode() { return this.lhs.firstNode() ?? this.rhs.firstNode(); }
     lastNode() { return this.rhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }}
 
@@ -822,6 +825,7 @@ class IterableFailure { // Failures on the initial render that may expand to lea
         this.goal = goal;
         this.renderer = renderer; }
     items(a=[]) { return a; }
+    firstNode() { return null; }
     root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender2(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }
     rerender(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }}
@@ -830,6 +834,7 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
     constructor(child) {
         this.child = child; }
     items(a=[]) { return a; }
+    firstNode() { return null; }
     root (fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, mvar, vvar, ovar) {
         log('rerender', this.constructor.name, this.child, sub.reify(vvar), sub.reify(mvar));
@@ -847,9 +852,12 @@ class IterableViewItem { // Displayable iterable item
         if (!sub) return new IterableFailure(this, goal);
         let template = sub.walk(vvar);
         return new this(goal, template, render2(template, sub, mvar), order); }
-    rerender2(sub, mvar, vvar) {
+    rerender2(sub, mvar, vvar, add, del, nochange) {
         sub = this.goal.apply(sub);
-        if (sub.isFailure()) return new IterableFailedItem(this);
+        if (sub.isFailure()) {
+            del.push(this);
+            return new IterableFailedItem(this); }
+        nochange.push(this);
         log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
         this.child = this.child.rerender2(sub, mvar, sub.walk(vvar));
         return this;

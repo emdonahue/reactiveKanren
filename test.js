@@ -181,6 +181,15 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     asserte(RK.render((v,m) => m.leafo(v), cons('lorem', 'ipsum')).root().textContent, 'loremipsum');
     asserte(RK.render((v,m) => m.leafo(v), cons('lorem', 'dolor')).rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))])).root().textContent, 'loremipsumdolor');
+
+    // Dynamic In Place Updates
+    { let rk = RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
+      let n = rk.root();
+      asserte(n.textContent, 'lorem');
+      rk.rerender(m => m.set('ipsum'));
+      //asserte(n.textContent, '');
+    }
+    
     
     // Updates before/after render
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
