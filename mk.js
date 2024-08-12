@@ -704,9 +704,13 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     rerender2(sub, mvar) {
         log('rerender', this.constructor.name, toString(sub));
         let add = [], del = [], nochange = [];
-        this.child.firstNode().before(this.comment);
+        
         this.child = this.child.rerender2(sub, mvar, this.vvar, add, del, nochange);
-        this.comment.remove();
+        //if (!add.length && !nochange.length) this.child.firstNode().before(this.comment); // Comment placeholder not needed if a real node is in the dom
+        //TODO do we need first and last node?
+
+
+        for (let item of del) item.remove();
         return this; }
     render() {
         let n, subviews = this.subviews();        
