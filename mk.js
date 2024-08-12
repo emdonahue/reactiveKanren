@@ -710,10 +710,10 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
 
         this.child.firstNode()?.before(this.comment);
         //this.child = this.child.rerender2(sub, mvar, this.vvar, add, del, nochange);
-        [this.child,] = this.child.rerender3(sub, mvar, this.vvar);
+        [this.child,] = this.child.rerender3(sub, mvar, this.vvar, this.comment);
         //if (!add.length && !nochange.length) this.child.firstNode().before(this.comment); // Comment placeholder not needed if a real node is in the dom
-        //TODO do we need first and last node?
         //if (add.length || nochange.length) this.comment.remove();
+        if (this.child.firstNode()) this.comment.remove();
 
         for (let item of del) item.remove();
         return this; }
@@ -833,7 +833,7 @@ class IterableViewBranch {
         this.rhs.items(a);
         return a; }
     firstNode() { return this.lhs.firstNode() ?? this.rhs.firstNode(); }
-    lastNode() { return this.rhs.lastNode(); }
+    lastNode() { return this.rhs.lastNode() ?? this.lhs.lastNode(); }
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }}
 
 class IterableFailure { // Failures on the initial render that may expand to leaves or branches.
@@ -842,11 +842,14 @@ class IterableFailure { // Failures on the initial render that may expand to lea
         this.renderer = renderer; }
     items(a=[]) { return a; }
     firstNode() { return null; }
+    lastNode() { return null; }
     root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender3(sub, mvar, vvar, nodecursor) {
         let ovar; //TODO thread ovar
         let expanded = this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar));
-        return [expanded, expanded];
+        if (expanded instanceof this.constructor) return [expanded, nodecursor];
+        nodecursor.after(expanded.root());
+        return [expanded, expanded.lastNode()];
     }
     rerender2(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }
     rerender(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }}
@@ -856,6 +859,7 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
         this.child = child; }
     items(a=[]) { return a; }
     firstNode() { return null; }
+    lastNode() { return null; }
     rerender3(sub, model, vvar, nodecursor) {
         throw Error('nyi')
     }
@@ -891,7 +895,7 @@ class IterableViewItem { // Displayable iterable item
         if (sub.isFailure()) return [new IterableFailedItem(this.remove()), nodecursor];
         log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
         this.child = this.child.rerender2(sub, mvar, sub.walk(vvar));
-        return [this, this];
+        return [this, this.lastNode()];
     }
     root(fragment) {
         log('root', this.constructor.name, fragment);
