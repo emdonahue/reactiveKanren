@@ -693,7 +693,10 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let v = new LVar().name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
         log('parse', this.name, g, toString(sub));
         return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render2(g, s, v, model,o))); }
-    root() { return this.child.root(); }
+    root() {
+        let r = this.child.root();
+        if (r instanceof DocumentFragment && !r.childNodes.length) return this.comment;
+        return r; }
     recreate(child) { return new this.constructor(this.vvar, this.ovar, child, this.comment); }
     sortfn() { return (a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1; }
     subviews(child=this.child) { return child.items().sort(this.sortfn()); }

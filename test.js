@@ -193,6 +193,12 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(root.innerHTML, 'lorem');
       rk.rerender(m => m.set('ipsum'));
       asserte(root.innerHTML, '<!---->'); }
+
+    { let rk = RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'ipsum');
+      let root = createDiv(rk.root());
+      asserte(root.innerHTML, '<!---->');
+      rk.rerender(m => m.set('lorem'));
+      asserte(root.innerHTML, 'lorem'); }
     
     
     // Updates before/after render
