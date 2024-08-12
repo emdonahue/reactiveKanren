@@ -184,11 +184,11 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     // Dynamic In Place Updates
     { let rk = RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
-      let root = document.createDocumentFragment();
+      let root = document.createElement('div');
       root.append(rk.root());
-      asserte(root.textContent, 'lorem');
+      asserte(root.innerHTML, 'lorem');
       rk.rerender(m => m.set('ipsum'));
-      asserte(root.textContent, ''); }
+      asserte(root.innerHTML, '<!---->'); }
     
     
     // Updates before/after render
