@@ -706,10 +706,11 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         let add = [], del = [], nochange = [];
 
         this.child.firstNode()?.before(this.comment);
-        this.child = this.child.rerender2(sub, mvar, this.vvar, add, del, nochange);
+        //this.child = this.child.rerender2(sub, mvar, this.vvar, add, del, nochange);
+        [this.child,] = this.child.rerender3(sub, mvar, this.vvar);
         //if (!add.length && !nochange.length) this.child.firstNode().before(this.comment); // Comment placeholder not needed if a real node is in the dom
         //TODO do we need first and last node?
-        if (add.length || nochange.length) this.comment.remove();
+        //if (add.length || nochange.length) this.comment.remove();
 
         for (let item of del) item.remove();
         return this; }
@@ -817,6 +818,13 @@ class IterableViewBranch {
         this.rhs = this.rhs.rerender2(sub, model, vvar, add, del, nochange);
         return this;
     }
+    rerender3(sub, model, vvar, nodecursor) {
+        sub = this.goal.apply(sub);
+        assert(!sub.isFailure());
+        [this.lhs,nodecursor] = this.lhs.rerender3(sub, model, vvar, nodecursor);
+        [this.rhs,nodecursor] = this.rhs.rerender3(sub, model, vvar, nodecursor);
+        return [this, nodecursor];
+    }
     items(a=[]) {
         this.lhs.items(a);
         this.rhs.items(a);
@@ -832,6 +840,11 @@ class IterableFailure { // Failures on the initial render that may expand to lea
     items(a=[]) { return a; }
     firstNode() { return null; }
     root(fragment=document.createDocumentFragment()) { return fragment; }
+    rerender3(sub, mvar, vvar, nodecursor) {
+        let ovar; //TODO thread ovar
+        let expanded = this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar));
+        return [expanded, expanded];
+    }
     rerender2(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }
     rerender(sub, mvar, vvar, ovar) { return this.goal.expand_run(sub, (g, s) => this.renderer.render(g, s, vvar, mvar, ovar)); }}
 
@@ -840,6 +853,9 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
         this.child = child; }
     items(a=[]) { return a; }
     firstNode() { return null; }
+    rerender3(sub, model, vvar, nodecursor) {
+        throw Error('nyi')
+    }
     root (fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, mvar, vvar, ovar) {
         log('rerender', this.constructor.name, this.child, sub.reify(vvar), sub.reify(mvar));
@@ -867,6 +883,13 @@ class IterableViewItem { // Displayable iterable item
         this.child = this.child.rerender2(sub, mvar, sub.walk(vvar));
         return this;
     }
+    rerender3(sub, mvar, vvar, nodecursor) {
+        sub = this.goal.apply(sub);
+        if (sub.isFailure()) return [new IterableFailedItem(this.remove()), nodecursor];
+        log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
+        this.child = this.child.rerender2(sub, mvar, sub.walk(vvar));
+        return [this, this];
+    }
     root(fragment) {
         log('root', this.constructor.name, fragment);
         if (fragment) fragment.append(this.child.root());
@@ -878,7 +901,9 @@ class IterableViewItem { // Displayable iterable item
         let tmpl = sub.walk(vvar);
         return new this.constructor(this.goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //TODO equals(tmpl, this.template) ? this.child : 
     key() { return this.template; }
-    remove() { this.child.remove(); }
+    remove() {
+        this.child.remove();
+        return this; }
     firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }
     items(a=[]) {
