@@ -830,6 +830,7 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
     constructor(child) {
         this.child = child; }
     items(a=[]) { return a; }
+    root (fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, mvar, vvar, ovar) {
         log('rerender', this.constructor.name, this.child, sub.reify(vvar), sub.reify(mvar));
         return this.child.rerender(sub, mvar, vvar, ovar); }}
@@ -848,8 +849,8 @@ class IterableViewItem { // Displayable iterable item
         return new this(goal, template, render2(template, sub, mvar), order); }
     rerender2(sub, mvar, vvar) {
         sub = this.goal.apply(sub);
+        if (sub.isFailure()) return new IterableFailedItem(this);
         log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
-        assert(sub !== failure);
         this.child = this.child.rerender2(sub, mvar, sub.walk(vvar));
         return this;
     }
