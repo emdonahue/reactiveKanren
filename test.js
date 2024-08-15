@@ -5,7 +5,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render, view, RK} from './mk.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, view, RK} from './mk.js'
 import {logging, log, copy, toString, equals} from './util.js'
 
 function test(f, test_name) {
@@ -172,7 +172,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(RK.render((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
     //asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
     //asserte(RK.render((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
-    asserte(render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).render().outerHTML, '<span>lorem</span>');
+    asserte(RK.render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
 
     // Dynamic renders
     asserte(RK.render((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
@@ -225,16 +225,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
                                sbv => fresh(x => [item.membero(x), treelist(x,sbv)])]])])
     }
     */
-    
-    // Updates before/after render
-    asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
-    asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template post-render
-    asserte(render((v,m) => v.eq(['span', 'ipsum']), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<span>ipsum</span>'); // New dom template post-render
-    asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New subtemplate pre-render
-    asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().outerHTML, '<p>ipsum</p>'); // New subtemplate post-render
-    asserte(render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).prerender().rerender(nil).render().outerHTML, '<span>lorem</span>');
 
-    // Diff single updates 
+    // Diff single updates
+    /*
     asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).render().outerHTML, '<p>lorem</p>'); // Subtemplate display
     asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p><!----></p>'); // Subtemplate delete
     asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'ipsum')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate undelete
@@ -242,6 +235,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate swap identical
     asserte(render(['p', (v,m) => m.eq(list('ipsum', 'dolor')).conj(m.membero(v))], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Expand fail to branch
     asserte(render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
+*/
     /*
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');    
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
@@ -263,9 +257,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     */
     
     // ORDER
-    asserte(render((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
+    //asserte(render((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
 
-    asserte(render(['p', (v,m,o) => m.membero(v).conj(v.eq(o))], list(cons(model,list(1,2))), model).prerender().rerender(list(cons(model, list(2,1)))).render().outerHTML, '<p>12</p>'); // Exchange cached
+    //asserte(render(['p', (v,m,o) => m.membero(v).conj(v.eq(o))], list(cons(model,list(1,2))), model).prerender().rerender(list(cons(model, list(2,1)))).render().outerHTML, '<p>12</p>'); // Exchange cached
 
 
     // MODEL & ORDER

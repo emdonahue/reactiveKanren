@@ -652,23 +652,6 @@ const failure = new Failure;
 
 // DOM
 
-function render(tmpl, sub=nil, model=null) {
-    log('parse', tmpl, toString(sub));
-    if (is_text(tmpl)) return ViewTextNode.render(tmpl); // Simple Text nodes
-    else if (tmpl instanceof Template) return tmpl.render(sub, model);
-    else if (tmpl instanceof Function) return IterableViewRoot.render(tmpl, sub, model); // Build a dynamic node using the model
-    else if (tmpl instanceof LVar) { return render(v => v.eq(tmpl), sub, model); } //TODO make tmpl the view var and skip creating new one
-    else if (Array.isArray(tmpl)) return render_head(tmpl, sub, model);
-    else {
-        console.error('Unrecognized render template', tmpl); //TODO remove debug print when done developing
-        throw Error('Unrecognized render template: ' + toString(tmpl)); }}
-
-function render_head([tmpl_head, ...tmpl_children], sub, model) {
-    log('parse', 'head', tmpl_head, tmpl_children);
-    if (is_string(tmpl_head)) return render_head([{tagName: tmpl_head}, ...tmpl_children], sub, model);
-    else if (is_pojo(tmpl_head)) return new ViewDOMNode(tmpl_head, tmpl_children.map(c => render(c, sub, model)));
-    else throw Error('Unrecognized render head template: ' + toString(tmpl_head));
-}
 
 
 class View {
@@ -906,7 +889,7 @@ class IterableViewItem { // Displayable iterable item
         else return this.child.root(); }
     static create(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
-        return new this(goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem
+        return new this(goal, tmpl, render2(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem
     recreate(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
         return new this.constructor(this.goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //TODO equals(tmpl, this.template) ? this.child : 
@@ -1082,4 +1065,4 @@ class ModelTemplate extends Template {
 
 function view(template) { return new Template(template); }
 
-export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, render, view};
+export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, view};
