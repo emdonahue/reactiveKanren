@@ -36,11 +36,8 @@ class RK {
         let mvar = new SVar().name('model');
         let sub = mvar.set(data).reunify_substitution(nil);
         log('sub', this.constructor.name, 'render', toString(sub), sub, mvar.set(data));
-        return new this(render2(template, sub, mvar), sub, mvar); }
+        return new this(View.render(template, sub, mvar), sub, mvar); }
     root() { return this.child.root(); }
-    render() {
-        this.view = render(this.template, this.substitution, this.mvar);
-        return this.view.render(); }
     rerender(f) {
         let g = f(this.mvar);
         this.substitution = g.reunify_substitution(this.substitution);
@@ -49,12 +46,7 @@ class RK {
         return this;
     }}
 
-function render2(template, sub, mvar) {
-    if (is_text(template)) return ViewTextNode.render(template, sub, mvar);
-    else if (Array.isArray(template)) return ViewDOMNode.render(template, sub, mvar);
-    else if (template instanceof Function) return IterableViewRoot.render2(template, sub, mvar);
-    else throw Error('Unrecognized template: ' + template);
-}
+
 
 // Lists
 class List {
@@ -652,9 +644,13 @@ const failure = new Failure;
 
 // DOM
 
-
-
 class View {
+    static render(template, sub, mvar) {
+        if (is_text(template)) return ViewTextNode.render(template, sub, mvar);
+        else if (Array.isArray(template)) return ViewDOMNode.render(template, sub, mvar);
+        else if (template instanceof Function) return IterableViewRoot.render2(template, sub, mvar);
+        else throw Error('Unrecognized template: ' + template);
+    }
     update(s) {
         return this.rerender(s); }
     prerender() {
@@ -700,13 +696,6 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
 
         for (let item of del) item.remove();
         return this; }
-    render() {
-        let n, subviews = this.subviews();        
-        if (!subviews.length) n = this.comment;
-        else if (subviews.length === 1) n = subviews[0].render();
-        else n = subviews.reduce((f,s) => f.appendChild(s.render()) && f, document.createDocumentFragment());
-        log('render', this.constructor.name, n.outerHTML ? n.outerHTML : n.textContent, subviews);
-        return n; }
     
     rerender(sub, model) {
         log('rerender', this.constructor.name, this, toString(sub), model+'');
@@ -865,7 +854,7 @@ class IterableViewItem { // Displayable iterable item
         log('parse', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
         if (!sub) return new IterableFailure(this, goal);
         let template = sub.walk(vvar);
-        return new this(goal, template, render2(template, sub, mvar), order); }
+        return new this(goal, template, View.render(template, sub, mvar), order); }
     rerender2(sub, mvar, vvar, add, del, nochange) {
         sub = this.goal.apply(sub);
         if (sub.isFailure()) {
@@ -889,7 +878,7 @@ class IterableViewItem { // Displayable iterable item
         else return this.child.root(); }
     static create(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
-        return new this(goal, tmpl, render2(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem
+        return new this(goal, tmpl, View.render(tmpl, sub, mvar), sub.reify(ovar)); } //wip viewitem
     recreate(sub, goal, vvar, mvar, ovar) {
         let tmpl = sub.walk(vvar);
         return new this.constructor(this.goal, tmpl, render(tmpl, sub, mvar), sub.reify(ovar)); } //TODO equals(tmpl, this.template) ? this.child : 
@@ -903,10 +892,6 @@ class IterableViewItem { // Displayable iterable item
         a.push(this);
         return a; }
     toArray(a) { a.push(this); return a; }
-    render() {
-        let n = this.child.render();
-        log('render', this.constructor.name, n);
-        return n; }
     
     rerender(sub, mvar, vvar, ovar) {
         log('rerender', this.constructor.name, this.goal+'', vvar+'', toString(sub), mvar+'');
@@ -989,13 +974,6 @@ class ViewDOMNode extends View {
         else throw Error('nyi');
     }
     root() { return this.node; }
-    render() {
-        log('render', this.constructor.name, this.node?.outerHTML);
-        if (this.node) return this.node;
-        this.node = document.createElement(this.properties.tagName || 'div');
-        for (let k in this.properties) { if (k !== 'tagName') this.node[k] = this.properties[k]; }
-        for (let c of this.children) this.node.appendChild(c.render());
-        return this.node; }
     rerender(sub, model) {
         return new ViewDOMNode(this.properties, this.children.map(c => c.rerender(sub, model)), this.node);
     }
@@ -1018,15 +996,12 @@ class ViewTextNode extends View {
                 this.text = template;
                 this.node.textContent = template; }
             return this; }
-        return render2(template, sub, mvar);
+        return View.render(template, sub, mvar);
     }
     root() {
         log('root', this.constructor.name, this.text);
         assert(this.node.textContent === this.text);
         return this.node; }
-    render() {
-        log('render', this.constructor.name, this.text, this.node); //TODO find out why we have to add to parent & whether that applies to dom node as well
-        return this.node = this.node || document.createTextNode(this.text); }
     rerender(sub, model, vvar) { return this; }
     remove() { if (this.node) this.node.remove(); }
     firstNode() { return this.node; }
@@ -1046,9 +1021,6 @@ class ViewAttr extends View {
 class Template {
     constructor(template) {
         this.template = template; }
-    render(sub, mdl) {
-        log('parse', this.constructor.name, this.template, toString(sub))
-        return render(this.template, sub, mdl); }
     model(m) { return new ModelTemplate(m, this.template); }
 }
 
