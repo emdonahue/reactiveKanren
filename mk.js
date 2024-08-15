@@ -860,8 +860,11 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
     items(a=[]) { return a; }
     firstNode() { return null; }
     lastNode() { return null; }
-    rerender3(sub, model, vvar, nodecursor) {
-        throw Error('nyi')
+    rerender3(sub, mvar, vvar, nodecursor) {
+        let [c,nextcursor] = this.child.rerender3(sub, mvar, vvar, nodecursor);
+        if (c instanceof this.constructor) return [c, nodecursor];
+        nodecursor.after(c.root());
+        return [c, nextcursor]; 
     }
     root (fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, mvar, vvar, ovar) {

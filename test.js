@@ -166,10 +166,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     //asserte(RK.render(['p', v => 'lorem']).root().outerHTML, '<p>lorem</p>');
     //asserte(RK.render((v,m) => m, list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
     //asserte(RK.render((v,m) => ['p', m], list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
-    asserte(render(v => fail).render().nodeType, Node.COMMENT_NODE);
-    asserte(render(v => conde(v.eq('lorem'), v.eq('ipsum'))).render().textContent, 'loremipsum');
-    asserte(render(['div', v => v.eq(['span', v => v.eq('lorem')])]).render().outerHTML, '<div><span>lorem</span></div>');
-    asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).render().textContent, 'lorem');
+    asserte(RK.render(v => fail).root().nodeType, Node.COMMENT_NODE);
+    asserte(RK.render(v => conde(v.eq('lorem'), v.eq('ipsum'))).root().textContent, 'loremipsum');
+    asserte(RK.render(['div', v => v.eq(['span', v => v.eq('lorem')])]).root().outerHTML, '<div><span>lorem</span></div>');
+    asserte(RK.render((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
     //asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
     //asserte(RK.render((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
     asserte(render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).render().outerHTML, '<span>lorem</span>');
@@ -199,7 +199,32 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(root.innerHTML, '<!---->');
       rk.rerender(m => m.set('lorem'));
       asserte(root.innerHTML, 'lorem'); }
+
+    { let rk = RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
+      let root = createDiv(rk.root());
+      asserte(root.innerHTML, 'lorem');
+      rk.rerender(m => m.set('ipsum'));
+      asserte(root.innerHTML, '<!---->');
+      rk.rerender(m => m.set('lorem'));
+      asserte(root.innerHTML, 'lorem'); }
+
+    { let rk = RK.render((v,m) => m.leafo(v), cons('lorem', 'dolor'));
+      let root = createDiv(rk.root());
+      asserte(root.innerHTML, 'loremdolor');
+      let dolor = root.childNodes[1];
+      rk.rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))]));
+      asserte(root.innerHTML, 'loremipsumdolor');
+      asserte(dolor, root.childNodes[2]); }
     
+
+    /*
+    function treelist(item, view) {
+        conde([item.isString(), view.eq(['li', item])],
+              [item.isPair(),
+               view.eq(['li', ['ul',
+                               sbv => fresh(x => [item.membero(x), treelist(x,sbv)])]])])
+    }
+    */
     
     // Updates before/after render
     asserte(render((v,m) => v.eq(m), list(cons(model,'lorem')), model).rerender(list(cons(model, 'ipsum')), model).render().textContent, 'ipsum'); // New template pre-render
