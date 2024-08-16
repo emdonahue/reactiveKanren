@@ -91,7 +91,7 @@ class List {
     join(sep='') {
         let self = this, str = '', first = true;
         while (self instanceof Pair) {
-            str += self.car + (first ? '' : sep);
+            str += first ? self.car : sep + self.car;
             first = false;
             self = self.cdr; }
         return str; }
@@ -867,15 +867,19 @@ class ViewTextNode extends View {
     lastNode() { return this.node; }}
 
 class ViewAttr extends View {
-    constructor() {
-
+    constructor(node, attr, goal, vvar) {
+        super();
+        this.node = node;
+        this.attr = attr;
+        this.goal = goal;
+        this.vvar = vvar;
     }
     static render(sub, mvar, node, attr, val) {
         assert(val instanceof Function, mvar);
         let v = new LVar(), g = val(v, mvar);
         let vals = g.run(-1, {reify: v});
-        node[attr] = vals.join(' ');
-        
+        if (!vals.isNil()) node[attr] = vals.join(' ');
+        return new this(node, attr, g, v);
     }
 }
 

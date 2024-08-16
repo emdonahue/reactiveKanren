@@ -159,6 +159,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(RK.render([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
     asserte(RK.render([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
     asserte(RK.render([{name: (v,m) => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
+    asserte(RK.render([{className: (v,m) => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
     asserte(RK.render(v => v.eq('lorem')).root().textContent, 'lorem');
     asserte(RK.render(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
     asserte(RK.render(['p', v => fresh(x => [x.eq('lorem'), v.eq(x)])]).root().outerHTML, '<p>lorem</p>');
