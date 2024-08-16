@@ -88,6 +88,13 @@ class List {
         if (n <= 0) return this;
         return this.cons(f()).repeat(n-1, f);
     }
+    join(sep='') {
+        let self = this, str = '', first = true;
+        while (self instanceof Pair) {
+            str += self.car + (first ? '' : sep);
+            first = false;
+            self = self.cdr; }
+        return str; }
     filter(p) {
         let self = this, head = null, tail = null;
         while (self instanceof Pair) {
@@ -333,8 +340,8 @@ class Goal {
         return new Disj(this, x);
     }
     filter(f) { return f(this) ? this : succeed; }
-    run(n=-1, {reify=true, substitution=nil}={}) {
-        return this.eval(new State(substitution)).take(n).map(s => reify ? s.reify(nil) : s);
+    run(n=-1, {reify=nil, substitution=nil}={}) {
+        return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(reify)) : s);
 
     }
     expand_run(s=nil, v=((g,s) => IterableViewItem.render(g, s, v, null))) { //TODO remove default viewleaf
@@ -420,9 +427,7 @@ class Fresh extends Goal {
         this.vars = vars;
         this.ctn = ctn;
     }
-    run(n=-1, {reify=true, substitution=nil}={}) {
-        return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(this.vars)) : s);
-    }
+    run(n=-1, {reify=this.vars, ...rest}={}) { return super.run(n, {reify: reify, ...rest}); }
     eval(s, ctn=succeed) {
         return this.instantiate().conj(ctn).suspend(s);
     }
@@ -793,20 +798,21 @@ class ViewDOMNode extends View {
         this.properties = properties;
         this.node = node;
         this.children = children; }
+
     static render([tparent, ...tchildren], sub, mvar) {
         log('render', this.name, tparent, [...tchildren], sub, mvar);
-        let parent = this.render_parent(tparent, sub);
+        let parent = this.render_parent(tparent, sub, mvar);
         this.render_children(parent, [...tchildren], sub, mvar);
         return new this(tparent, [], parent);
     }
-    static render_parent(tparent, sub) {
+    static render_parent(tparent, sub, mvar) {
         if (is_string(tparent)) return this.render_parent({tagName: tparent});
         if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub);
         let parent = document.createElement(tparent.tagName ?? 'div');
         for (let k in tparent) {
             if (k === 'tagName') continue;
             if (is_text(tparent[k])) parent[k] = tparent[k];
-            else if (tparent[k] instanceof Function) ViewAttr.render(parent, k, tparent[k]);
+            else if (tparent[k] instanceof Function) ViewAttr.render(sub, mvar, parent, k, tparent[k]);
         }
         return parent;
     }
@@ -864,9 +870,11 @@ class ViewAttr extends View {
     constructor() {
 
     }
-    static render(parent, attr, val, mvar) {
-        assert(val instanceof Function);
-        let v = new LVar(), g = val(mvar, v);
+    static render(sub, mvar, node, attr, val) {
+        assert(val instanceof Function, mvar);
+        let v = new LVar(), g = val(v, mvar);
+        let vals = g.run(-1, {reify: v});
+        node[attr] = vals.join(' ');
         
     }
 }
