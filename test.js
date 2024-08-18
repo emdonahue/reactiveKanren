@@ -218,14 +218,29 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(dolor, root.childNodes[2]); }
     
 
-    /*
-    function treelist(item, view) {
-        conde([item.isString(), view.eq(['li', item])],
-              [item.isPair(),
-               view.eq(['li', ['ul',
-                               sbv => fresh(x => [item.membero(x), treelist(x,sbv)])]])])
-    }
-    */
+/*
+    function treeview(model, view) {
+        return conde([model.isStringo(), view.eq(['li', model])],
+                     [model.isPairo(),
+                      view.eq(['li', ['ul',
+                                      subview => fresh(x => [model.membero(x), treeview(x,subview)])]])])
+    }*/
+
+
+    // Paper Examples
+    asserte(RK.render(['ul', (view, model) =>
+        (function treeview(view, model) {
+            return conde([model.isStringo(), view.eq(['li', model])],
+                         [model.isPairo(),
+                          view.eq(['li', ['ul',
+                                          subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})(view, model)],
+        list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
+
+    //console.log(RK.render(['ul', (v,m) => treelist(m, v)], 'lorem').root().outerHTML);
+
+
+//    console.log(RK.render(['ul', (v,m) => treelist(m, v.name('topview'))], list('lorem')).root().outerHTML);
+
 
     // Diff single updates
     /*

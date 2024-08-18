@@ -287,9 +287,9 @@ function list(...xs) { return cons(...xs, nil); }
 // Vars & Data
 class LVar {
     static id = 0;
-    constructor() {
+    constructor(name='') {
 	this.id = LVar.id++;
-        this.label = '';
+        this.label = name;
     }
     toString() {
         return `<${this.label}${this.label ? ':' : ''}${this.id}>`;
@@ -355,7 +355,7 @@ class Goal {
     }
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
     expand_ctn(s, cjs, v) {
-        log('expand', 'ctn', this+'', cjs, s);
+        log('expand', 'ctn', this+'', cjs, toString(s?.substitution));
         return s.isFailure() ? v(cjs.conj(this)) : this.expand(s, succeed, cjs, v); }
     suspend(s) { return new Suspended(s, this) }
     apply(sub) { return sub.isFailure() ? failure : this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
@@ -399,7 +399,7 @@ class Conj extends Goal {
     }
     expand(s, ctn, cjs, v) {
         log('expand', 'conj', this+'', ctn, cjs);
-        return this.lhs.expand(s, ctn.conj(this.rhs), cjs, v);
+        return this.lhs.expand(s, this.rhs.conj(ctn), cjs, v);
     }
     toString() { return `(${this.lhs} & ${this.rhs})`; }
 }
@@ -465,9 +465,9 @@ class Constraint extends Goal {
         if (this.f.apply(null, this.lvars.map(x => s.walk(x)))) return ctn.cont(s);
         return failure;
     }
-    expand(s, ctn, cjs, v) {
-        log('expand', 'constraint', this+'', ctn, cjs);
-        s = (this.f.apply(null, this.lvars.map(x => s.walk(x)))) ? s : failure;
+    expand(sub, ctn, cjs, v) {
+        let s = (this.f.apply(null, this.lvars.map(x => sub.walk(x)))) ? sub : failure;
+        log('expand', 'constraint', this+'', ctn, cjs, toString(sub?.substitution), s);
         return s.expand_ctn(ctn, cjs.conj(this), v);
     }
     toString() { return `${this.f}(${this.lvars})`; }
@@ -667,9 +667,9 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         this.comment = comment; // Attached to DOM as placeholder if all children fail
     }
     static render(f, sub, model) { //TODO can view vars all be the same physical var?
-        let v = new LVar().name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
-        log('parse', this.name, g, toString(sub));
-        return new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o))); }
+        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
+        log('render', this.name, g, toString(sub));
+        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o)))); }
     root() {
         let r = this.child.root();
         if (r instanceof DocumentFragment && !r.childNodes.length) return this.comment;
@@ -747,12 +747,12 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
     constructor(child) {
         this.child = child; }
     items(a=[]) { return a; }
-    firstNode() { return null; }
+    firstNode() { return null; } // Prevents dynamic nodes from inserting anchors on a node not in the dom
     lastNode() { return null; }
     rerender(sub, mvar, vvar, nodecursor) {
         let [c,nextcursor] = this.child.rerender(sub, mvar, vvar, nodecursor);
         if (c instanceof this.constructor) return [c, nodecursor];
-        nodecursor.after(c.root());
+        nodecursor.after(c.root()); // Normally items would not make changes to dom, so add in items that were previously removed.
         return [c, nextcursor]; 
     }
     root (fragment=document.createDocumentFragment()) { return fragment; }}
@@ -765,7 +765,7 @@ class IterableViewItem { // Displayable iterable item
         this.template = template;
         this.order = order; }
     static render(goal, sub, vvar, mvar, ovar) {
-        log('parse', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
+        log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
         if (!sub) return new IterableFailure(goal);
         let template = sub.walk(vvar);
         return new this(goal, template, View.render(template, sub, mvar), ovar); }
