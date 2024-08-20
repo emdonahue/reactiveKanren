@@ -228,12 +228,11 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
 
     // Paper Examples
-    asserte(RK.render(['ul', (view, model) =>
-        (function treeview(view, model) {
-            return conde([model.isStringo(), view.eq(['li', model])],
-                         [model.isPairo(),
-                          view.eq(['li', ['ul',
-                                          subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})(view, model)],
+    asserte(RK.render(['ul', (function treeview(view, model) {
+        return conde([model.isStringo(), view.eq(['li', model])],
+                     [model.isPairo(),
+                      view.eq(['li', ['ul',
+                                      subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})],
         list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
 
     //console.log(RK.render(['ul', (v,m) => treelist(m, v)], 'lorem').root().outerHTML);

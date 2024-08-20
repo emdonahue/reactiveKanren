@@ -159,14 +159,15 @@ class List {
         if (primitive(x)) return this;
         let {car: x_var, cdr: x_val} = prev.walk_binding(x);
 
-        let {car: y_var, cdr: y_val} = prev.walk_binding(y);
+        //let {car: y_var, cdr: y_val} = prev.walk_binding(y);
+        let y_val = prev.walk(y);
         /*
         if (next.assoc(x_var)) {
             y_val = next.assoc(x_var).cdr;
             log('reunify', 'subterm', x_var, y_val, next);
         }
         */
-        log('reunify', 'lookup', x_var, x_val, y_var, y_val, prev);
+        log('reunify', 'lookup', x_var, x_val, y_val, prev);
 
 
         /*
