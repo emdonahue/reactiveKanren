@@ -650,8 +650,7 @@ class View {
     static render(template, sub, mvar) {
         if (is_text(template)) return TextView.render(template, sub, mvar);
         else if (Array.isArray(template)) return NodeView.render(template, sub, mvar);
-        else if (template instanceof Function) return GoalView.render(template, sub, mvar);
-        else throw Error(template); }}
+        else return GoalView.render(template, sub, mvar); }}
 
 
 class GoalView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
@@ -670,14 +669,14 @@ class GoalView extends View { //Replaces a child template and generates one sibl
     }
     
     static render_lvar(template, sub, mvar) {
-        let v = new LVar('view').name('view');
         log('render', this.name, 'lvar', template, toString(sub));
         return new this(template, null, AnswerView.render(succeed, sub, template, mvar)); }
     
-    static render_f(f, sub, model) {
-        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
-        log('render', this.name, g, toString(sub));
-        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, model,o)))); }
+    static render_f(f, sub, mvar) {
+        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = f(v, mvar, o);
+        if (!(g instanceof Goal)) return this.render_lvar(g, sub, mvar);
+        log('render', this.name, 'f', g, toString(sub));
+        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, mvar,o)))); }
     
     root() {
         let r = this.child.root();

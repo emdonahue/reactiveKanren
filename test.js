@@ -164,6 +164,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK((v,m) => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');
     asserte(new RK([{className: (v,m) => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
     asserte(new RK(v => v.eq('lorem')).root().textContent, 'lorem');
+    asserte(new RK(v => 'lorem').root().textContent, 'lorem');
+    asserte(new RK((v,m) => ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK((v,m) => m, 'lorem').root().textContent, 'lorem');
+    asserte(new RK((v,m) => m, ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(['p', v => fresh(x => [x.eq('lorem'), v.eq(x)])]).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(v => fresh(x => [x.eq('lorem'), v.eq(['p', x])])).root().outerHTML, '<p>lorem</p>');
@@ -226,7 +230,14 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(root.innerHTML, 'loremipsumdolor');
       asserte(dolor, root.childNodes[2]); }
 
-
+    // Events
+    /*
+    { let rk = new RK((v,m) => v.eq(m), 'lorem');
+      let root = createDiv(rk.root());
+      asserte(root.innerHTML, 'lorem');
+      rk.rerender(m => m.set('ipsum'));
+      asserte(root.innerHTML, '<!---->'); }*/
+    
 /*
     function treeview(model, view) {
         return conde([model.isStringo(), view.eq(['li', model])],
