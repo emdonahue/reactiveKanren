@@ -8,7 +8,7 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //TODO reuse old node even on new template in case it has some common sub templates (eg can reuse a text node we are about to throw away just by textContent =)
 //TODO rewrite entire mk engine to be non recursive to handle large cases
 //TODO for an iterable, create an entire subtree with all sub-iterables generating only 1 copy, then clone that node and reuse it across all subsequent iterations
-
+//TODO give lvar an .orderby method that constructs a view ordered by whatever that binds to. then even if its bound multiply we just produce sibling dynamic sets ordered by different fns
 
 //diffing
 //if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
@@ -650,11 +650,11 @@ class View {
     static render(template, sub, mvar) {
         if (is_text(template)) return TextView.render(template, sub, mvar);
         else if (Array.isArray(template)) return NodeView.render(template, sub, mvar);
-        else if (template instanceof Function) return FunctionView.render(template, sub, mvar);
+        else if (template instanceof Function) return GoalView.render(template, sub, mvar);
         else throw Error(template); }}
 
 
-class FunctionView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
+class GoalView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
     constructor(vvar, ovar, child, comment=document.createComment('')) {
         super();
         assert(comment instanceof Node);
@@ -663,10 +663,22 @@ class FunctionView extends View { //Replaces a child template and generates one 
         this.child = child; //Root of tree of views
         this.comment = comment; // Attached to DOM as placeholder if all children fail
     }
-    static render(f, sub, model) { //TODO can view vars all be the same physical var?
+    static render(template, sub, mvar) {
+        if (template instanceof LVar) return this.render_lvar(template, sub, mvar);
+        else if (template instanceof Function) return this.render_f(template, sub, mvar);
+        else throw Error(template);
+    }
+    
+    static render_lvar(template, sub, mvar) {
+        let v = new LVar('view').name('view');
+        log('render', this.name, 'lvar', template, toString(sub));
+        return new this(template, null, AnswerView.render(succeed, sub, template, mvar)); }
+    
+    static render_f(f, sub, model) {
         let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
         log('render', this.name, g, toString(sub));
         return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, model,o)))); }
+    
     root() {
         let r = this.child.root();
         if (r instanceof DocumentFragment && !r.childNodes.length) return this.comment;
@@ -805,6 +817,7 @@ class NodeView extends View {
         log('render', this.name, template, sub, mvar);
         let children = [];
         let node = this.render_node(template, sub, mvar, children);
+        log('render', this.name + '^', children);
         return new this(template, children, node);
     }
     static render_node([tparent, ...tchildren], sub, mvar, children) {
@@ -814,7 +827,7 @@ class NodeView extends View {
     }
     static render_parent(tparent, sub, mvar, children) {
         if (is_string(tparent)) return this.render_parent({tagName: tparent});
-        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, mvar, children); // TODO probably needs to be an lvar view
+        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, mvar, children);
         let parent = document.createElement(tparent.tagName ?? 'div');
         for (let k in tparent) {
             log('render', 'attr', parent, k, tparent[k]);
@@ -827,18 +840,24 @@ class NodeView extends View {
     static render_children(parent, tchildren, sub, mvar, children) {
         log('render', this.name, 'children', parent, tchildren);
         for (let tchild of tchildren) {
-            this.render_child(parent, tchild, sub, mvar, children);
-        }
+            this.render_child(parent, tchild, sub, mvar, children); }
     }
     static render_child(parent, tchild, sub, mvar, children) {
-        if (is_text(tchild)) parent.append(document.createTextNode(tchild));
+        log('render', this.name, 'child', parent, tchild);
+        if (is_text(tchild)) parent.append(tchild);
         else if (Array.isArray(tchild)) parent.append(this.render_node(tchild, sub, mvar, children));
-        else if (tchild instanceof Function) {
-            children.push(FunctionView.render(tchild, sub, mvar));
-            parent.append(children[children.length-1].root());
-        }
-        else if (tchild instanceof LVar) this.render_child(parent, sub.walk(tchild), sub, mvar); //TODO needs a view to monitor changes in var
-        else throw Error(tchild);
+        else {
+            children.push(GoalView.render(tchild, sub, mvar));
+            parent.append(children[children.length-1].root()); }}
+    
+    rerender(sub, mvar, template) {
+        log('rerender', this.constructor.name, template, this.template, equals(template, this.template), this.children, toString(sub));
+        if (!equals(template, this.template)) {
+            let v = View.render(template, sub, mvar);
+            this.node.replaceWith(v.root());
+            return v; }
+        for (let i in this.children) this.children[i] = this.children[i].rerender(sub, mvar);
+        return this;
     }
     root() { return this.node; }
     remove() { if (this.node) this.node.remove(); }
@@ -874,11 +893,11 @@ class AttrView extends View {
     constructor(node, attr, goal, vvar) {
         super();
         this.node = node;
-        this.attr = attr;
+        this.attr = attr; //TODO if attr is tagName, generate new node, swap children, and swap into dom
         this.goal = goal;
         this.vvar = vvar;
     }
-    static render(sub, mvar, node, attr, val) {
+    static render(sub, mvar, node, attr, val) {        
         log('render', this.name, toString(sub));
         if (val instanceof LVar) return this.render_lvar(sub, mvar, node, attr, val);
         else if (val instanceof Function) this.render_f(sub, mvar, node, attr, val);

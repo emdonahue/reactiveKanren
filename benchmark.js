@@ -4,6 +4,7 @@
 //TODO make set unify always pick the non temporary variable to set. maybe insert special perma vars with normalize
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
+//TODO test append inserting string vs textnode
 
 import {RK, list, fresh} from './mk.min.js'
 

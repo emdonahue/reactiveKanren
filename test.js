@@ -82,10 +82,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(conde(reunify(x, 1), reunify(y, 2)).reunify_substitution(list(cons(x,0), cons(y,0))).reify([x, y]), [1, 2]); // prim -> prim x2
 
     asserte(reunify(x, [1]).reunify_substitution(nil).reify(x), [1]); // free -> array
-    
+
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil).reify(x), cons(1,2)); // free -> obj
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil).length(), 3); // prim -> obj normalized
-    asserte(reunify(x, 1).reunify_substitution(nil.acons(x,cons(1,2))).reify(x), 1); // obj -> prim        
+    asserte(reunify(x, 1).reunify_substitution(nil.acons(x,cons(1,2))).reify(x), 1); // obj -> prim
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,cons(y,z))).reify(x), cons(1, 2)); // obj -> obj
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,1)).reify(x), cons(1, 2)); // prim -> obj
     asserte(reunify(x, cons(1,2)).reunify_substitution(nil.acons(x,1)).length(), 3); // prim -> obj normalized
@@ -136,7 +136,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 //asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(x, y), reunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer
 
 // x = (1 . y), y = (2)
-// x->1, x->2   
+// x->1, x->2
 // x'->y, y'->x  both x and y are at prev timestep
 // x(1 . y:(2)), x->y this is deletion. y at prev timestep
 // x(1 . y:(2)), y->x    (1 1 2) duplicates, but probably not super useful
@@ -185,6 +185,12 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK((v,m) => v.eq(m), 'lorem').rerender(m => m.set(['p', 'ipsum'])).root().outerHTML, '<p>ipsum</p>');
     asserte(new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem').rerender(m => m.set('ipsum')).root().textContent, '');
 
+    asserte(new RK((v,m) => v.eq(['p', 'lorem'])).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK((v,m) => v.eq(['p', m]), 'lorem').root().outerHTML, '<p>lorem</p>');
+    asserte(new RK((v,m) => v.eq(['p', m]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
+    asserte(new RK((v,m) => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').root().outerHTML, '<p>lorem</p>');
+    asserte(new RK((v,m) => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
+
     asserte(new RK((v,m) => m.membero(v), list('lorem', 'ipsum')).root().textContent, 'loremipsum');
     asserte(new RK((v,m) => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
 
@@ -219,7 +225,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       rk.rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))]));
       asserte(root.innerHTML, 'loremipsumdolor');
       asserte(dolor, root.childNodes[2]); }
-    
+
 
 /*
     function treeview(model, view) {
@@ -234,7 +240,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     //console.log(new RK((v,m) => m.membero(v), list('lorem', 'dolor')).toString())
     //console.log(new RK((v,m) => m.leafo(v), cons('lorem', 'dolor')).toString())
-    
+
     asserte(new RK(['ul', (function treeview(view, model) {
         return conde([model.isStringo(), view.eq(['li', model])],
                      [model.isPairo(),
@@ -242,11 +248,11 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
                                       subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})],
                       list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
 
-    
 
 
 
-    
+
+
     //console.log(new RK(['ul', (v,m) => treelist(m, v)], 'lorem').root().outerHTML);
 
 
@@ -264,7 +270,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
 */
     /*
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');    
+    asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
     asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
     asserte(render(view((v,m) => v.eq(m)).model(v => conde(v.eq('lorem'), v.eq('ipsum')))).render().textContent, 'loremipsum');
     asserte(render(['p', view(['span', (v,m) => v.eq(m)]).model(v => conde(v.eq('lorem'), v.eq('ipsum')))]).render().outerHTML, '<p><span>lorem</span><span>ipsum</span></p>');
@@ -282,7 +288,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model).render().outerHTML, '<p>loremipsum</p>');
     asserte(render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>');
     */
-    
+
     // ORDER
     //asserte(render((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
 
@@ -297,11 +303,11 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     { let v = render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model);
       let n = v.render().firstChild; // Failing text nodes hold renders unless overwritten
       asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
-    
+
     { let v = render(['p', (v,m) => m.eq('lorem').conj(v.eq(['span', 'lorem']))], list(cons(model,'lorem')), model);
       let n = v.render().firstChild; // Failing dom nodes hold renders
       asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
-    
+
     { let v = render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem', 'ipsum'))), model);
       let n = v.render().childNodes[1]; // View reuses eq templates in different positions
       asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }

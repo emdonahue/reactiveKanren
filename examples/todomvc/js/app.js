@@ -39,7 +39,7 @@ import {logging} from '../../../util.js';
            ['li', [{tagName: 'a', href: '#/completed'}, 'Completed']]],
           [{tagName: 'button', className: 'clear-completed'}, 'Clear completed']]];
 
-    logging('render') //|| logging('parse') || logging('rerender') || logging('expand')
+    //logging('render') //|| logging('parse') || logging('rerender') || logging('expand')
     let app = new RK(template, data);
     
     document.getElementById('root').replaceWith(app.root());
