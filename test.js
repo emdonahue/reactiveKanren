@@ -155,6 +155,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK(['span']).root().outerHTML, '<span></span>');
     asserte(new RK(['span', 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(new RK(['p', ['span', 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK(['p', [{tagName: 'span'}, 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
     asserte(new RK([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(new RK([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
     asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');

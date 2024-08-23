@@ -386,7 +386,7 @@ class Fail extends Goal {
 class Conj extends Goal {
     constructor(lhs, rhs) {
         super();
-        if (!lhs || !rhs) throw new Error('Conj takes 2 arguments' + lhs + rhs);
+        assert(lhs, rhs);
         this.lhs = lhs;
         this.rhs = rhs;
     }
@@ -651,13 +651,13 @@ class View {
         if (is_text(template)) return TextView.render(template, sub, mvar);
         else if (Array.isArray(template)) return NodeView.render(template, sub, mvar);
         else if (template instanceof Function) return FunctionView.render(template, sub, mvar);
-        else throw Error('Unrecognized template: ' + template); }}
+        else throw Error(template); }}
 
 
 class FunctionView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
     constructor(vvar, ovar, child, comment=document.createComment('')) {
         super();
-        if (!(comment instanceof Node)) throw Error('comment not node')
+        assert(comment instanceof Node);
         this.vvar = vvar; // Bound to view templates of each child
         this.ovar = ovar; // Bound to order key of each child
         this.child = child; //Root of tree of views
@@ -761,7 +761,7 @@ class FailedAnswerView { // Rerender failures of atomic leaves that may cache no
 class AnswerView { // Displayable iterable item
     constructor(goal, template=null, child=null, order=null) {
         this.goal = goal;
-        if (template instanceof LVar) throw Error('unbound template: ' + template + ' ' + goal);
+        if (template instanceof LVar) throw Error(template);
         this.child = child;
         this.template = template;
         this.order = order; }
@@ -823,25 +823,21 @@ class NodeView extends View {
         }
         return parent;
     }
-    static render_children(parent, children, sub, mvar, supervisees) {
-        log('render', this.name, 'children', parent, children);
-        for (let child of children) {
-            this.render_child(parent, child, sub, mvar, children);
+    static render_children(parent, tchildren, sub, mvar, children) {
+        log('render', this.name, 'children', parent, tchildren);
+        for (let tchild of tchildren) {
+            this.render_child(parent, tchild, sub, mvar, children);
         }
     }
-    static render_child(parent, child, sub, mvar) {
-        if (is_text(child)) parent.append(document.createTextNode(child));
-        else if (Array.isArray(child)) {
-            let subparent = document.createElement(child[0]);
-            this.render_children(subparent, child.slice(1), sub, mvar);
-            parent.append(subparent);
+    static render_child(parent, tchild, sub, mvar, children) {
+        if (is_text(tchild)) parent.append(document.createTextNode(tchild));
+        else if (Array.isArray(tchild)) parent.append(this.render_node(tchild, sub, mvar, children));
+        else if (tchild instanceof Function) {
+            children.push(FunctionView.render(tchild, sub, mvar));
+            parent.append(children[children.length-1].root());
         }
-        else if (child instanceof Function) {
-            let c = FunctionView.render(child, sub, mvar);
-            parent.append(c.root());
-        }
-        else if (child instanceof LVar) this.render_child(parent, sub.walk(child), sub, mvar); //TODO needs a view to monitor changes in var
-        else throw Error('nyi');
+        else if (tchild instanceof LVar) this.render_child(parent, sub.walk(tchild), sub, mvar); //TODO needs a view to monitor changes in var
+        else throw Error(tchild);
     }
     root() { return this.node; }
     remove() { if (this.node) this.node.remove(); }
