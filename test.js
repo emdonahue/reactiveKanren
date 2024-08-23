@@ -233,8 +233,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     // Events
     { let rk = new RK((v,m) => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
       asserte(rk.root().outerHTML, '<p>lorem</p>');
-      
-    }
+      rk.root().click();
+      asserte(rk.root().outerHTML, '<p>ipsum</p>'); }
     
 
 

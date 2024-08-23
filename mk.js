@@ -30,11 +30,11 @@ class RK {
     constructor(template, data) {
         this.mvar = new SVar().name('model');
         this.substitution = this.mvar.set(data).reunify_substitution(nil);
-        this.child = View.render(template, this.substitution, this.mvar);
+        this.child = View.render(template, this.substitution, this.mvar, this);
     }
     root() { return this.child.root(); }
-    rerender(f) {
-        let g = f(this.mvar);
+    rerender(g) {
+        if (g instanceof Function) return this.rerender(g(this.mvar));
         this.substitution = g.reunify_substitution(this.substitution);
         log('rerender', this.constructor.name, toString(this.substitution));
         this.child = this.child.rerender(this.substitution, this.mvar);
@@ -647,36 +647,35 @@ const failure = new Failure;
 // DOM
 
 class View {
-    static render(template, sub, mvar) {
-        if (is_text(template)) return TextView.render(template, sub, mvar);
-        else if (Array.isArray(template)) return NodeView.render(template, sub, mvar);
-        else return GoalView.render(template, sub, mvar); }}
+    static render(template, sub, mvar, app) {
+        if (is_text(template)) return TextView.render(template, sub, mvar, app);
+        else if (Array.isArray(template)) return NodeView.render(template, sub, mvar, app);
+        else return GoalView.render(template, sub, mvar, app); }}
 
 
-class GoalView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
+class GoalView { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
     constructor(vvar, ovar, child, comment=document.createComment('')) {
-        super();
         assert(comment instanceof Node);
         this.vvar = vvar; // Bound to view templates of each child
         this.ovar = ovar; // Bound to order key of each child
         this.child = child; //Root of tree of views
         this.comment = comment; // Attached to DOM as placeholder if all children fail
     }
-    static render(template, sub, mvar) {
-        if (template instanceof LVar) return this.render_lvar(template, sub, mvar);
-        else if (template instanceof Function) return this.render_f(template, sub, mvar);
+    static render(template, sub, mvar, app) {
+        if (template instanceof LVar) return this.render_lvar(template, sub, mvar, app);
+        else if (template instanceof Function) return this.render_f(template, sub, mvar, app);
         else throw Error(template);
     }
     
-    static render_lvar(template, sub, mvar) {
+    static render_lvar(template, sub, mvar, app) {
         log('render', this.name, 'lvar', template, toString(sub));
-        return new this(template, null, AnswerView.render(succeed, sub, template, mvar)); }
+        return new this(template, null, AnswerView.render(succeed, sub, template, mvar, app)); }
     
-    static render_f(f, sub, mvar) {
+    static render_f(f, sub, mvar, app) {
         let v = new LVar('view').name('view'), o = new LVar().name('order'), g = f(v, mvar, o);
-        if (!(g instanceof Goal)) return this.render_lvar(g, sub, mvar);
+        if (!(g instanceof Goal)) return this.render_lvar(g, sub, mvar, app);
         log('render', this.name, 'f', g, toString(sub));
-        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, mvar,o)))); }
+        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, mvar,app)))); }
     
     root() {
         let r = this.child.root();
@@ -776,11 +775,11 @@ class AnswerView { // Displayable iterable item
         this.child = child;
         this.template = template;
         this.order = order; }
-    static render(goal, sub, vvar, mvar, ovar) {
+    static render(goal, sub, vvar, mvar, app, ovar) {
         log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
         if (!sub) return new FailureView(goal);
         let template = sub.walk(vvar);
-        return new this(goal, template, View.render(template, sub, mvar), ovar); }
+        return new this(goal, template, View.render(template, sub, mvar, app), ovar); }
     rerender(sub, mvar, vvar, nodecursor) {
         sub = this.goal.apply(sub);
         if (sub.isFailure()) return [new FailedAnswerView(this.remove()), nodecursor];
@@ -805,48 +804,48 @@ class AnswerView { // Displayable iterable item
     toString() { return this.goal.toString(); }}
 
 
-class NodeView extends View { 
+class NodeView { 
     constructor(template, children, node) {
-        super();
         this.template = template;
         this.node = node;
         this.children = children; }
 
-    static render(template, sub, mvar) {
+    static render(template, sub, mvar, app) {
         log('render', this.name, template, sub, mvar);
         let children = [];
-        let node = this.render_node(template, sub, mvar, children);
+        let node = this.render_node(template, sub, mvar, app, children);
         log('render', this.name + '^', children);
         return new this(template, children, node);
     }
-    static render_node([tparent, ...tchildren], sub, mvar, children) {
-        let parent = this.render_parent(tparent, sub, mvar, children);
-        this.render_children(parent, [...tchildren], sub, mvar, children);
+    static render_node([tparent, ...tchildren], sub, mvar, app, children) {
+        let parent = this.render_parent(tparent, sub, mvar, app, children);
+        this.render_children(parent, [...tchildren], sub, mvar, app, children);
         return parent;
     }
-    static render_parent(tparent, sub, mvar, children) {
+    static render_parent(tparent, sub, mvar, app, children) {
         if (is_string(tparent)) return this.render_parent({tagName: tparent});
         if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, mvar, children);
         let parent = document.createElement(tparent.tagName ?? 'div');
         for (let k in tparent) {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
-            if (is_text(tparent[k])) parent[k] = tparent[k];
+            else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, mvar, parent, k.substr(2), tparent[k], app));
+            else if (is_text(tparent[k])) parent[k] = tparent[k];
             else children.push(AttrView.render(sub, mvar, parent, k, tparent[k]));
         }
         return parent;
     }
-    static render_children(parent, tchildren, sub, mvar, children) {
+    static render_children(parent, tchildren, sub, mvar, app, children) {
         log('render', this.name, 'children', parent, tchildren);
         for (let tchild of tchildren) {
-            this.render_child(parent, tchild, sub, mvar, children); }
+            this.render_child(parent, tchild, sub, mvar, app, children); }
     }
-    static render_child(parent, tchild, sub, mvar, children) {
+    static render_child(parent, tchild, sub, mvar, app, children) {
         log('render', this.name, 'child', parent, tchild);
         if (is_text(tchild)) parent.append(tchild);
-        else if (Array.isArray(tchild)) parent.append(this.render_node(tchild, sub, mvar, children));
+        else if (Array.isArray(tchild)) parent.append(this.render_node(tchild, sub, mvar, app, children));
         else {
-            children.push(GoalView.render(tchild, sub, mvar));
+            children.push(GoalView.render(tchild, sub, mvar, app));
             parent.append(children[children.length-1].root()); }}
     
     rerender(sub, mvar, template) {
@@ -863,9 +862,8 @@ class NodeView extends View {
     firstNode() { return this.node; }
     lastNode() { return this.node; }}
 
-class TextView extends View {
+class TextView {
     constructor(text, node) {
-        super();
         this.text = text;
         this.node = node; }
     static render(template) {
@@ -888,9 +886,8 @@ class TextView extends View {
     firstNode() { return this.node; }
     lastNode() { return this.node; }}
 
-class AttrView extends View {
+class AttrView {
     constructor(node, attr, goal, vvar) {
-        super();
         this.node = node;
         this.attr = attr; //TODO if attr is tagName, generate new node, swap children, and swap into dom
         this.goal = goal;
@@ -912,6 +909,17 @@ class AttrView extends View {
         if (!vals.isNil()) node[attr] = vals.join(' ');
         return new this(node, attr, g, v);
     }
+}
+
+class EventView {
+    constructor(sub, mvar, node, event, handler) {
+        
+    }
+    static render(sub, mvar, node, event, handler, app) {
+        node.addEventListener(event, e => app.rerender(handler));
+        return new this();
+    }
+    rerender() {}
 }
 
 class Template {
