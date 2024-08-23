@@ -812,14 +812,17 @@ class NodeView extends View {
         this.render_children(parent, [...tchildren], sub, mvar, children);
         return parent;
     }
-    static render_parent(tparent, sub, mvar, supervisees) {
+    static render_parent(tparent, sub, mvar, children) {
         if (is_string(tparent)) return this.render_parent({tagName: tparent});
-        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, mvar, supervisees); // TODO probably needs to be an lvar view
+        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, mvar, children); // TODO probably needs to be an lvar view
         let parent = document.createElement(tparent.tagName ?? 'div');
         for (let k in tparent) {
+            log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
             if (is_text(tparent[k])) parent[k] = tparent[k];
-            else if (tparent[k] instanceof Function) supervisees.push(ViewAttr.render(sub, mvar, parent, k, tparent[k]));
+            else if (tparent[k] instanceof LVar) children.push(LVarView.render(sub, mvar, tparent[k]));
+            else if (tparent[k] instanceof Function) children.push(AttrView.render(sub, mvar, parent, k, tparent[k]));
+            else throw Error(tparent[k]);
         }
         return parent;
     }
@@ -869,7 +872,7 @@ class TextView extends View {
     firstNode() { return this.node; }
     lastNode() { return this.node; }}
 
-class ViewAttr extends View {
+class AttrView extends View {
     constructor(node, attr, goal, vvar) {
         super();
         this.node = node;
@@ -878,9 +881,10 @@ class ViewAttr extends View {
         this.vvar = vvar;
     }
     static render(sub, mvar, node, attr, val) {
+        log('render', this.name, toString(sub));
         assert(val instanceof Function, mvar);
         let v = new LVar(), g = val(v, mvar);
-        let vals = g.run(-1, {reify: v});
+        let vals = g.run(-1, {reify: v, substitution: sub});
         if (!vals.isNil()) node[attr] = vals.join(' ');
         return new this(node, attr, g, v);
     }

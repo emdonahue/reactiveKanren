@@ -14,8 +14,8 @@ import {logging} from '../../../util.js';
          (v,m,o) =>
          fresh((todos, title, done, completed) =>
              [m.eq({todos: todos}),
-              conde([done.eq(true), completed.eq('completed')], [done.eq(false), completed.eq('')]),
               todos.membero({title: title, done: done}),
+              conde([done.eq(true), completed.eq('completed')], [done.eq(false), completed.eq('')]),
               v.eq([{tagName: 'li', className: completed},
                     [{tagName: 'div', className: 'view'},
                      [{tagName: 'input', className: 'toggle', type: 'checkbox', checked: done}],
@@ -38,9 +38,10 @@ import {logging} from '../../../util.js';
            ['li', [{tagName: 'a', href: '#/active'}, 'Active']],
            ['li', [{tagName: 'a', href: '#/completed'}, 'Completed']]],
           [{tagName: 'button', className: 'clear-completed'}, 'Clear completed']]];
-    
+
+    logging('render') //|| logging('parse') || logging('rerender') || logging('expand')
     let app = new RK(template, data);
-    logging('render') || logging('parse') || logging('rerender') || logging('expand')
+    
     document.getElementById('root').replaceWith(app.root());
 
 
