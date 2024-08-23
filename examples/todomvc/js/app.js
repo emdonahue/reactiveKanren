@@ -5,18 +5,20 @@ import {logging} from '../../../util.js';
 (function (window) {
 	'use strict';
 
-    let data = {todos: list({title: 'Taste JavaScript', done: true}, {title: 'Buy a unicorn', done: false})}
+    let data = {todos: list({title: 'Taste JavaScript', done: true}, {title: 'Buy a unicorn', done: false}),
+                active: true,
+                completed: true}
     
     
 
     let itemtemplate =
         [{tagName: 'ul', className: 'todo-list'},
          (v,m,o) =>
-         fresh((todos, title, done, completed) =>
-             [m.eq({todos: todos}),
+         fresh((todos, title, done, strikethru, active, completed) =>
+             [m.eq({todos: todos, active: active, completed: completed}),
               todos.membero({title: title, done: done}),
-              conde([done.eq(true), completed.eq('completed')], [done.eq(false), completed.eq('')]),
-              v.eq([{tagName: 'li', className: completed},
+              conde([done.eq(true), completed.eq(true), strikethru.eq('completed')], [done.eq(false), active.eq(true), strikethru.eq('')]),
+              v.eq([{tagName: 'li', className: strikethru},
                     [{tagName: 'div', className: 'view'},
                      [{tagName: 'input', className: 'toggle', type: 'checkbox', checked: done}],
                      ['label', title],
