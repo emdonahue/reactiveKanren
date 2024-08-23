@@ -161,60 +161,60 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
     asserte(new RK([{name: (v,m) => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
     asserte(new RK([{name: (v,m) => v.eq(m)}, 'lorem'], 'ipsum').root().name, 'ipsum');
-    asserte(new RK((v,m) => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');
+    asserte(new RK(m => v => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');
     asserte(new RK([{className: (v,m) => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
-    asserte(new RK(v => v.eq('lorem')).root().textContent, 'lorem');
+    asserte(new RK(m => v => v.eq('lorem')).root().textContent, 'lorem');
     asserte(new RK(v => 'lorem').root().textContent, 'lorem');
     asserte(new RK((v,m) => ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
-    asserte(new RK((v,m) => m, 'lorem').root().textContent, 'lorem');
-    asserte(new RK((v,m) => m, ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
+    asserte(new RK(m => m, ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(['p', v => fresh(x => [x.eq('lorem'), v.eq(x)])]).root().outerHTML, '<p>lorem</p>');
-    asserte(new RK(v => fresh(x => [x.eq('lorem'), v.eq(['p', x])])).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => v => fresh(x => [x.eq('lorem'), v.eq(['p', x])])).root().outerHTML, '<p>lorem</p>');
     //asserte(new RK(['p', v => 'lorem']).root().outerHTML, '<p>lorem</p>');
     //asserte(new RK((v,m) => m, list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
     //asserte(new RK((v,m) => ['p', m], list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
-    asserte(new RK(v => fail).root().nodeType, Node.COMMENT_NODE);
-    asserte(new RK(v => conde(v.eq('lorem'), v.eq('ipsum'))).root().textContent, 'loremipsum');
+    asserte(new RK(m => v => fail).root().nodeType, Node.COMMENT_NODE);
+    asserte(new RK(m => v => conde(v.eq('lorem'), v.eq('ipsum'))).root().textContent, 'loremipsum');
     asserte(new RK(['div', v => v.eq(['span', v => v.eq('lorem')])]).root().outerHTML, '<div><span>lorem</span></div>');
-    asserte(new RK((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
+    asserte(new RK(m => v => v.eq(m), 'lorem').root().textContent, 'lorem');
     //asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
     //asserte(new RK((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
-    asserte(new RK(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
+    asserte(new RK(m => v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
 
     // Dynamic renders
-    asserte(new RK((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
-    asserte(new RK((v,m) => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');
-    asserte(new RK((v,m) => v.eq(m), 'lorem').rerender(m => m.set('ipsum')).root().textContent, 'ipsum');
-    asserte(new RK((v,m) => v.eq(m), 'lorem').rerender(m => m.set(['p', 'ipsum'])).root().outerHTML, '<p>ipsum</p>');
-    asserte(new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem').rerender(m => m.set('ipsum')).root().textContent, '');
+    asserte(new RK(m => v => v.eq(m), 'lorem').root().textContent, 'lorem');
+    asserte(new RK(m => v => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');
+    asserte(new RK(m => v => v.eq(m), 'lorem').rerender(m => m.set('ipsum')).root().textContent, 'ipsum');
+    asserte(new RK(m => v => v.eq(m), 'lorem').rerender(m => m.set(['p', 'ipsum'])).root().outerHTML, '<p>ipsum</p>');
+    asserte(new RK(m => v => conj(m.eq('lorem'), v.eq(m)), 'lorem').rerender(m => m.set('ipsum')).root().textContent, '');
 
-    asserte(new RK((v,m) => v.eq(['p', 'lorem'])).root().outerHTML, '<p>lorem</p>');
-    asserte(new RK((v,m) => v.eq(['p', m]), 'lorem').root().outerHTML, '<p>lorem</p>');
-    asserte(new RK((v,m) => v.eq(['p', m]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
-    asserte(new RK((v,m) => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').root().outerHTML, '<p>lorem</p>');
-    asserte(new RK((v,m) => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
+    asserte(new RK(m => v => v.eq(['p', 'lorem'])).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => v => v.eq(['p', m]), 'lorem').root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => v => v.eq(['p', m]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
+    asserte(new RK(m => v => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => v => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
 
-    asserte(new RK((v,m) => m.membero(v), list('lorem', 'ipsum')).root().textContent, 'loremipsum');
-    asserte(new RK((v,m) => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
+    asserte(new RK(m => v => m.membero(v), list('lorem', 'ipsum')).root().textContent, 'loremipsum');
+    asserte(new RK(m => v => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
 
-    asserte(new RK((v,m) => m.leafo(v), cons('lorem', 'ipsum')).root().textContent, 'loremipsum');
-    asserte(new RK((v,m) => m.leafo(v), cons('lorem', 'dolor')).rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))])).root().textContent, 'loremipsumdolor');
+    asserte(new RK(m => v => m.leafo(v), cons('lorem', 'ipsum')).root().textContent, 'loremipsum');
+    asserte(new RK(m => v => m.leafo(v), cons('lorem', 'dolor')).rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))])).root().textContent, 'loremipsumdolor');
 
     // Dynamic In Place Updates
-    { let rk = new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
+    { let rk = new RK(m => v => conj(m.eq('lorem'), v.eq(m)), 'lorem');
       let root = createDiv(rk.root());
       asserte(root.innerHTML, 'lorem');
       rk.rerender(m => m.set('ipsum'));
       asserte(root.innerHTML, '<!---->'); }
 
-    { let rk = new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'ipsum');
+    { let rk = new RK(m => v => conj(m.eq('lorem'), v.eq(m)), 'ipsum');
       let root = createDiv(rk.root());
       asserte(root.innerHTML, '<!---->');
       rk.rerender(m => m.set('lorem'));
       asserte(root.innerHTML, 'lorem'); }
 
-    { let rk = new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
+    { let rk = new RK(m => v => conj(m.eq('lorem'), v.eq(m)), 'lorem');
       let root = createDiv(rk.root());
       asserte(root.innerHTML, 'lorem');
       rk.rerender(m => m.set('ipsum'));
@@ -222,7 +222,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       rk.rerender(m => m.set('lorem'));
       asserte(root.innerHTML, 'lorem'); }
 
-    { let rk = new RK((v,m) => m.leafo(v), cons('lorem', 'dolor'));
+    { let rk = new RK(m => v => m.leafo(v), cons('lorem', 'dolor'));
       let root = createDiv(rk.root());
       asserte(root.innerHTML, 'loremdolor');
       let dolor = root.childNodes[1];
@@ -231,7 +231,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(dolor, root.childNodes[2]); }
 
     // Events
-    { let rk = new RK((v,m) => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
+    { let rk = new RK(m => v => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
       asserte(rk.root().outerHTML, '<p>lorem</p>');
       rk.root().click();
       asserte(rk.root().outerHTML, '<p>ipsum</p>'); }
@@ -242,8 +242,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     // Paper Examples
 
-    //console.log(new RK((v,m) => m.membero(v), list('lorem', 'dolor')).toString())
-    //console.log(new RK((v,m) => m.leafo(v), cons('lorem', 'dolor')).toString())
+    //console.log(new RK(m => v => m.membero(v), list('lorem', 'dolor')).toString())
+    //console.log(new RK(m => v => m.leafo(v), cons('lorem', 'dolor')).toString())
 
     asserte(new RK(['ul', (function treeview(view, model) {
         return conde([model.isStringo(), view.eq(['li', model])],
@@ -257,74 +257,6 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
 
 
-    //console.log(new RK(['ul', (v,m) => treelist(m, v)], 'lorem').root().outerHTML);
-
-
-//    console.log(new RK(['ul', (v,m) => treelist(m, v.name('topview'))], list('lorem')).root().outerHTML);
-
-
-    // Diff single updates
-    /*
-    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).render().outerHTML, '<p>lorem</p>'); // Subtemplate display
-    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p><!----></p>'); // Subtemplate delete
-    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'ipsum')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate undelete
-    asserte(render(['p', (v,m) => v.eq(m)], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum'))).render().outerHTML, '<p>ipsum</p>'); // Subtemplate swap
-    asserte(render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'lorem'))).render().outerHTML, '<p>lorem</p>'); // Subtemplate swap identical
-    asserte(render(['p', (v,m) => m.eq(list('ipsum', 'dolor')).conj(m.membero(v))], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Expand fail to branch
-    asserte(render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem','ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>'); // Exchange cached
-*/
-    /*
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem', 'ipsum'))), model).render().textContent, 'lorem');
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => fresh((x,y) => [v.eq(x), m.eq(cons(x,y))])), list(cons(model, list('lorem'))), model).prerender().rerender(list(cons(model, list('ipsum'))), model).render().textContent, 'ipsum');
-    asserte(render(view((v,m) => v.eq(m)).model(v => conde(v.eq('lorem'), v.eq('ipsum')))).render().textContent, 'loremipsum');
-    asserte(render(['p', view(['span', (v,m) => v.eq(m)]).model(v => conde(v.eq('lorem'), v.eq('ipsum')))]).render().outerHTML, '<p><span>lorem</span><span>ipsum</span></p>');
-    asserte(render(view((v,m) => fresh(x => v.eq(m))).model((v,m) => fresh((x,y) => [m.eq('ipsum'), v.eq('dolor')])),
-            list(cons(model, 'lorem')), model).prerender().rerender(list(cons(model, 'ipsum')), model).render().textContent, 'dolor');
-*/
-
-    // MODEL
-    /*
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq('ipsum')), list(cons(model,'lorem')), model).render().textContent, 'ipsum'); // Static text
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => v.eq(m)), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); // dynamic text
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('ipsum'), v.eq('ipsum')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).render().textContent, 'ipsum'); //Fail -> display
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => [m.eq('lorem'), v.eq('lorem')]), list(cons(model,'lorem')), model).prerender().rerender(list(cons(model,'ipsum')), model).rerender(list(cons(model,'lorem')), model).render().textContent, 'lorem'); //Show -> hide -> show
-    asserte(render(view((v,m) => v.eq(m)).model((v,m) => m.membero(v)), list(cons(model,list('lorem', 'ipsum'))), model).prerender().rerender(list(cons(model,list('ipsum', 'dolor')))).render().textContent, 'ipsumdolor');
-    asserte(render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model).render().outerHTML, '<p>loremipsum</p>');
-    asserte(render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model).prerender().rerender(list(cons(model, list('ipsum', 'dolor')))).render().outerHTML, '<p>ipsumdolor</p>');
-    */
-
-    // ORDER
-    //asserte(render((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)])).render().textContent, 'loremipsum'); // Render order
-
-    //asserte(render(['p', (v,m,o) => m.membero(v).conj(v.eq(o))], list(cons(model,list(1,2))), model).prerender().rerender(list(cons(model, list(2,1)))).render().outerHTML, '<p>12</p>'); // Exchange cached
-
-
-    // MODEL & ORDER
-    //asserte(render(view((v,m) => v.eq(m)).model((v,m,o) => conde([v.eq('ipsum'), o.eq(2)], [v.eq('lorem'), o.eq(1)]))).render().textContent, 'loremipsum'); // Render order
-
-/*
-    // CACHING - VIEW
-    { let v = render(['p', (v,m) => m.eq('lorem').conj(v.eq(m))], list(cons(model,'lorem')), model);
-      let n = v.render().firstChild; // Failing text nodes hold renders unless overwritten
-      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
-
-    { let v = render(['p', (v,m) => m.eq('lorem').conj(v.eq(['span', 'lorem']))], list(cons(model,'lorem')), model);
-      let n = v.render().firstChild; // Failing dom nodes hold renders
-      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
-
-    { let v = render(['p', (v,m) => m.membero(v)], list(cons(model,list('lorem', 'ipsum'))), model);
-      let n = v.render().childNodes[1]; // View reuses eq templates in different positions
-      asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
-
-    // CACHING - MODEL
-    { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.eq('lorem').conj(v.eq(m)))], list(cons(model,'lorem')), model);
-      let n = v.render().firstChild; // Failing text nodes hold renders unless overwritten
-      asserte(n, v.rerender(list(cons(model,'ipsum'))).rerender(list(cons(model,'lorem'))).render().firstChild); }
-
-    { let v = render(['p', view((v,m) => v.eq(m)).model((v,m) => m.membero(v))], list(cons(model,list('lorem', 'ipsum'))), model);
-      let n = v.render().childNodes[1]; // Model reuses eq models in different positions
-      asserte(n, v.rerender(list(cons(model,list('ipsum', 'dolor')))).render().firstChild); }
-*/
 }
 
 

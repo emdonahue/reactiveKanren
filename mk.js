@@ -30,6 +30,7 @@ class RK {
     constructor(template, data) {
         this.mvar = new SVar().name('model');
         this.substitution = this.mvar.set(data).reunify_substitution(nil);
+        if (template instanceof Function) template = template(this.mvar);
         this.child = View.render(template, this.substitution, this.mvar, this);
     }
     root() { return this.child.root(); }
