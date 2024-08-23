@@ -148,8 +148,6 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 // DOM
 
 {
-    let model = new LVar().name('basemodel');
-
     // Static renders
     asserte(new RK('lorem').root().textContent, 'lorem');
     asserte(new RK(['span']).root().outerHTML, '<span></span>');
@@ -159,13 +157,13 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(new RK([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
     asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
-    asserte(new RK([{name: (v,m) => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
-    asserte(new RK([{name: (v,m) => v.eq(m)}, 'lorem'], 'ipsum').root().name, 'ipsum');
+    asserte(new RK([{name: v => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
+    asserte(new RK(m => [{name: v => v.eq(m)}, 'lorem'], 'ipsum').root().name, 'ipsum');
     asserte(new RK(m => v => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');
-    asserte(new RK([{className: (v,m) => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
+    asserte(new RK([{className: v => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
     asserte(new RK(m => v => v.eq('lorem')).root().textContent, 'lorem');
     asserte(new RK(v => 'lorem').root().textContent, 'lorem');
-    asserte(new RK((v,m) => ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => v => ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
     asserte(new RK(m => m, ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
@@ -192,8 +190,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK(m => v => v.eq(['p', 'lorem'])).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(m => v => v.eq(['p', m]), 'lorem').root().outerHTML, '<p>lorem</p>');
     asserte(new RK(m => v => v.eq(['p', m]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
-    asserte(new RK(m => v => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').root().outerHTML, '<p>lorem</p>');
-    asserte(new RK(m => v => v.eq(['p', (v,m) => v.eq(m)]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
+    asserte(new RK(m => v => v.eq(['p', v => v.eq(m)]), 'lorem').root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => v => v.eq(['p', v => v.eq(m)]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
 
     asserte(new RK(m => v => m.membero(v), list('lorem', 'ipsum')).root().textContent, 'loremipsum');
     asserte(new RK(m => v => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
