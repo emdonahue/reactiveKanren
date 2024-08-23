@@ -231,20 +231,13 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(dolor, root.childNodes[2]); }
 
     // Events
-    /*
-    { let rk = new RK((v,m) => v.eq(m), 'lorem');
-      let root = createDiv(rk.root());
-      asserte(root.innerHTML, 'lorem');
-      rk.rerender(m => m.set('ipsum'));
-      asserte(root.innerHTML, '<!---->'); }*/
+    { let rk = new RK((v,m) => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
+      asserte(rk.root().outerHTML, '<p>lorem</p>');
+      
+    }
     
-/*
-    function treeview(model, view) {
-        return conde([model.isStringo(), view.eq(['li', model])],
-                     [model.isPairo(),
-                      view.eq(['li', ['ul',
-                                      subview => fresh(x => [model.membero(x), treeview(x,subview)])]])])
-    }*/
+
+
 
 
     // Paper Examples
