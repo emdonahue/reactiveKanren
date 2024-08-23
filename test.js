@@ -151,57 +151,57 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let model = new LVar().name('basemodel');
 
     // Static renders
-    asserte(RK.render('lorem').root().textContent, 'lorem');
-    asserte(RK.render(['span']).root().outerHTML, '<span></span>');
-    asserte(RK.render(['span', 'lorem']).root().outerHTML, '<span>lorem</span>');
-    asserte(RK.render(['p', ['span', 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
-    asserte(RK.render([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
-    asserte(RK.render([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
-    asserte(RK.render([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
-    asserte(RK.render([{name: (v,m) => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
-    asserte(RK.render([{className: (v,m) => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
-    asserte(RK.render(v => v.eq('lorem')).root().textContent, 'lorem');
-    asserte(RK.render(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
-    asserte(RK.render(['p', v => fresh(x => [x.eq('lorem'), v.eq(x)])]).root().outerHTML, '<p>lorem</p>');
-    asserte(RK.render(v => fresh(x => [x.eq('lorem'), v.eq(['p', x])])).root().outerHTML, '<p>lorem</p>');
-    //asserte(RK.render(['p', v => 'lorem']).root().outerHTML, '<p>lorem</p>');
-    //asserte(RK.render((v,m) => m, list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
-    //asserte(RK.render((v,m) => ['p', m], list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
-    asserte(RK.render(v => fail).root().nodeType, Node.COMMENT_NODE);
-    asserte(RK.render(v => conde(v.eq('lorem'), v.eq('ipsum'))).root().textContent, 'loremipsum');
-    asserte(RK.render(['div', v => v.eq(['span', v => v.eq('lorem')])]).root().outerHTML, '<div><span>lorem</span></div>');
-    asserte(RK.render((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
+    asserte(new RK('lorem').root().textContent, 'lorem');
+    asserte(new RK(['span']).root().outerHTML, '<span></span>');
+    asserte(new RK(['span', 'lorem']).root().outerHTML, '<span>lorem</span>');
+    asserte(new RK(['p', ['span', 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
+    asserte(new RK([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
+    asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
+    asserte(new RK([{name: (v,m) => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
+    asserte(new RK([{className: (v,m) => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
+    asserte(new RK(v => v.eq('lorem')).root().textContent, 'lorem');
+    asserte(new RK(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(['p', v => fresh(x => [x.eq('lorem'), v.eq(x)])]).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(v => fresh(x => [x.eq('lorem'), v.eq(['p', x])])).root().outerHTML, '<p>lorem</p>');
+    //asserte(new RK(['p', v => 'lorem']).root().outerHTML, '<p>lorem</p>');
+    //asserte(new RK((v,m) => m, list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
+    //asserte(new RK((v,m) => ['p', m], list(cons(model, 'lorem')), model).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(v => fail).root().nodeType, Node.COMMENT_NODE);
+    asserte(new RK(v => conde(v.eq('lorem'), v.eq('ipsum'))).root().textContent, 'loremipsum');
+    asserte(new RK(['div', v => v.eq(['span', v => v.eq('lorem')])]).root().outerHTML, '<div><span>lorem</span></div>');
+    asserte(new RK((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
     //asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
-    //asserte(RK.render((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
-    asserte(RK.render(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
+    //asserte(new RK((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
+    asserte(new RK(v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
 
     // Dynamic renders
-    asserte(RK.render((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
-    asserte(RK.render((v,m) => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');
-    asserte(RK.render((v,m) => v.eq(m), 'lorem').rerender(m => m.set('ipsum')).root().textContent, 'ipsum');
-    asserte(RK.render((v,m) => v.eq(m), 'lorem').rerender(m => m.set(['p', 'ipsum'])).root().outerHTML, '<p>ipsum</p>');
-    asserte(RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem').rerender(m => m.set('ipsum')).root().textContent, '');
+    asserte(new RK((v,m) => v.eq(m), 'lorem').root().textContent, 'lorem');
+    asserte(new RK((v,m) => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');
+    asserte(new RK((v,m) => v.eq(m), 'lorem').rerender(m => m.set('ipsum')).root().textContent, 'ipsum');
+    asserte(new RK((v,m) => v.eq(m), 'lorem').rerender(m => m.set(['p', 'ipsum'])).root().outerHTML, '<p>ipsum</p>');
+    asserte(new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem').rerender(m => m.set('ipsum')).root().textContent, '');
 
-    asserte(RK.render((v,m) => m.membero(v), list('lorem', 'ipsum')).root().textContent, 'loremipsum');
-    asserte(RK.render((v,m) => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
+    asserte(new RK((v,m) => m.membero(v), list('lorem', 'ipsum')).root().textContent, 'loremipsum');
+    asserte(new RK((v,m) => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
 
-    asserte(RK.render((v,m) => m.leafo(v), cons('lorem', 'ipsum')).root().textContent, 'loremipsum');
-    asserte(RK.render((v,m) => m.leafo(v), cons('lorem', 'dolor')).rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))])).root().textContent, 'loremipsumdolor');
+    asserte(new RK((v,m) => m.leafo(v), cons('lorem', 'ipsum')).root().textContent, 'loremipsum');
+    asserte(new RK((v,m) => m.leafo(v), cons('lorem', 'dolor')).rerender(m => fresh((a,b) => [m.eq(cons(a,b)), a.set(cons('lorem', 'ipsum'))])).root().textContent, 'loremipsumdolor');
 
     // Dynamic In Place Updates
-    { let rk = RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
+    { let rk = new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
       let root = createDiv(rk.root());
       asserte(root.innerHTML, 'lorem');
       rk.rerender(m => m.set('ipsum'));
       asserte(root.innerHTML, '<!---->'); }
 
-    { let rk = RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'ipsum');
+    { let rk = new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'ipsum');
       let root = createDiv(rk.root());
       asserte(root.innerHTML, '<!---->');
       rk.rerender(m => m.set('lorem'));
       asserte(root.innerHTML, 'lorem'); }
 
-    { let rk = RK.render((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
+    { let rk = new RK((v,m) => conj(m.eq('lorem'), v.eq(m)), 'lorem');
       let root = createDiv(rk.root());
       asserte(root.innerHTML, 'lorem');
       rk.rerender(m => m.set('ipsum'));
@@ -209,7 +209,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       rk.rerender(m => m.set('lorem'));
       asserte(root.innerHTML, 'lorem'); }
 
-    { let rk = RK.render((v,m) => m.leafo(v), cons('lorem', 'dolor'));
+    { let rk = new RK((v,m) => m.leafo(v), cons('lorem', 'dolor'));
       let root = createDiv(rk.root());
       asserte(root.innerHTML, 'loremdolor');
       let dolor = root.childNodes[1];
@@ -228,17 +228,26 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
 
     // Paper Examples
-    asserte(RK.render(['ul', (function treeview(view, model) {
+
+    //console.log(new RK((v,m) => m.membero(v), list('lorem', 'dolor')).toString())
+    //console.log(new RK((v,m) => m.leafo(v), cons('lorem', 'dolor')).toString())
+    
+    asserte(new RK(['ul', (function treeview(view, model) {
         return conde([model.isStringo(), view.eq(['li', model])],
                      [model.isPairo(),
                       view.eq(['li', ['ul',
                                       subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})],
-        list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
+                      list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
 
-    //console.log(RK.render(['ul', (v,m) => treelist(m, v)], 'lorem').root().outerHTML);
+    
 
 
-//    console.log(RK.render(['ul', (v,m) => treelist(m, v.name('topview'))], list('lorem')).root().outerHTML);
+
+    
+    //console.log(new RK(['ul', (v,m) => treelist(m, v)], 'lorem').root().outerHTML);
+
+
+//    console.log(new RK(['ul', (v,m) => treelist(m, v.name('topview'))], list('lorem')).root().outerHTML);
 
 
     // Diff single updates

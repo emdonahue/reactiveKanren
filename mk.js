@@ -27,16 +27,11 @@ function is_text(x) { return is_string(x) || is_number(x); }
 
 // APP INTERFACE
 class RK {
-    constructor(child, sub, mvar) {
-        this.child = child;
-        this.substitution = sub;
-        this.mvar = mvar;
+    constructor(template, data) {
+        this.mvar = new SVar().name('model');
+        this.substitution = this.mvar.set(data).reunify_substitution(nil);
+        this.child = View.render(template, this.substitution, this.mvar);
     }
-    static render(template, data) {
-        let mvar = new SVar().name('model');
-        let sub = mvar.set(data).reunify_substitution(nil);
-        log('sub', this.constructor.name, 'render', toString(sub), sub, mvar.set(data));
-        return new this(View.render(template, sub, mvar), sub, mvar); }
     root() { return this.child.root(); }
     rerender(f) {
         let g = f(this.mvar);
@@ -44,7 +39,8 @@ class RK {
         log('rerender', this.constructor.name, toString(this.substitution));
         this.child = this.child.rerender(this.substitution, this.mvar);
         return this;
-    }}
+    }
+    toString() { return `(RK ${this.child})` }}
 
 
 
@@ -696,7 +692,8 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
         this.child.items(a);
         return a; }
     firstNode() { return this.child.firstNode(); }
-    lastNode() { return this.child.lastNode(); }}
+    lastNode() { return this.child.lastNode(); }
+    toString() { return `(root ${this.child})`}}
 
 class IterableViewBranch {
     constructor(lhs, rhs, goal) {
@@ -727,7 +724,8 @@ class IterableViewBranch {
         return a; }
     firstNode() { return this.lhs.firstNode() ?? this.rhs.firstNode(); }
     lastNode() { return this.rhs.lastNode() ?? this.lhs.lastNode(); }
-    asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }}
+    asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
+    toString() { return `(conde ${this.goal} ${this.lhs} ${this.rhs})`; }}
 
 class IterableFailure { // Failures on the initial render that may expand to leaves or branches.
     constructor(goal) {
@@ -742,7 +740,8 @@ class IterableFailure { // Failures on the initial render that may expand to lea
         if (expanded instanceof this.constructor) return [expanded, nodecursor];
         nodecursor.after(expanded.root());
         return [expanded, expanded.lastNode()];
-    }}
+    }
+    toString() { return `(fail ${this.goal})`; }}
 
 class IterableFailedItem { // Rerender failures of atomic leaves that may cache nodes
     constructor(child) {
@@ -756,7 +755,8 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
         nodecursor.after(c.root()); // Normally items would not make changes to dom, so add in items that were previously removed.
         return [c, nextcursor]; 
     }
-    root (fragment=document.createDocumentFragment()) { return fragment; }}
+    root (fragment=document.createDocumentFragment()) { return fragment; }
+    toString() { return `(fail ${this.child})`; }}
 
 class IterableViewItem { // Displayable iterable item
     constructor(goal, template=null, child=null, order=null) {
@@ -790,7 +790,8 @@ class IterableViewItem { // Displayable iterable item
     items(a=[]) {
         a.push(this);
         return a; }
-    toArray(a) { a.push(this); return a; }}
+    toArray(a) { a.push(this); return a; }
+    toString() { return this.goal.toString(); }}
 
 
 class ViewDOMNode extends View { 
