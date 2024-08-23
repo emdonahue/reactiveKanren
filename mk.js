@@ -23,7 +23,7 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 
 // TYPES
 
-function is_text(x) { return is_string(x) || is_number(x); }
+function is_text(x) { return is_string(x) || is_number(x) || is_boolean(x); }
 
 // APP INTERFACE
 class RK {
@@ -341,7 +341,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(reify)) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => IterableViewItem.render(g, s, v, null))) { //TODO remove default viewleaf
+    expand_run(s=nil, v=((g,s) => AnswerView.render(g, s, v, null))) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -413,7 +413,7 @@ class Disj extends Goal {
     }
     expand(s, ctn, cjs, v) {
         log('expand', 'disj', this+'', ctn, cjs);
-        return new IterableViewBranch(this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v), cjs);
+        return new CondeView(this.lhs.expand(s, ctn, succeed, v), this.rhs.expand(s, ctn, succeed, v), cjs);
     }
     toString() { return `(${this.lhs} | ${this.rhs})`; }
 }
@@ -648,13 +648,13 @@ const failure = new Failure;
 
 class View {
     static render(template, sub, mvar) {
-        if (is_text(template)) return ViewTextNode.render(template, sub, mvar);
-        else if (Array.isArray(template)) return ViewDOMNode.render(template, sub, mvar);
-        else if (template instanceof Function) return IterableViewRoot.render(template, sub, mvar);
+        if (is_text(template)) return TextView.render(template, sub, mvar);
+        else if (Array.isArray(template)) return NodeView.render(template, sub, mvar);
+        else if (template instanceof Function) return FunctionView.render(template, sub, mvar);
         else throw Error('Unrecognized template: ' + template); }}
 
 
-class IterableViewRoot extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
+class FunctionView extends View { //Replaces a child template and generates one sibling node per answer, with templates bound to the view var.
     constructor(vvar, ovar, child, comment=document.createComment('')) {
         super();
         if (!(comment instanceof Node)) throw Error('comment not node')
@@ -666,7 +666,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     static render(f, sub, model) { //TODO can view vars all be the same physical var?
         let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, model, o));
         log('render', this.name, g, toString(sub));
-        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => IterableViewItem.render(g, s, v, model,o)))); }
+        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, model,o)))); }
     root() {
         let r = this.child.root();
         if (r instanceof DocumentFragment && !r.childNodes.length) return this.comment;
@@ -695,7 +695,7 @@ class IterableViewRoot extends View { //Replaces a child template and generates 
     lastNode() { return this.child.lastNode(); }
     toString() { return `(root ${this.child})`}}
 
-class IterableViewBranch {
+class CondeView {
     constructor(lhs, rhs, goal) {
         this.goal = goal;
         this.lhs = lhs;
@@ -727,7 +727,7 @@ class IterableViewBranch {
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
     toString() { return `(conde ${this.goal} ${this.lhs} ${this.rhs})`; }}
 
-class IterableFailure { // Failures on the initial render that may expand to leaves or branches.
+class FailureView { // Failures on the initial render that may expand to leaves or branches.
     constructor(goal) {
         this.goal = goal; }
     items(a=[]) { return a; }
@@ -736,14 +736,14 @@ class IterableFailure { // Failures on the initial render that may expand to lea
     root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, mvar, vvar, nodecursor) {
         let ovar; //TODO thread ovar
-        let expanded = this.goal.expand_run(sub, (g, s) => IterableViewItem.render(g, s, vvar, mvar, ovar));
+        let expanded = this.goal.expand_run(sub, (g, s) => AnswerView.render(g, s, vvar, mvar, ovar));
         if (expanded instanceof this.constructor) return [expanded, nodecursor];
         nodecursor.after(expanded.root());
         return [expanded, expanded.lastNode()];
     }
     toString() { return `(fail ${this.goal})`; }}
 
-class IterableFailedItem { // Rerender failures of atomic leaves that may cache nodes
+class FailedAnswerView { // Rerender failures of atomic leaves that may cache nodes
     constructor(child) {
         this.child = child; }
     items(a=[]) { return a; }
@@ -758,7 +758,7 @@ class IterableFailedItem { // Rerender failures of atomic leaves that may cache 
     root (fragment=document.createDocumentFragment()) { return fragment; }
     toString() { return `(fail ${this.child})`; }}
 
-class IterableViewItem { // Displayable iterable item
+class AnswerView { // Displayable iterable item
     constructor(goal, template=null, child=null, order=null) {
         this.goal = goal;
         if (template instanceof LVar) throw Error('unbound template: ' + template + ' ' + goal);
@@ -767,12 +767,12 @@ class IterableViewItem { // Displayable iterable item
         this.order = order; }
     static render(goal, sub, vvar, mvar, ovar) {
         log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
-        if (!sub) return new IterableFailure(goal);
+        if (!sub) return new FailureView(goal);
         let template = sub.walk(vvar);
         return new this(goal, template, View.render(template, sub, mvar), ovar); }
     rerender(sub, mvar, vvar, nodecursor) {
         sub = this.goal.apply(sub);
-        if (sub.isFailure()) return [new IterableFailedItem(this.remove()), nodecursor];
+        if (sub.isFailure()) return [new FailedAnswerView(this.remove()), nodecursor];
         log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
         this.child = this.child.rerender(sub, mvar, sub.walk(vvar));
         return [this, this.lastNode()];
@@ -794,34 +794,39 @@ class IterableViewItem { // Displayable iterable item
     toString() { return this.goal.toString(); }}
 
 
-class ViewDOMNode extends View { 
-    constructor(properties, children=[], node=null) { //TODO a domnode can prune all non dynamic children at the start since they will never update. may not be necessary if we only need 1 level of matching (and nested levels handled with pure updating), but if it is make sure to check for recursive loops like building <ul>
+class NodeView extends View { 
+    constructor(template, children, node) {
         super();
-        this.properties = properties;
+        this.template = template;
         this.node = node;
         this.children = children; }
 
-    static render([tparent, ...tchildren], sub, mvar) {
-        log('render', this.name, tparent, [...tchildren], sub, mvar);
-        let parent = this.render_parent(tparent, sub, mvar);
-        this.render_children(parent, [...tchildren], sub, mvar);
-        return new this(tparent, [], parent);
+    static render(template, sub, mvar) {
+        log('render', this.name, template, sub, mvar);
+        let children = [];
+        let node = this.render_node(template, sub, mvar, children);
+        return new this(template, children, node);
     }
-    static render_parent(tparent, sub, mvar) {
+    static render_node([tparent, ...tchildren], sub, mvar, children) {
+        let parent = this.render_parent(tparent, sub, mvar, children);
+        this.render_children(parent, [...tchildren], sub, mvar, children);
+        return parent;
+    }
+    static render_parent(tparent, sub, mvar, supervisees) {
         if (is_string(tparent)) return this.render_parent({tagName: tparent});
-        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub);
+        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, mvar, supervisees); // TODO probably needs to be an lvar view
         let parent = document.createElement(tparent.tagName ?? 'div');
         for (let k in tparent) {
             if (k === 'tagName') continue;
             if (is_text(tparent[k])) parent[k] = tparent[k];
-            else if (tparent[k] instanceof Function) ViewAttr.render(sub, mvar, parent, k, tparent[k]);
+            else if (tparent[k] instanceof Function) supervisees.push(ViewAttr.render(sub, mvar, parent, k, tparent[k]));
         }
         return parent;
     }
-    static render_children(parent, children, sub, mvar) {
+    static render_children(parent, children, sub, mvar, supervisees) {
         log('render', this.name, 'children', parent, children);
         for (let child of children) {
-            this.render_child(parent, child, sub, mvar);
+            this.render_child(parent, child, sub, mvar, children);
         }
     }
     static render_child(parent, child, sub, mvar) {
@@ -832,7 +837,7 @@ class ViewDOMNode extends View {
             parent.append(subparent);
         }
         else if (child instanceof Function) {
-            let c = IterableViewRoot.render(child, sub, mvar);
+            let c = FunctionView.render(child, sub, mvar);
             parent.append(c.root());
         }
         else if (child instanceof LVar) this.render_child(parent, sub.walk(child), sub, mvar); //TODO needs a view to monitor changes in var
@@ -843,7 +848,7 @@ class ViewDOMNode extends View {
     firstNode() { return this.node; }
     lastNode() { return this.node; }}
 
-class ViewTextNode extends View {
+class TextView extends View {
     constructor(text, node) {
         super();
         this.text = text;

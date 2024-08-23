@@ -1,4 +1,4 @@
-import {RK, nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, render as render, view} from '../../../mk.js'
+import {RK, nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, view} from '../../../mk.js'
 
 import {logging} from '../../../util.js';
 
@@ -41,7 +41,7 @@ import {logging} from '../../../util.js';
     
     let app = new RK(template, data);
     logging('render') || logging('parse') || logging('rerender') || logging('expand')
-    document.getElementById('root').replaceWith(app.render());
+    document.getElementById('root').replaceWith(app.root());
 
 
 /*
