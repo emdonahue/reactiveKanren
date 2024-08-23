@@ -820,9 +820,7 @@ class NodeView extends View {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
             if (is_text(tparent[k])) parent[k] = tparent[k];
-            else if (tparent[k] instanceof LVar) children.push(LVarView.render(sub, mvar, tparent[k]));
-            else if (tparent[k] instanceof Function) children.push(AttrView.render(sub, mvar, parent, k, tparent[k]));
-            else throw Error(tparent[k]);
+            else children.push(AttrView.render(sub, mvar, parent, k, tparent[k]));
         }
         return parent;
     }
@@ -882,7 +880,15 @@ class AttrView extends View {
     }
     static render(sub, mvar, node, attr, val) {
         log('render', this.name, toString(sub));
-        assert(val instanceof Function, mvar);
+        if (val instanceof LVar) return this.render_lvar(sub, mvar, node, attr, val);
+        else if (val instanceof Function) this.render_f(sub, mvar, node, attr, val);
+        else throw Error(val);
+    }
+    static render_lvar(sub, mvar, node, attr, val) {
+        node[attr] = sub.walk(val);
+        return new this(node, attr, succeed, val);
+    }
+    static render_f(sub, mvar, node, attr, val) {
         let v = new LVar(), g = val(v, mvar);
         let vals = g.run(-1, {reify: v, substitution: sub});
         if (!vals.isNil()) node[attr] = vals.join(' ');

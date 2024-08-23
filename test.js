@@ -161,7 +161,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
     asserte(new RK([{name: (v,m) => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
     asserte(new RK([{name: (v,m) => v.eq(m)}, 'lorem'], 'ipsum').root().name, 'ipsum');
-    asserte(new RK([(v,m) => v.eq({name: m}), 'lorem'], 'ipsum').root().name, 'ipsum');
+    asserte(new RK((v,m) => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');
     asserte(new RK([{className: (v,m) => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
     asserte(new RK(v => v.eq('lorem')).root().textContent, 'lorem');
     asserte(new RK(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
