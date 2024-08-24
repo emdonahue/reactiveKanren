@@ -257,7 +257,7 @@ class Pair extends List {
 
 
     _toString() {
-                window.lst = this
+        window.lst = this; //TODO remove tostring debugging reference
         return `${toString(this.car)}${this.cdr instanceof Pair ? ' ' : ''}${this.cdr instanceof List ? this.cdr._toString() : ' . ' + toString(this.cdr)}`;
     }
 }
@@ -677,7 +677,7 @@ class GoalView { //Replaces a child template and generates one sibling node per 
     
     static render_f(sub, app, f) {
         assert(app instanceof RK)
-        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, o));
+        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, o)); // Since o takes up second slot, there's no good api for binding f to 'this' for recursive anonymous functions
         log('render', this.name, 'f', g, toString(sub));
         return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, app)))); }
     
@@ -784,11 +784,13 @@ class AnswerView { // Displayable iterable item
         log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
         if (!sub) return new FailureView(goal);
         let template = sub.walk(vvar);
+        assert(!(template instanceof List), !(template instanceof LVar));
         return new this(goal, template, View.render(sub, app, template), ovar); }
     rerender(sub, app, vvar, nodecursor) {
         sub = this.goal.apply(sub);
         if (sub.isFailure()) return [new FailedAnswerView(this.remove()), nodecursor];
         log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
+        assert(!(sub.walk(vvar) instanceof List), !(sub.walk(vvar) instanceof LVar));
         this.child = this.child.rerender(sub, app, sub.walk(vvar));
         return [this, this.lastNode()];
     }
@@ -924,6 +926,7 @@ class EventView {
         
     }
     static render(sub, node, event, handler, app) {
+        //TODO should run in its own sub and apply changes to main sub
         node.addEventListener(event, e => app.rerender(handler));
         return new this();
     }

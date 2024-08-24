@@ -180,7 +180,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     //asserte(render(view((v,m) => v.eq(m)).model(v => v.eq(model)), list(cons(model,'lorem'))).render().textContent, 'lorem');
     //asserte(new RK((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
     asserte(new RK(m => v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
-
+    //asserte(new RK(m => (v,x=m) => fresh((a,d) => [x.eq(cons(a,d)), conde(v.eq(a))]), list('lorem')).root().textContent, 'lorem');
+    //logging('render')
+    
     // Dynamic renders
     asserte(new RK(m => v => v.eq(m), 'lorem').root().textContent, 'lorem');
     asserte(new RK(m => v => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');
