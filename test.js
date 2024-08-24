@@ -244,12 +244,13 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     //console.log(new RK(m => v => m.membero(v), list('lorem', 'dolor')).toString())
     //console.log(new RK(m => v => m.leafo(v), cons('lorem', 'dolor')).toString())
 
-    asserte(new RK(['ul', (function treeview(view, model) {
-        return conde([model.isStringo(), view.eq(['li', model])],
-                     [model.isPairo(),
-                      view.eq(['li', ['ul',
-                                      subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})],
-                      list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
+    asserte(new RK(m =>
+        ['ul', v => (function treeview(view, model) {
+            return conde([model.isStringo(), view.eq(['li', model])],
+                         [model.isPairo(),
+                          view.eq(['li', ['ul',
+                                          subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})(v, m)],
+        list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
 
 
 
