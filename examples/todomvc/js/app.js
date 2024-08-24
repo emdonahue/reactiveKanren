@@ -22,10 +22,12 @@ import {logging} from '../../../util.js';
                 [{tagName: 'footer', className: 'footer'},
                  [{tagName: 'span', className: 'todo-count'}, ['strong', 0], ' item left'],
                  [{tagName: 'ul', className: 'filters'},
-                  ['li', [{tagName: 'a', className: 'selected', href: '#/'}, 'All']],
+                  ['li', [{tagName: 'a', className: 'selected', href: '#/',
+                           onclick: m.set({active: true, completed: true})}, 'All']],
                   ['li', [{tagName: 'a', href: '#/active',
                            onclick: m.set({active: true, completed: false})}, 'Active']],
-                  ['li', [{tagName: 'a', href: '#/completed'}, 'Completed']]],
+                  ['li', [{tagName: 'a', href: '#/completed',
+                           onclick: m.set({active: false, completed: true})}, 'Completed']]],
                  [{tagName: 'button', className: 'clear-completed'}, 'Clear completed']]]; }
 
     function items_template(m) {

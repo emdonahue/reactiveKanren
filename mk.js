@@ -9,6 +9,7 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //TODO rewrite entire mk engine to be non recursive to handle large cases
 //TODO for an iterable, create an entire subtree with all sub-iterables generating only 1 copy, then clone that node and reuse it across all subsequent iterations
 //TODO give lvar an .orderby method that constructs a view ordered by whatever that binds to. then even if its bound multiply we just produce sibling dynamic sets ordered by different fns
+//TODO dont have to pass mvar anymore with lexical scope
 
 //diffing
 //if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
@@ -30,15 +31,15 @@ class RK {
     constructor(template, data) {
         this.mvar = new SVar().name('model');
         this.substitution = this.mvar.set(data).reunify_substitution(nil);
-        if (template instanceof Function) template = template(this.mvar);
-        this.child = View.render(template, this.substitution, this.mvar, this);
+        this.template = (template instanceof Function) ? template(this.mvar) : template;
+        this.child = View.render(this.template, this.substitution, this.mvar, this);
     }
     root() { return this.child.root(); }
     rerender(g) {
         if (g instanceof Function) return this.rerender(g(this.mvar));
         this.substitution = g.reunify_substitution(this.substitution);
         log('rerender', this.constructor.name, toString(this.substitution));
-        this.child = this.child.rerender(this.substitution, this.mvar);
+        this.child = this.child.rerender(this.substitution, this.mvar, this.template);
         return this;
     }
     toString() { return `(RK ${this.child})` }}
@@ -909,6 +910,9 @@ class AttrView {
         if (!vals.isNil()) node[attr] = vals.join(' ');
         return new this(node, attr, g, v);
     }
+    rerender(sub, mvar) {
+        return this;
+    }
 }
 
 class EventView {
@@ -919,7 +923,7 @@ class EventView {
         node.addEventListener(event, e => app.rerender(handler));
         return new this();
     }
-    rerender() {}
+    rerender() { return this; }
 }
 
 
