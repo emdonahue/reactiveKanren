@@ -310,6 +310,7 @@ class LVar {
     leafo(x) { return conde([this.isNotPairo(), this.eq(x)],
                             [fresh((a,b) => [this.eq(cons(a,b)), conde(a.leafo(x), b.leafo(x))])]); }
     imembero(x,o,n=0) { return fresh((a,b) => [this.eq(cons(a,b)), conde([a.eq(x), o.eq(n)], b.imembero(x,o,n+1))]); } //TODO make imembero accept ground order terms
+    tailo(x) { return conde([this.eq(nil), x.eq(this)], fresh((a,d) => [this.eq(cons(a,d)), d.tailo(x)])) };
 }
 
 class SVar extends LVar {
@@ -343,7 +344,7 @@ class Goal {
         return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(reify)) : s);
 
     }
-    expand_run(s=nil, v=((g,s) => AnswerView.render(g, s, v, null))) { //TODO remove default viewleaf
+    expand_run(s=nil, v=[]) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
     }
     reunify_substitution(sub) {
@@ -366,9 +367,9 @@ class Succeed extends Goal {
     eval(s) { return s; }
     suspend(s, ctn=succeed) { return ctn.cont(s); }
     cont(s) { return s; }
-    expand_ctn(s, cjs, v) {
+    expand_ctn(s, cjs, [...args]) {
         log('expand', 'return', this+'', cjs, s.substitution+'');
-        return v(cjs,s.substitution);
+        return AnswerView.render(cjs, s.substitution, ...args);
     }
     conj(g) { return g; }
     expand(s, ctn, cjs, v) { return s.expand_ctn(ctn, cjs, v); }
@@ -381,7 +382,7 @@ class Fail extends Goal {
     conj(g) { return fail; }
     expand(s, ctn, cjs, v) {
         log('expand', 'fail', cjs.conj(ctn));
-        return v(cjs.conj(ctn)); }
+        return new FailureView(cjs.conj(ctn)); }
     toString() { return 'fail'; }
 }
 
@@ -501,7 +502,7 @@ function reunify(x, y) {
 function to_goal(g) {
     if (Array.isArray(g)) return g.reduceRight((cs, c) => to_goal(c).conj(to_goal(cs)));
     else if (true === g) return succeed;
-    else if (false === g) return fail;
+    else if (!g) return fail;
     else return g;
 }
 
@@ -538,7 +539,7 @@ class Failure extends Stream {
     isIncomplete() { return false; }
     step() { return this; }
     isFailure() { return true; }
-    expand_ctn(ctn, cjs, rtrn) { return rtrn(cjs.conj(ctn)); }
+    expand_ctn(ctn, cjs, rtrn) { return new FailureView(cjs.conj(ctn)); }
 }
 
 class State extends Stream {
@@ -679,7 +680,7 @@ class GoalView { //Replaces a child template and generates one sibling node per 
         assert(app instanceof RK)
         let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, o)); // Since o takes up second slot, there's no good api for binding f to 'this' for recursive anonymous functions
         log('render', this.name, 'f', g, toString(sub));
-        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, app)))); }
+        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, [v, app]))); }
     
     root() {
         let r = this.child.root();
@@ -749,8 +750,7 @@ class FailureView { // Failures on the initial render that may expand to leaves 
     lastNode() { return null; }
     root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, app, vvar, nodecursor) {
-        let ovar; //TODO thread ovar
-        let expanded = this.goal.expand_run(sub, (g, s) => AnswerView.render(g, s, vvar, app, ovar));
+        let expanded = this.goal.expand_run(sub, [vvar, app]);
         if (expanded instanceof this.constructor) return [expanded, nodecursor];
         nodecursor.after(expanded.root());
         return [expanded, expanded.lastNode()];
@@ -927,7 +927,7 @@ class EventView {
     }
     static render(sub, node, event, handler, app) {
         //TODO should run in its own sub and apply changes to main sub
-        node.addEventListener(event, e => app.rerender(handler));
+        node.addEventListener(event, e => app.rerender(handler instanceof Goal ? handler : to_goal(handler(e))));
         return new this();
     }
     rerender() { return this; }
