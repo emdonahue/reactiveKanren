@@ -673,8 +673,7 @@ class GoalView { //Replaces a child template and generates one sibling node per 
         return new this(template, null, AnswerView.render(succeed, sub, template, mvar, app)); }
     
     static render_f(f, sub, mvar, app) {
-        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = f(v, mvar, o);
-        if (!(g instanceof Goal)) return this.render_lvar(g, sub, mvar, app);
+        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, mvar, o));
         log('render', this.name, 'f', g, toString(sub));
         return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, (g, s) => AnswerView.render(g, s, v, mvar,app)))); }
     
@@ -830,7 +829,7 @@ class NodeView {
         for (let k in tparent) {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
-            else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, mvar, parent, k.substr(2), tparent[k], app));
+            else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, mvar, parent, k.substr(2), to_goal(tparent[k]), app));
             else if (is_text(tparent[k])) parent[k] = tparent[k];
             else children.push(AttrView.render(sub, mvar, parent, k, tparent[k]));
         }
@@ -923,22 +922,6 @@ class EventView {
     rerender() {}
 }
 
-class Template {
-    constructor(template) {
-        this.template = template; }
-    model(m) { return new ModelTemplate(m, this.template); }
-}
-
-class ModelTemplate extends Template {
-    constructor(model, ...args) {
-        super(...args);
-        this.modelf = model; }
-    render(sub, mdl) {
-        let v = new LVar().name('modelview'), o = new LVar().name('order'), g = to_goal(this.modelf(v, mdl, o));
-        log('parse', this.constructor.name, this.template, g, toString(sub))
-        let c = g.expand_run(sub, (g, s) => IterableModelItem.render(g, s, this.template, v, o));
-        return new IterableModelRoot(v, this.template, o, c); }
-}
 
 function view(template) { return new Template(template); }
 

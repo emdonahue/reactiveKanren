@@ -23,13 +23,14 @@ import {logging} from '../../../util.js';
                  [{tagName: 'span', className: 'todo-count'}, ['strong', 0], ' item left'],
                  [{tagName: 'ul', className: 'filters'},
                   ['li', [{tagName: 'a', className: 'selected', href: '#/'}, 'All']],
-                  ['li', [{tagName: 'a', href: '#/active'}, 'Active']],
+                  ['li', [{tagName: 'a', href: '#/active',
+                           onclick: m.set({active: true, completed: false})}, 'Active']],
                   ['li', [{tagName: 'a', href: '#/completed'}, 'Completed']]],
                  [{tagName: 'button', className: 'clear-completed'}, 'Clear completed']]]; }
 
     function items_template(m) {
         return [{tagName: 'ul', className: 'todo-list'},
-                (v,m,o) =>
+                v =>
                 fresh((todos, title, done, strikethru, active, completed) =>
                     [m.eq({todos: todos, active: active, completed: completed}),
                      todos.membero({title: title, done: done}),

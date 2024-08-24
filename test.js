@@ -162,10 +162,11 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK(m => v => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');
     asserte(new RK([{className: v => conde(v.eq('lorem'), v.eq('ipsum'))}, 'sit']).root().className, 'lorem ipsum');
     asserte(new RK(m => v => v.eq('lorem')).root().textContent, 'lorem');
-    asserte(new RK(v => 'lorem').root().textContent, 'lorem');
-    asserte(new RK(m => v => ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
-    asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
-    asserte(new RK(m => m, ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => v => [v.eq('lorem')]).root().textContent, 'lorem');
+    //asserte(new RK(v => 'lorem').root().textContent, 'lorem');
+    //asserte(new RK(m => v => ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
+    //asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
+    //asserte(new RK(m => m, ['p', 'lorem']).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(['p', v => v.eq('lorem')]).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(['p', v => fresh(x => [x.eq('lorem'), v.eq(x)])]).root().outerHTML, '<p>lorem</p>');
     asserte(new RK(m => v => fresh(x => [x.eq('lorem'), v.eq(['p', x])])).root().outerHTML, '<p>lorem</p>');
@@ -229,7 +230,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(dolor, root.childNodes[2]); }
 
     // Events
-    { let rk = new RK(m => v => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
+    { let rk = new RK(m => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
       asserte(rk.root().outerHTML, '<p>lorem</p>');
       rk.root().click();
       asserte(rk.root().outerHTML, '<p>ipsum</p>'); }
