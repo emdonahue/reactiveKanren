@@ -221,10 +221,18 @@ class List {
         return equiv;
     }
     repatch(patch) {
-        return patch.fold((s, p) => s.rebind(p.car, p.cdr, patch), this);
+        return patch.repatch2(this);
+        //return patch.fold((s, p) => s.rebind(p.car, p.cdr, patch), this);
+    }
+    repatch2(sub) {
+        if (this.isNil()) return sub; // Out of patches
+        let {car: x, cdr: y} = this.car;
+        if (primitive(y)) return this.cdr.repatch2(sub.extend(x,y));
+        throw Error('nyi')
     }
     rebind(x, y, patch) {
-        log('reunify', 'rebind', x, y);
+        throw Error()
+        log('reunify', 'rebind', x, y, patch);
         if (y instanceof LVar) return this;
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
         let x_val = this.walk(x);
@@ -237,7 +245,7 @@ class List {
         for (let k in y) {
             if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) {
                 
-                self = self.rebind(normalized[k], y[k], patch);
+                self = self.rebind(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch);
             }
             else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
         }
