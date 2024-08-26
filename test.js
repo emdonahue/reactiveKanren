@@ -78,15 +78,24 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(a.set(1).rediff(list(cons(a, x))), list(cons(x, 1)));
     asserte(a.set(b).rediff(list(cons(a, x), cons(b, 1))), list(cons(x, 1)));
     asserte(a.set(y).rediff(list(cons(a, x), cons(y, 1))), list(cons(x, 1)));
-    asserte(a.set(y).conj(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(y, 2), cons(x, y)));
-    asserte(a.set(y).conde(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(x, y), cons(y, 2)));
+    asserte(a.set(y).conj(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(y, 2), cons(x, 1)));
+    asserte(a.set(y).conde(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(x, 1), cons(y, 2)));
 
     asserte(list(cons(x, 1)).repatch(list(cons(x, 2))), list(cons(x, 2)));
     asserte(list(cons(x, 1)).repatch(list(cons(x, y))), list(cons(x, 1)));
     asserte(list(cons(x, {a: y}), cons(y, 1)).repatch(list(cons(x, {a: 2}))), list(cons(x, {a: y}), cons(y, 2)));
     { let s = list(cons(x, 1)).repatch(list(cons(x, {a: 2}))), v = s.car.cdr.a;
       asserte(s, list(cons(x, {a: v}), cons(v, 2))); }
+    /*
+    { let s = list(cons(x, 1)).repatch(list(cons(x, {a: 2}))), v = s.car.cdr.a;
+      asserte(s, list(cons(x, {a: v}), cons(v, 2))); }
+    asserte(list(cons(x, cons(1, y)),
+                 cons(y, cons(2, z)),
+                 cons(z, nil)).repatch(list(cons(x, y), cons(y, nil))), list(cons(x, cons(2, z)), cons(z, nil)));
+*/
 
+    // x = y = (2)
+    // y = z = ()
     
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
     asserte(reunify(x, 1).reunify_substitution(nil.acons(x,0)).reify(x), 1); // prim -> prim

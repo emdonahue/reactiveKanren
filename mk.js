@@ -75,7 +75,7 @@ class List {
             if (self.car instanceof Pair && self.car.car === key) return self.car;
             self = self.cdr;
         }
-        return false;
+        return undefined;
     }
     sort(f) { return list(...this.toArray().sort(f)); }
     static repeat(n, f) {
@@ -128,7 +128,7 @@ class List {
     }
     rereify(_lvar, mvars) {
         let {car: lvar, cdr: val} = this.walk_binding(_lvar);
-        if (mvars.has(lvar)) return lvar;
+        //if (mvars.has(lvar)) return lvar; //this.rereify(mvars.get(lvar), mvars);
         if (val instanceof LVar || primitive(val)) return val;
         if (Array.isArray(v)) return v.map(e => this.reify(e));
         return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.reify(v)]))));
@@ -221,9 +221,9 @@ class List {
         return equiv;
     }
     repatch(patch) {
-        return patch.fold((s, p) => s.rebind(p.car, p.cdr), this);
+        return patch.fold((s, p) => s.rebind(p.car, p.cdr, patch), this);
     }
-    rebind(x, y) {
+    rebind(x, y, patch) {
         log('reunify', 'rebind', x, y);
         if (y instanceof LVar) return this;
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
@@ -235,8 +235,11 @@ class List {
             
         }
         for (let k in y) {
-            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) self = self.rebind(normalized[k], y[k]);
-            else self = self.rebind(normalized[k] = new SVar(), y[k]);
+            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) {
+                
+                self = self.rebind(normalized[k], y[k], patch);
+            }
+            else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
         }
         return self.extend(x, normalized);
     }
@@ -394,7 +397,7 @@ class Goal {
     rediff(sub) {
         // get [mvar, value, sub] pairs, then reify each value in sub skipping mvars
         let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
-        let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.add(u.car), mvars), new Set());
+        let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
         let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars)))).fold((p, u) => p.append(u), nil);
         return reified;
         
