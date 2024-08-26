@@ -63,7 +63,7 @@ class List {
     acons(k, v) {
         return this.cons(new Pair(k, v));
     }
-    extend(k, v) {
+    extend(k, v) { //TODO make a separate filter(remove) based extend for reactive
         return this.filter(x => x.car != k).acons(k, v);
     }
     member(e) {
@@ -219,6 +219,15 @@ class List {
         let equiv = this.filter(b => b.cdr === v).map(b => this.equiv_svars(b.car)).fold((x,y) => x.append(y), nil)
         if (v instanceof SVar) return equiv.cons(v);
         return equiv;
+    }
+    repatch(patch) {
+        return patch.fold((s, p) => s.rebind(p.car, p.cdr), this);
+    }
+    rebind(x, y) {
+        if (y instanceof LVar) return this;
+        if (primitive(y)) return this.extend(x, y);
+        let {x_var, x_val} = this.walk_binding(x);
+        
     }
 }
 
