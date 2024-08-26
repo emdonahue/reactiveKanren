@@ -116,14 +116,22 @@ class List {
         if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr) : v; }
         else return new Pair(lvar, lvar);
     }
+    walk_var(lvar) { return this.walk_binding(lvar).car; }
     reify(lvar) {
-        if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr)));
+        if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr))); //TODO make this its own debug thing?
         let v = this.walk(lvar);
         if (v instanceof LVar || primitive(v)) return v;
         if (v instanceof QuotedVar) return this.reify(v.lvar);
         if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
         if (Array.isArray(v)) return v.map(e => this.reify(e));
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
+    }
+    rereify(_lvar, mvars) {
+        let {car: lvar, cdr: val} = this.walk_binding(_lvar);
+        if (mvars.has(lvar)) return lvar;
+        if (val instanceof LVar || primitive(val)) return val;
+        if (Array.isArray(v)) return v.map(e => this.reify(e));
+        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.reify(v)]))));
     }
     walk_path(lvar, prop, ...path) {
         let v = this.walk(lvar);
@@ -360,6 +368,14 @@ class Goal {
     suspend(s) { return new Suspended(s, this) }
     apply(sub) { return sub.isFailure() ? failure : this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
     is_disj() { return false; }
+    patch(sub) {
+        // get [mvar, value, sub] pairs, then reify each value in sub skipping mvars
+        let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
+        let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.add(u.car), mvars), new Set());
+        let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars)))).fold((p, u) => p.append(u), nil);
+        return reified;
+        
+    }
     toString() { return JSON.stringify(this); }
 }
 
@@ -571,6 +587,13 @@ class State extends Stream {
         if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
         if (Array.isArray(v)) return v.map(e => this.reify(e));
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
+    }
+    reactive_updates() {
+        return this.updates.map(u => cons(this.substitution.walk_var(u.car), u.cdr));
+    }
+    patch(mvars) {
+        //let diff = this.updates.map(u => this.substitution.);
+        //return mvars;
     }
     update(x, y) {
         return new State(this.substitution, this.updates.acons(x, y)); }

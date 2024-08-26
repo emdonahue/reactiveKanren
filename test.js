@@ -74,7 +74,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let z = new SVar().name('z');
     let n = new SVar().name('n');
 
+    console.log(x.set(1).patch(nil))
 
+    
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
     asserte(reunify(x, 1).reunify_substitution(nil.acons(x,0)).reify(x), 1); // prim -> prim
     asserte(reunify(x, 1).reunify_substitution(nil).reify(x), 1); // free -> prim
