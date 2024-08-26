@@ -224,10 +224,20 @@ class List {
         return patch.fold((s, p) => s.rebind(p.car, p.cdr), this);
     }
     rebind(x, y) {
+        log('reunify', 'rebind', x, y);
         if (y instanceof LVar) return this;
-        if (primitive(y)) return this.extend(x, y);
-        let {x_var, x_val} = this.walk_binding(x);
-        
+        if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
+        let x_val = this.walk(x);
+        let self = this;
+        let normalized = Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
+        if (!(primitive(x_val))) {
+            Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
+            
+        }
+        for (let k in y) {
+            if (Object.hasOwn(x_val, k)) self = self.rebind(x_val[k], y[k]);
+        }
+        return self.extend(x, normalized);
     }
 }
 

@@ -82,6 +82,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(a.set(y).conde(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(x, y), cons(y, 2)));
 
     asserte(list(cons(x, 1)).repatch(list(cons(x, 2))), list(cons(x, 2)));
+    asserte(list(cons(x, 1)).repatch(list(cons(x, y))), list(cons(x, 1)));
+    asserte(list(cons(x, {a: y}), cons(y, 1)).repatch(list(cons(x, {a: 2}))), list(cons(x, {a: y}), cons(y, 2)));
 
     
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
