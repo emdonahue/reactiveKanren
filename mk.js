@@ -221,17 +221,33 @@ class List {
         return equiv;
     }
     repatch(patch) {
-        return patch.repatch2(this);
-        //return patch.fold((s, p) => s.rebind(p.car, p.cdr, patch), this);
+        //return patch.repatch2(this);
+        return patch.fold((s, p) => s.rebind(p.car, p.cdr, patch), this);
     }
     repatch2(sub) {
         if (this.isNil()) return sub; // Out of patches
         let {car: x, cdr: y} = this.car;
         if (primitive(y)) return this.cdr.repatch2(sub.extend(x,y));
-        throw Error('nyi')
+        if (!(primitive(x_val) || x_val instanceof LVar)) Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
+    
+            
+
+        let x_val = sub.walk(x);
+        let normalized = Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
+
+
+        for (let k in y) {
+            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) {
+
+                //sub = sub.rebind(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch);
+                
+            }
+            //else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
+            else throw Error('nyi')
+        }
+        return this.cdr.repatch2(sub.extend(x, normalized));
     }
     rebind(x, y, patch) {
-        throw Error()
         log('reunify', 'rebind', x, y, patch);
         if (y instanceof LVar) return this;
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
