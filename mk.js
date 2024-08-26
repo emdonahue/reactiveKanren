@@ -230,12 +230,13 @@ class List {
         let x_val = this.walk(x);
         let self = this;
         let normalized = Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
-        if (!(primitive(x_val))) {
+        if (!(primitive(x_val) || x_val instanceof LVar)) {
             Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
             
         }
         for (let k in y) {
-            if (Object.hasOwn(x_val, k)) self = self.rebind(x_val[k], y[k]);
+            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) self = self.rebind(normalized[k], y[k]);
+            else self = self.rebind(normalized[k] = new SVar(), y[k]);
         }
         return self.extend(x, normalized);
     }
