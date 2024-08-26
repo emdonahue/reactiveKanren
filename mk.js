@@ -347,6 +347,9 @@ class Goal {
         if (fail === x) return this;
         return new Disj(this, x);
     }
+    conde(...g) {
+        return conde(this, ...g);
+    }
     filter(f) { return f(this) ? this : succeed; }
     run(n=-1, {reify=nil, substitution=nil}={}) {
         return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(reify)) : s);
@@ -368,7 +371,7 @@ class Goal {
     suspend(s) { return new Suspended(s, this) }
     apply(sub) { return sub.isFailure() ? failure : this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
     is_disj() { return false; }
-    patch(sub) {
+    rediff(sub) {
         // get [mvar, value, sub] pairs, then reify each value in sub skipping mvars
         let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
         let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.add(u.car), mvars), new Set());

@@ -74,11 +74,12 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let z = new SVar().name('z');
     let n = new SVar().name('n');
 
-    asserte(x.set(1).patch(nil), list(cons(x, 1)));
-    asserte(a.set(1).patch(list(cons(a, x))), list(cons(x, 1)));
-    asserte(a.set(b).patch(list(cons(a, x), cons(b, 1))), list(cons(x, 1)));
-    asserte(a.set(y).patch(list(cons(a, x), cons(y, 1))), list(cons(x, 1)));
-    asserte(a.set(y).conj(y.set(2)).patch(list(cons(a, x), cons(y, 1))), list(cons(y, 2), cons(x, y)));
+    asserte(x.set(1).rediff(nil), list(cons(x, 1)));
+    asserte(a.set(1).rediff(list(cons(a, x))), list(cons(x, 1)));
+    asserte(a.set(b).rediff(list(cons(a, x), cons(b, 1))), list(cons(x, 1)));
+    asserte(a.set(y).rediff(list(cons(a, x), cons(y, 1))), list(cons(x, 1)));
+    asserte(a.set(y).conj(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(y, 2), cons(x, y)));
+    asserte(a.set(y).conde(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(x, y), cons(y, 2)));
 
     
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
