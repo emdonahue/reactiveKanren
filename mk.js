@@ -136,15 +136,15 @@ class List {
         }
         return false;
     }
-    rereify(_lvar, mvars, parent) {
+    rereify(_lvar, mvars, parent, descendants) {
         log('reunify', 'rereify', _lvar, mvars);
         let {car: lvar, cdr: val} = this.walk_binding(_lvar);
         this.descendant(parent, lvar)
         
         if (mvars.has(lvar) && this.descendant(parent, lvar)) {
             let descendant = mvars.get(lvar);
-            mvars.delete(lvar);
-            return this.rereify(descendant, mvars, parent); //lvar;
+            descendants.add(lvar);
+            return this.rereify(descendant, mvars, parent, descendants); //lvar;
         }
         if (val instanceof LVar) throw Error(val);
         if (primitive(val)) return val;
@@ -164,8 +164,8 @@ class List {
         }
         return r;
         */
-        if (Array.isArray(val)) return val.map(e => this.rereify(e, mvars, parent));
-        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.rereify(v, mvars, parent)]))));
+        if (Array.isArray(val)) return val.map(e => this.rereify(e, mvars, parent, descendants));
+        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.rereify(v, mvars, parent, descendants)]))));
     }
     walk_path(lvar, prop, ...path) {
         let v = this.walk(lvar);
@@ -459,8 +459,10 @@ class Goal {
         // get [mvar, value, sub] pairs, then reify each value in sub skipping mvars
         let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
         let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
-        let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars, u.car)))).fold((p, u) => p.append(u), nil);
-        let stratified = reified.filter(r => mvars.has(r.car));
+        let descendants = new Set();
+        let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars, u.car, descendants)))).fold((p, u) => p.append(u), nil);
+        
+        let stratified = reified.filter(r => !descendants.has(r.car));
         return stratified;
         
     }
