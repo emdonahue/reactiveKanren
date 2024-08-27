@@ -284,7 +284,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(root.innerHTML, 'loremipsumdolor');
       asserte(dolor, root.childNodes[2]); }
 
-    // Events
+    // Events    
     { let rk = new RK(m => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
       asserte(rk.root().outerHTML, '<p>lorem</p>');
       rk.root().click();

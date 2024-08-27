@@ -37,16 +37,12 @@ class RK {
     root() { return this.child.root(); }
     rerender(g) {
         if (g instanceof Function) return this.rerender(g(this.mvar));
-        let patch = g.rediff(this.substitution);
-        let oldsub = this.substitution; 
-        this.substitution = this.substitution.repatch(patch);
-        log('reunify', this.constructor.name, g, toString(patch), toString(oldsub), toString(this.substitution));
-        //this.substitution = g.reunify_substitution(this.substitution);
-        log('rerender', this.constructor.name, toString(this.substitution));
-        this.child = this.child.rerender(this.substitution, this);
+        this.update(g.rediff(this.substitution));
         return this;
     }
     update(patch) {
+        log('reunify', this.constructor.name, 'update', toString(patch), toString(this.substitution));
+        this.substitution = this.substitution.repatch(patch);
         this.child = this.child.rerender(this.substitution, this);
     }
     toString() { return `(RK ${this.child})` }}
@@ -407,6 +403,7 @@ class LVar {
     isPairo() { return this.constraint(v => v instanceof Pair); }
     isNotPairo() { return this.constraint(v => !(v instanceof Pair)); }
     membero(x) { return fresh((a,b) => [this.eq(cons(a,b)), conde(a.eq(x), b.membero(x))]); }
+    negate() { return conde([this.eq(true), this.set(false)], [this.eq(false), this.set(true)]); } //TODO make negate falsy
     leafo(x) { return conde([this.isNotPairo(), this.eq(x)],
                             [fresh((a,b) => [this.eq(cons(a,b)), conde(a.leafo(x), b.leafo(x))])]); }
     imembero(x,o,n=0) { return fresh((a,b) => [this.eq(cons(a,b)), conde([a.eq(x), o.eq(n)], b.imembero(x,o,n+1))]); } //TODO make imembero accept ground order terms
@@ -464,6 +461,8 @@ class Goal {
     apply(sub) { return sub.isFailure() ? failure : this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
     is_disj() { return false; }
     rediff(sub) {
+        assert(sub);
+        log('reunify', 'rediff', toString(sub));
         // get [mvar, value, sub] pairs, then reify each value in sub skipping mvars
         let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
         let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
@@ -1027,40 +1026,38 @@ class AttrView {
         this.node = node;
         this.attr = attr; //TODO if attr is tagName, generate new node, swap children, and swap into dom
         this.goal = goal;
-        this.vvar = vvar;
-    }
+        this.vvar = vvar; }
+    
     static render(sub, node, attr, val) {        
         log('render', this.name, toString(sub));
         if (val instanceof LVar) return this.render_lvar(sub, node, attr, val);
         else if (val instanceof Function) this.render_f(sub, node, attr, val);
-        else throw Error(val);
-    }
+        else throw Error(val); }
+
     static render_lvar(sub, node, attr, val) {
         node[attr] = sub.walk(val);
-        return new this(node, attr, succeed, val);
-    }
+        return new this(node, attr, succeed, val); }
+    
     static render_f(sub, node, attr, val) {
         let v = new LVar(), g = val(v);
         let vals = g.run(-1, {reify: v, substitution: sub});
         if (!vals.isNil()) node[attr] = vals.join(' ');
-        return new this(node, attr, g, v);
-    }
+        return new this(node, attr, g, v); }
     rerender(sub, app) {
-        return this;
-    }
-}
+        return this; }}
 
 class EventView {
-    constructor(sub, node, event, handler) {
-        
-    }
+    constructor(sub) {
+        this.substitution = sub; }
+    
     static render(sub, node, event, handler, app) {
-        //TODO should run in its own sub and apply changes to main sub
-        node.addEventListener(event, e => app.rerender(handler instanceof Goal ? handler : to_goal(handler(e))));
-        return new this();
-    }
-    rerender() { return this; }
-}
+        let self = new this(sub);
+        node.addEventListener(event, e => app.update((handler instanceof Goal ? handler : to_goal(handler(e))).rediff(self.substitution)));
+        return self; }
+    
+    rerender(sub) {
+        this.substitution = sub;
+        return this; }}
 
 
 function view(template) { return new Template(template); }

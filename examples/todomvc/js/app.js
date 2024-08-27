@@ -39,7 +39,7 @@ import {logging} from '../../../util.js';
                      todos.membero({title: title, done: done}),
                      conde([done.eq(true), completed.eq(true), strikethru.eq('completed')], [done.eq(false), active.eq(true), strikethru.eq('')]),
                      v.eq([{tagName: 'li', className: strikethru,
-                            onclick: done.set(true)},
+                            onclick: done.negate()},
                            [{tagName: 'div', className: 'view'},
                             [{tagName: 'input', className: 'toggle', type: 'checkbox', checked: done}],
                             ['label', title],
