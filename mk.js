@@ -142,8 +142,9 @@ class List {
         this.descendant(parent, lvar)
         
         if (mvars.has(lvar) && this.descendant(parent, lvar)) {
-            log('reunify', 'descendant', parent, lvar);
-            return this.rereify(mvars.get(lvar), mvars, parent); //lvar;
+            let descendant = mvars.get(lvar);
+            mvars.delete(lvar);
+            return this.rereify(descendant, mvars, parent); //lvar;
         }
         if (val instanceof LVar) throw Error(val);
         if (primitive(val)) return val;
@@ -459,7 +460,7 @@ class Goal {
         let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
         let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
         let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars, u.car)))).fold((p, u) => p.append(u), nil);
-        let stratified = reified.restratify();
+        let stratified = reified.filter(r => mvars.has(r.car));
         return stratified;
         
     }
