@@ -127,11 +127,28 @@ class List {
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
     }
     rereify(_lvar, mvars) {
+        log('reunify', 'rereify', _lvar, mvars);
         let {car: lvar, cdr: val} = this.walk_binding(_lvar);
-        //if (mvars.has(lvar)) return lvar; //this.rereify(mvars.get(lvar), mvars);
+        //if (mvars.has(lvar)) return this.rereify(mvars.get(lvar), mvars); //lvar;
         if (val instanceof LVar || primitive(val)) return val;
-        if (Array.isArray(v)) return v.map(e => this.reify(e));
-        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.reify(v)]))));
+        /*
+        let r = Array.isArray(val) ? new Array(val.length) : Object.create(Object.getPrototypeOf(val));
+        for (let k in val) {
+            log('reunify', 'rereify', 'iterate', val, k, val[k], mvars.has(val[k])am);
+            if (mvars.has(val[k])) {
+                log('reunify', 'rereify', 'recursive', val[k], mvars.get(val[k]));
+                r[k] = this.rereify(mvars.get(val[k]), mvars, true)
+            }
+            else {
+                r[k] = this.rereify(val[k], mvars, true);
+            }
+    
+            //r[k] = mvars.has(val[k]) ? this.rereify(mvars.get(val[k]), mvars, true) : this.rereify(val[k], mvars, true);
+        }
+        return r;
+        */
+        if (Array.isArray(val)) return val.map(e => this.rereify(e, mvars));
+        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.rereify(v, mvars)]))));
     }
     walk_path(lvar, prop, ...path) {
         let v = this.walk(lvar);
@@ -266,6 +283,9 @@ class List {
             else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
         }
         return self.extend(x, normalized);
+    }
+    restratify() {
+        return this
     }
 }
 
@@ -423,7 +443,8 @@ class Goal {
         let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
         let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
         let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars)))).fold((p, u) => p.append(u), nil);
-        return reified;
+        let stratified = reified.restratify();
+        return stratified;
         
     }
     toString() { return JSON.stringify(this); }
