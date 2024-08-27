@@ -37,11 +37,17 @@ class RK {
     root() { return this.child.root(); }
     rerender(g) {
         if (g instanceof Function) return this.rerender(g(this.mvar));
-        //this.substitution = this.substitution.repatch(g.rediff(this.substitution)); 
-        this.substitution = g.reunify_substitution(this.substitution);
+        let patch = g.rediff(this.substitution);
+        let oldsub = this.substitution; 
+        this.substitution = this.substitution.repatch(patch);
+        log('reunify', this.constructor.name, g, toString(patch), toString(oldsub), toString(this.substitution));
+        //this.substitution = g.reunify_substitution(this.substitution);
         log('rerender', this.constructor.name, toString(this.substitution));
         this.child = this.child.rerender(this.substitution, this);
         return this;
+    }
+    update(patch) {
+        this.child = this.child.rerender(this.substitution, this);
     }
     toString() { return `(RK ${this.child})` }}
 
@@ -283,12 +289,12 @@ class List {
         return this.cdr.repatch2(sub.extend(x, normalized));
     }
     rebind(x, y, patch) {
-        log('reunify', 'rebind', x, y, patch);
+        log('reunify', 'rebind', x, y, toString(patch));
         if (y instanceof LVar) return this;
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
         let x_val = this.walk(x);
         let self = this;
-        let normalized = Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
+        let normalized = Array.isArray(y) ? [] : Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
         if (!(primitive(x_val) || x_val instanceof LVar)) {
             Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
             
@@ -300,6 +306,7 @@ class List {
             }
             else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
         }
+        log('reunify', 'rebind', 'extend', x, normalized);
         return self.extend(x, normalized);
     }
     restratify() {

@@ -6,7 +6,7 @@
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
 import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, view, RK} from './mk.js'
-import {logging, log, copy, toString, equals} from './util.js'
+import {logging, log, copy, toString, equals, assert} from './util.js'
 
 function test(f, test_name) {
     try {
@@ -94,8 +94,14 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(s, list(cons(x, {a: v}), cons(v, 2))); }
     { let s = list(cons(x, 1)).repatch(list(cons(x, {a: 2}))), v = s.car.cdr.a;
       asserte(s, list(cons(x, {a: v}), cons(v, 2))); }
+    { let s = list(cons(x, 1)).repatch(list(cons(x, [2]))), v = s.car.cdr[0];
+      asserte(s, list(cons(x, [v]), cons(v, 2))); }
+    { let s = list(cons(x, 1)).repatch(list(cons(x, [2,3]))), v0 = s.car.cdr[0], v1 = s.car.cdr[1];
+      asserte(s, list(cons(x, [v0, v1]), cons(v1, 3), cons(v0, 2))); }
+    { let s = list(cons(x, 'a')).repatch(list(cons(x, ['b','c']))), v0 = s.car.cdr[0], v1 = s.car.cdr[1];
+      assert(Array.isArray(s.car.cdr));
+      asserte(s, list(cons(x, [v0, v1]), cons(v1, 'c'), cons(v0, 'b'))); }
 
-    //logging('reunify')
     
     
         /*
@@ -219,7 +225,6 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     //asserte(new RK((v,m) => v.eq(['span', m]), list(cons(model, 'lorem')), model).root().outerHTML, '<span>lorem</span>');
     asserte(new RK(m => v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
     //asserte(new RK(m => (v,x=m) => fresh((a,d) => [x.eq(cons(a,d)), conde(v.eq(a))]), list('lorem')).root().textContent, 'lorem');
-    //logging('render')
     
     // Dynamic renders
     asserte(new RK(m => v => v.eq(m), 'lorem').root().textContent, 'lorem');
@@ -281,6 +286,11 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     // Events
     { let rk = new RK(m => [{tagName: 'p', onclick: m.set('ipsum')}, m], 'lorem');
+      asserte(rk.root().outerHTML, '<p>lorem</p>');
+      rk.root().click();
+      asserte(rk.root().outerHTML, '<p>ipsum</p>'); }
+
+    { let rk = new RK(m => v => fresh(x => [x.eq(m), v.eq([{tagName: 'p', onclick: x.set('ipsum')}, m])]), 'lorem');
       asserte(rk.root().outerHTML, '<p>lorem</p>');
       rk.root().click();
       asserte(rk.root().outerHTML, '<p>ipsum</p>'); }
