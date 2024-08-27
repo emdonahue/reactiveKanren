@@ -37,6 +37,7 @@ class RK {
     root() { return this.child.root(); }
     rerender(g) {
         if (g instanceof Function) return this.rerender(g(this.mvar));
+        //this.substitution = this.substitution.repatch(g.rediff(this.substitution)); 
         this.substitution = g.reunify_substitution(this.substitution);
         log('rerender', this.constructor.name, toString(this.substitution));
         this.child = this.child.rerender(this.substitution, this);
@@ -488,7 +489,7 @@ class Fail extends Goal {
     conj(g) { return fail; }
     expand(s, ctn, cjs, v) {
         log('expand', 'fail', cjs.conj(ctn));
-        return new FailureView(cjs.conj(ctn)); }
+        return new FailView(cjs.conj(ctn)); }
     toString() { return 'fail'; }
 }
 
@@ -645,7 +646,7 @@ class Failure extends Stream {
     isIncomplete() { return false; }
     step() { return this; }
     isFailure() { return true; }
-    expand_ctn(ctn, cjs, rtrn) { return new FailureView(cjs.conj(ctn)); }
+    expand_ctn(ctn, cjs, rtrn) { return new FailView(cjs.conj(ctn)); }
 }
 
 class State extends Stream {
@@ -840,8 +841,12 @@ class CondeView {
         this.rhs.toArray(a);
         return a; }
     rerender(sub, app, vvar, nodecursor) {
+        log('rerender', this.constructor.name, toString(sub));
+        assert(nodecursor);
         sub = this.goal.apply(sub);
-        assert(!sub.isFailure());
+        if (sub.isFailure()) {
+            this.remove();
+            return [new FailureView(this), nodecursor]; }
         [this.lhs,nodecursor] = this.lhs.rerender(sub, app, vvar, nodecursor);
         [this.rhs,nodecursor] = this.rhs.rerender(sub, app, vvar, nodecursor);
         return [this, nodecursor];
@@ -855,14 +860,17 @@ class CondeView {
     asGoal() { return this.goal.conj(this.lhs.asGoal().disj(this.rhs.asGoal())); }
     toString() { return `(conde ${this.goal} ${this.lhs} ${this.rhs})`; }}
 
-class FailureView { // Failures on the initial render that may expand to leaves or branches.
+class FailView { // Failures on the initial render that may expand to leaves or branches.
     constructor(goal) {
         this.goal = goal; }
     items(a=[]) { return a; }
     firstNode() { return null; }
     lastNode() { return null; }
+    remove() { return this; }
     root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, app, vvar, nodecursor) {
+        log('rerender', this.constructor.name, toString(sub));
+        assert(nodecursor);
         let expanded = this.goal.expand_run(sub, [vvar, app]);
         if (expanded instanceof this.constructor) return [expanded, nodecursor];
         nodecursor.after(expanded.root());
@@ -870,13 +878,14 @@ class FailureView { // Failures on the initial render that may expand to leaves 
     }
     toString() { return `(fail ${this.goal})`; }}
 
-class FailedAnswerView { // Rerender failures of atomic leaves that may cache nodes
+class FailureView { // Rerender failures of atomic leaves that may cache nodes
     constructor(child) {
         this.child = child; }
     items(a=[]) { return a; }
     firstNode() { return null; } // Prevents dynamic nodes from inserting anchors on a node not in the dom
     lastNode() { return null; }
     rerender(sub, app, vvar, nodecursor) {
+        log('rerender', this.constructor.name, toString(sub));
         let [c,nextcursor] = this.child.rerender(sub, app, vvar, nodecursor);
         if (c instanceof this.constructor) return [c, nodecursor];
         nodecursor.after(c.root()); // Normally items would not make changes to dom, so add in items that were previously removed.
@@ -895,13 +904,15 @@ class AnswerView { // Displayable iterable item
     static render(goal, sub, vvar, app, ovar) {
         assert(app instanceof RK)
         log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
-        if (!sub) return new FailureView(goal);
+        if (!sub) return new FailView(goal);
         let template = sub.walk(vvar);
         assert(!(template instanceof List), !(template instanceof LVar));
         return new this(goal, template, View.render(sub, app, template), ovar); }
     rerender(sub, app, vvar, nodecursor) {
         sub = this.goal.apply(sub);
-        if (sub.isFailure()) return [new FailedAnswerView(this.remove()), nodecursor];
+        if (sub.isFailure()) {
+            this.remove();
+            return [new FailureView(this), nodecursor]; }
         log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
         assert(!(sub.walk(vvar) instanceof List), !(sub.walk(vvar) instanceof LVar));
         this.child = this.child.rerender(sub, app, sub.walk(vvar));
@@ -912,9 +923,7 @@ class AnswerView { // Displayable iterable item
         if (fragment) fragment.append(this.child.root());
         else return this.child.root(); }
     key() { return this.template; }
-    remove() {
-        this.child.remove();
-        return this; }
+    remove() { this.child.remove(); }
     firstNode() { return this.child.firstNode(); }
     lastNode() { return this.child.lastNode(); }
     items(a=[]) {

@@ -234,6 +234,16 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK(m => v => v.eq(['p', v => v.eq(m)]), 'lorem').root().outerHTML, '<p>lorem</p>');
     asserte(new RK(m => v => v.eq(['p', v => v.eq(m)]), 'lorem').rerender(m => m.set('ipsum')).root().outerHTML, '<p>ipsum</p>');
 
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem')], true).root().textContent, 'lorem');
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem')], false).root().nodeType, Node.COMMENT_NODE);
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem')], false).rerender(m => m.set(true)).root().textContent, 'lorem');
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem')], true).rerender(m => m.set(false)).root().nodeType, Node.COMMENT_NODE);
+
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem').conde(v.eq('ipsum'))], true).root().textContent, 'loremipsum');
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem').conde(v.eq('ipsum'))], false).root().nodeType, Node.COMMENT_NODE);
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem').conde(v.eq('ipsum'))], false).rerender(m => m.set(true)).root().textContent, 'loremipsum');
+    asserte(new RK(m => v => [m.eq(true), v.eq('lorem').conde(v.eq('ipsum'))], true).rerender(m => m.set(false)).root().nodeType, Node.COMMENT_NODE);
+    
     asserte(new RK(m => v => m.membero(v), list('lorem', 'ipsum')).root().textContent, 'loremipsum');
     asserte(new RK(m => v => m.membero(v), list('lorem', 'ipsum')).rerender(m => m.set(list('ipsum', 'dolor'))).root().textContent, 'ipsumdolor');
 

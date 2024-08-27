@@ -50,7 +50,7 @@ import {logging} from '../../../util.js';
     let app = new RK(template, data);
     
     document.getElementById('root').replaceWith(app.root());
-
+    logging('reunify')
 
 /*
 [{tagName: 'li', className: 'completed'},
