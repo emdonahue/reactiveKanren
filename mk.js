@@ -126,11 +126,27 @@ class List {
         if (Array.isArray(v)) return v.map(e => this.reify(e));
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
     }
-    rereify(_lvar, mvars) {
+    descendant(x, y) {//x ancestor, y descendant
+        log('reunify', 'descendant', x, y);
+        if (x === y) return true;
+        x = this.walk(x);
+        if (primitive(x)) return false;
+        for (let k in x) {
+            if (this.descendant(x[k], y)) return true;
+        }
+        return false;
+    }
+    rereify(_lvar, mvars, parent) {
         log('reunify', 'rereify', _lvar, mvars);
         let {car: lvar, cdr: val} = this.walk_binding(_lvar);
-        //if (mvars.has(lvar)) return this.rereify(mvars.get(lvar), mvars); //lvar;
-        if (val instanceof LVar || primitive(val)) return val;
+        this.descendant(parent, lvar)
+        
+        if (mvars.has(lvar) && this.descendant(parent, lvar)) {
+            log('reunify', 'descendant', parent, lvar);
+            return this.rereify(mvars.get(lvar), mvars, parent); //lvar;
+        }
+        if (val instanceof LVar) throw Error(val);
+        if (primitive(val)) return val;
         /*
         let r = Array.isArray(val) ? new Array(val.length) : Object.create(Object.getPrototypeOf(val));
         for (let k in val) {
@@ -147,8 +163,8 @@ class List {
         }
         return r;
         */
-        if (Array.isArray(val)) return val.map(e => this.rereify(e, mvars));
-        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.rereify(v, mvars)]))));
+        if (Array.isArray(val)) return val.map(e => this.rereify(e, mvars, parent));
+        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.rereify(v, mvars, parent)]))));
     }
     walk_path(lvar, prop, ...path) {
         let v = this.walk(lvar);
@@ -442,7 +458,7 @@ class Goal {
         // get [mvar, value, sub] pairs, then reify each value in sub skipping mvars
         let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
         let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
-        let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars)))).fold((p, u) => p.append(u), nil);
+        let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars, u.car)))).fold((p, u) => p.append(u), nil);
         let stratified = reified.restratify();
         return stratified;
         
