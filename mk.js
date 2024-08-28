@@ -35,7 +35,7 @@ class RK {
         this.child = View.render(this.substitution, this, this.template);
     }
     root() { return this.child.root(); }
-    rerender(g) {
+    rerender(g) {//TODO rename this to be part of the rerender chain and provide a different user-facing api
         if (g instanceof Function) return this.rerender(g(this.mvar));
         this.update(g.rediff(this.substitution));
         return this;
@@ -43,6 +43,7 @@ class RK {
     update(patch) {
         log('reunify', this.constructor.name, 'update', toString(patch), toString(this.substitution));
         this.substitution = this.substitution.repatch(patch);
+        log('rerender', this.constructor.name, toString(this.substitution));
         this.child = this.child.rerender(this.substitution, this);
     }
     toString() { return `(RK ${this.child})` }}
@@ -90,9 +91,10 @@ class List {
         return this.cons(f()).repeat(n-1, f);
     }
     join(sep='') {
-        let self = this, str = '', first = true;
+        let self = this, first = true, str;
         while (self instanceof Pair) {
-            str += first ? self.car : sep + self.car;
+            if (first) str = self.car;
+            else str += sep + self.car;
             first = false;
             self = self.cdr; }
         return str; }
@@ -407,7 +409,7 @@ class LVar {
     leafo(x) { return conde([this.isNotPairo(), this.eq(x)],
                             [fresh((a,b) => [this.eq(cons(a,b)), conde(a.leafo(x), b.leafo(x))])]); }
     imembero(x,o,n=0) { return fresh((a,b) => [this.eq(cons(a,b)), conde([a.eq(x), o.eq(n)], b.imembero(x,o,n+1))]); } //TODO make imembero accept ground order terms
-    tailo(x) { return conde([this.eq(nil), x.eq(this)], fresh((a,d) => [this.eq(cons(a,d)), d.tailo(x)])) };
+    tailo(x) { return conde(x.eq(this), fresh((a,d) => [this.eq(cons(a,d)), d.tailo(x)])) };
 }
 
 class SVar extends LVar {
@@ -885,7 +887,7 @@ class FailView { // Failures on the initial render that may expand to leaves or 
     toString() { return `(fail ${this.goal})`; }}
 
 class FailureView { // Rerender failures of atomic leaves that may cache nodes
-    constructor(child) {
+    constructor(child) { //TODO can we remove failure views and just have the answers succeed or fail on their own?
         this.child = child; }
     items(a=[]) { return a; }
     firstNode() { return null; } // Prevents dynamic nodes from inserting anchors on a node not in the dom
@@ -917,6 +919,7 @@ class AnswerView { // Displayable iterable item
     rerender(sub, app, vvar, nodecursor) {
         sub = this.goal.apply(sub);
         if (sub.isFailure()) {
+            log('rerender', this.constructor.name, 'fail', vvar, toString(sub));
             this.remove();
             return [new FailureView(this), nodecursor]; }
         log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
@@ -984,11 +987,12 @@ class NodeView {
             parent.append(children[children.length-1].root()); }}
     
     rerender(sub, app, template=this.template) {
-        log('rerender', this.constructor.name, template, this.template, equals(template, this.template), this.children, toString(sub));
         if (!equals(template, this.template)) {
+            log('rerender', this.constructor.name, 'render', this.template, template);
             let v = View.render(sub, app, template); //TODO thread app
             this.node.replaceWith(v.root());
             return v; }
+        log('rerender', this.constructor.name, template, this.template, equals(template, this.template), this.children, toString(sub));
         for (let i in this.children) this.children[i] = this.children[i].rerender(sub, app);
         return this;
     }
@@ -1043,7 +1047,15 @@ class AttrView {
         let vals = g.run(-1, {reify: v, substitution: sub});
         if (!vals.isNil()) node[attr] = vals.join(' ');
         return new this(node, attr, g, v); }
+
+    update(sub) {
+        let vals = this.goal.run(-1, {reify: this.vvar, substitution: sub});
+        if (vals.isNil()) delete this.node[this.attr];
+        else this.node[this.attr] = vals.join(' '); }
+    
     rerender(sub, app) {
+        log('rerender', this.constructor.name, this.node, this.attr, sub.reify(this.vvar), this.vvar, toString(sub))
+        this.update(sub);
         return this; }}
 
 class EventView {
@@ -1052,7 +1064,7 @@ class EventView {
     
     static render(sub, node, event, handler, app) {
         let self = new this(sub);
-        node.addEventListener(event, e => app.update((handler instanceof Goal ? handler : to_goal(handler(e))).rediff(self.substitution)));
+        node.addEventListener(event, e => app.update((handler instanceof Goal ? handler : to_goal(handler(e, e.target.value))).rediff(self.substitution)));
         return self; }
     
     rerender(sub) {

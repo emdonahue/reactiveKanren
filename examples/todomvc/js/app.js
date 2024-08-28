@@ -5,7 +5,7 @@ import {logging} from '../../../util.js';
 (function (window) {
 	'use strict';
 
-    let data = {todos: list({title: 'Taste JavaScript', done: true}, {title: 'Buy a unicorn', done: false}),
+    let data = {todos: list({title: 'Buy a unicorn', done: false}), //{title: 'Taste JavaScript', done: true}, 
                 active: true,
                 completed: true}
     
@@ -16,11 +16,7 @@ import {logging} from '../../../util.js';
                 [{tagName: 'header', className: 'header'},
                  ['h1', 'todos'],
                  [{tagName: 'input', className: 'new-todo', placeholder: 'What needs to be done?', autofocus: true,
-                   onkeydown: e => {
-                       if (e.key === 'Enter') {
-                           let title = e.target.value;
-                           e.target.value = '';
-                           return fresh((todos, x) => [m.eq({todos: todos}), todos.tailo(x), x.set(list({title: title, done: false}))]);}}}]],
+                   onkeydown: (e, title) =>  e.key === 'Enter' ? (e.target.value = '', fresh((todos, x) => [m.eq({todos: todos}), x.eq(nil), todos.tailo(x), x.set(list({title: title, done: false}))])) : fail}]],
                 [{tagName: 'section', className: 'main'},
                  [{tagName: 'input', id: 'toggle-all', className: 'toggle-all', type: 'checkbox'}],
                  [{tagName: 'label', for: 'toggle-all'}, 'Mark all as complete'], items_template(m)],
@@ -38,24 +34,28 @@ import {logging} from '../../../util.js';
     function items_template(m) {
         return [{tagName: 'ul', className: 'todo-list'},
                 v =>
-                fresh((todos, title, done, strikethru, active, completed) =>
+                fresh((todos, item, rest, title, done, strikethru, active, completed) =>
                     [m.eq({todos: todos, active: active, completed: completed}),
-                     todos.membero({title: title, done: done}),
+                     todos.tailo(item),
+                     item.eq(cons({title: title, done: done}, rest)),
                      conde([done.eq(true), completed.eq(true), strikethru.eq('completed')],
                            [done.eq(false), active.eq(true), strikethru.eq('')]),
-                     v.eq([{tagName: 'li', className: strikethru,
-                            onclick: done.negate()},
+                     v.eq([{tagName: 'li', className: strikethru},
                            [{tagName: 'div', className: 'view'},
-                            [{tagName: 'input', className: 'toggle', type: 'checkbox', checked: done}],
+                            [{tagName: 'input', id: 'check', className: 'toggle', type: 'checkbox', checked: done,
+                              oninput: e => (done.set(e.target.checked))}],
                             ['label', title],
-                            [{tagName: 'button', className: 'destroy'}]],
+                            [{tagName: 'button', className: 'destroy',
+                              onclick: item.set(rest)}]],
                            [{tagName: 'input', className: 'edit', value: 'Create a TodoMVC template'}]])])] }
 
     //logging('render') //|| logging('parse') || logging('rerender') || logging('expand')
     let app = new RK(template, data);
     
     document.getElementById('root').replaceWith(app.root());
-    logging('reunify')
+    //logging('reunify')
+    //logging('render')
+    //logging('rerender')
 
 /*
 [{tagName: 'li', className: 'completed'},
