@@ -874,7 +874,7 @@ class FailView { // Failures on the initial render that may expand to leaves or 
     items(a=[]) { return a; }
     firstNode() { return null; }
     lastNode() { return null; }
-    remove() { return this; }
+    remove() {}
     root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, app, vvar, nodecursor) {
         log('rerender', this.constructor.name, toString(sub));
@@ -892,6 +892,7 @@ class FailureView { // Rerender failures of atomic leaves that may cache nodes
     items(a=[]) { return a; }
     firstNode() { return null; } // Prevents dynamic nodes from inserting anchors on a node not in the dom
     lastNode() { return null; }
+    remove() {}
     rerender(sub, app, vvar, nodecursor) {
         log('rerender', this.constructor.name, toString(sub));
         let [c,nextcursor] = this.child.rerender(sub, app, vvar, nodecursor);
@@ -1035,14 +1036,13 @@ class AttrView {
     static render(sub, node, attr, val) {        
         log('render', this.name, toString(sub));
         if (val instanceof LVar) return this.render_lvar(sub, node, attr, val);
-        else if (val instanceof Function) this.render_f(sub, node, attr, val);
+        else if (val instanceof Function) this.render_f(sub, node, attr, val, new LVar());
         else throw Error(val); }
 
     static render_lvar(sub, node, attr, val) { return new this(node, attr, succeed, val).rerender(sub); }
     
-    static render_f(sub, node, attr, val) {
-        let v = new LVar();
-        return new this(node, attr, val(v), v).rerender(sub); }
+    static render_f(sub, node, attr, val, vvar) {
+        return new this(node, attr, val(vvar), vvar).rerender(sub); }
     
     rerender(sub, app) {
         log('rerender', this.constructor.name, this.node, this.attr, sub.reify(this.vvar), this.vvar, toString(sub))
