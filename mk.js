@@ -1038,24 +1038,17 @@ class AttrView {
         else if (val instanceof Function) this.render_f(sub, node, attr, val);
         else throw Error(val); }
 
-    static render_lvar(sub, node, attr, val) {
-        node[attr] = sub.walk(val);
-        return new this(node, attr, succeed, val); }
+    static render_lvar(sub, node, attr, val) { return new this(node, attr, succeed, val).rerender(sub); }
     
     static render_f(sub, node, attr, val) {
-        let v = new LVar(), g = val(v);
-        let vals = g.run(-1, {reify: v, substitution: sub});
-        if (!vals.isNil()) node[attr] = vals.join(' ');
-        return new this(node, attr, g, v); }
-
-    update(sub) {
-        let vals = this.goal.run(-1, {reify: this.vvar, substitution: sub});
-        if (vals.isNil()) delete this.node[this.attr];
-        else this.node[this.attr] = vals.join(' '); }
+        let v = new LVar();
+        return new this(node, attr, val(v), v).rerender(sub); }
     
     rerender(sub, app) {
         log('rerender', this.constructor.name, this.node, this.attr, sub.reify(this.vvar), this.vvar, toString(sub))
-        this.update(sub);
+        let vals = this.goal.run(-1, {reify: this.vvar, substitution: sub});
+        if (vals.isNil()) delete this.node[this.attr];
+        else this.node[this.attr] = vals.join(' ');
         return this; }}
 
 class EventView {
