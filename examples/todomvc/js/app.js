@@ -16,7 +16,11 @@ import {logging} from '../../../util.js';
                 [{tagName: 'header', className: 'header'},
                  ['h1', 'todos'],
                  [{tagName: 'input', className: 'new-todo', placeholder: 'What needs to be done?', autofocus: true,
-                   onkeydown: e => e.key === 'Enter' ? fresh((todos, x) => [m.eq({todos: todos}), todos.tailo(x), x.set(list(e.target.value))]) : succeed}]],
+                   onkeydown: e => {
+                       if (e.key === 'Enter') {
+                           let title = e.target.value;
+                           e.target.value = '';
+                           return fresh((todos, x) => [m.eq({todos: todos}), todos.tailo(x), x.set(list({title: title, done: false}))]);}}}]],
                 [{tagName: 'section', className: 'main'},
                  [{tagName: 'input', id: 'toggle-all', className: 'toggle-all', type: 'checkbox'}],
                  [{tagName: 'label', for: 'toggle-all'}, 'Mark all as complete'], items_template(m)],
@@ -37,7 +41,8 @@ import {logging} from '../../../util.js';
                 fresh((todos, title, done, strikethru, active, completed) =>
                     [m.eq({todos: todos, active: active, completed: completed}),
                      todos.membero({title: title, done: done}),
-                     conde([done.eq(true), completed.eq(true), strikethru.eq('completed')], [done.eq(false), active.eq(true), strikethru.eq('')]),
+                     conde([done.eq(true), completed.eq(true), strikethru.eq('completed')],
+                           [done.eq(false), active.eq(true), strikethru.eq('')]),
                      v.eq([{tagName: 'li', className: strikethru,
                             onclick: done.negate()},
                            [{tagName: 'div', className: 'view'},
