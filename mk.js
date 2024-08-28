@@ -30,17 +30,20 @@ function is_text(x) { return is_string(x) || is_number(x) || is_boolean(x); }
 class RK {
     constructor(template, data) {
         this.mvar = new SVar().name('model');
-        this.substitution = this.mvar.set(data).reunify_substitution(nil);
+        this.substitution = this.mvar.set(data).reunify_substitution(nil); //TODO can we have an app init where we enrich with local vars (selected/editing flags) then track which vars were added and shed them when sending data outside? maybe tagged LVars for locals
         this.template = (template instanceof Function) ? template(this.mvar) : template;
         this.child = View.render(this.substitution, this, this.template);
     }
     root() { return this.child.root(); }
     rerender(g) {//TODO rename this to be part of the rerender chain and provide a different user-facing api
         if (g instanceof Function) return this.rerender(g(this.mvar));
+        console.log(g)
         this.update(g.rediff(this.substitution));
         return this;
     }
-    update(patch) {
+    update(goal, sub) {
+        if (goal instanceof Succeed || goal instanceof Fail) return;
+        let patch = goal.rediff(sub);
         log('reunify', this.constructor.name, 'update', toString(patch), toString(this.substitution));
         this.substitution = this.substitution.repatch(patch);
         log('rerender', this.constructor.name, toString(this.substitution));
@@ -1057,7 +1060,7 @@ class EventView {
     
     static render(sub, node, event, handler, app) {
         let self = new this(sub);
-        node.addEventListener(event, e => app.update((handler instanceof Goal ? handler : to_goal(handler(e, e.target.value))).rediff(self.substitution)));
+        node.addEventListener(event, e => app.update(handler instanceof Goal ? handler : to_goal(handler(e, e.target.value)), self.substitution));
         return self; }
     
     rerender(sub) {

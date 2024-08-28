@@ -5,7 +5,7 @@ import {logging} from '../../../util.js';
 (function (window) {
 	'use strict';
 
-    let data = {todos: list({title: 'Buy a unicorn', done: false}), //{title: 'Taste JavaScript', done: true}, 
+    let data = {todos: list({title: 'Buy a unicorn', done: false, editing: false}), //{title: 'Taste JavaScript', done: true}, 
                 active: true,
                 completed: true}
     
@@ -29,25 +29,31 @@ import {logging} from '../../../util.js';
                            onclick: m.set({active: true, completed: false})}, 'Active']],
                   ['li', [{tagName: 'a', href: '#/completed',
                            onclick: m.set({active: false, completed: true})}, 'Completed']]],
-                 [{tagName: 'button', className: 'clear-completed'}, 'Clear completed']]]; }
+                 [{tagName: 'button', className: 'clear-completed',
+                   onclick: fresh((todos, item, rest) => [m.eq({todos: todos}), todos.tailo(item), item.eq(cons({done: true}, rest)), item.set(rest)])}, 'Clear completed']]]; }
 
     function items_template(m) {
         return [{tagName: 'ul', className: 'todo-list'},
                 v =>
-                fresh((todos, item, rest, title, done, strikethru, active, completed) =>
+                fresh((todos, todo, item, rest, title, done, editing, strikethru, active, completed) =>
                     [m.eq({todos: todos, active: active, completed: completed}),
                      todos.tailo(item),
-                     item.eq(cons({title: title, done: done}, rest)),
+                     item.eq(cons(todo, rest)),
+                     todo.eq({title: title, done: done, editing: editing}),
                      conde([done.eq(true), completed.eq(true), strikethru.eq('completed')],
                            [done.eq(false), active.eq(true), strikethru.eq('')]),
                      v.eq([{tagName: 'li', className: strikethru},
-                           [{tagName: 'div', className: 'view'},
-                            [{tagName: 'input', id: 'check', className: 'toggle', type: 'checkbox', checked: done,
-                              oninput: e => (done.set(e.target.checked))}],
-                            ['label', title],
-                            [{tagName: 'button', className: 'destroy',
-                              onclick: item.set(rest)}]],
-                           [{tagName: 'input', className: 'edit', value: 'Create a TodoMVC template'}]])])] }
+                           v => [editing.eq(false),
+                                 v.eq([{tagName: 'div', className: 'view',
+                                        ondblclick: e => editing.set(true)},
+                                       [{tagName: 'input', id: 'check', className: 'toggle', type: 'checkbox', checked: done,
+                                         oninput: e => (done.set(e.target.checked))}],
+                                       ['label', title],
+                                       [{tagName: 'button', className: 'destroy',
+                                         onclick: item.set(rest)}]])],
+                           v => [editing.eq(true), v.eq([{tagName: 'input', className: 'edit', value: title,
+                                                          onkeydown: e => {if (e.key === 'Enter') e.target.blur()},
+                                                          onblur: (e, t) => [editing.set(false), title.set(t)]}])]])])] }
 
     //logging('render') //|| logging('parse') || logging('rerender') || logging('expand')
     let app = new RK(template, data);
