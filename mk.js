@@ -37,8 +37,7 @@ class RK {
     root() { return this.child.root(); }
     rerender(g) {//TODO rename this to be part of the rerender chain and provide a different user-facing api
         if (g instanceof Function) return this.rerender(g(this.mvar));
-        console.log(g)
-        this.update(g.rediff(this.substitution));
+        this.update(g, this.substitution);
         return this;
     }
     update(goal, sub) {

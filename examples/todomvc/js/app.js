@@ -16,7 +16,7 @@ import {logging} from '../../../util.js';
                 [{tagName: 'header', className: 'header'},
                  ['h1', 'todos'],
                  [{tagName: 'input', className: 'new-todo', placeholder: 'What needs to be done?', autofocus: true,
-                   onkeydown: (e, title) =>  e.key === 'Enter' ? (e.target.value = '', fresh((todos, x) => [m.eq({todos: todos}), x.eq(nil), todos.tailo(x), x.set(list({title: title, done: false}))])) : fail}]],
+                   onkeydown: (e, title) =>  e.key === 'Enter' && (e.target.value = '', fresh((todos, x) => [m.eq({todos: todos}), x.eq(nil), todos.tailo(x), x.set(list({title: title, done: false, editing: false}))]))}]],
                 [{tagName: 'section', className: 'main'},
                  [{tagName: 'input', id: 'toggle-all', className: 'toggle-all', type: 'checkbox'}],
                  [{tagName: 'label', for: 'toggle-all'}, 'Mark all as complete'], items_template(m)],
