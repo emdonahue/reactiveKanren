@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<head>
+  <script type="module" src="benchmark.js"></script>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div id="root"></div>
+  <h1>Create rows</h1>
+  <table id="create">
+    <tr><td>appendChild(document.createElement)</td><td id="appendchild"></td><tr>
+    <tr><td>append(document.createElement)</td><td id="append"></td><tr>
+    <tr><td>append(documentFragment(document.createElement))</td><td id="documentfragment"></td><tr>
+    <tr><td>replaceNode(appendChild(document.createElement))</td><td id="replacewith"></td><tr>
+    <tr><td>append(appendChild(cloneNode))</td><td id="clonenode"></td><tr>
+    <tr><td>RK</td><td id="rk"></td><tr>
+</body>
