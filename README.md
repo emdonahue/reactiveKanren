@@ -1,1 +1,3 @@
-# rrp
+# reactiveKanren
+
+This repository contains experiments in designing a miniKanren-based front-end web development framework that applies relational programming techniques to application and gui development. The codebase is currently in the "research prototype" phase, but a more comprehensive, production-ready build is anticipated eventually. A publication describing the inner workings is forthcoming. 
