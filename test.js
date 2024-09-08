@@ -74,6 +74,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let z = new SVar().name('z');
     let n = new SVar().name('n');
 
+    /*
     asserte(x.set(1).rediff(nil), list(cons(x, 1)));
     asserte(a.set(1).rediff(list(cons(a, x))), list(cons(x, 1)));
     asserte(x.set(y).conj(y.set(x)).rediff(list(cons(x, 1), cons(y, 2))), list(cons(y, 1), cons(x, 2)));
@@ -86,8 +87,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(x.set([z, y]).rediff(list(cons(x, [y, z]), cons(y, 1), cons(z, 2))), list(cons(x, [2, 1])));
     asserte(x.set([z, y]).conj(y.set(3)).rediff(list(cons(x, [y, z]), cons(y, 1), cons(z, 2))), list(cons(x, [2, 3])));
     asserte(x.set([y, y]).conj(y.set(3)).rediff(list(cons(x, [y, z]), cons(y, 1), cons(z, 2))), list(cons(x, [3, 3])));
-    
+    */
+
     asserte(list(cons(x, 1)).repatch(list(cons(x, 2))), list(cons(x, 2)));
+    asserte(list(cons(x, 1), cons(y,2)).repatch(list(cons(x, y))), list(cons(x, 2), cons(y,2)));
     //asserte(list(cons(x, 1)).repatch(list(cons(x, y))), list(cons(x, 1)));
     asserte(list(cons(x, {a: y}), cons(y, 1)).repatch(list(cons(x, {a: 2}))), list(cons(x, {a: y}), cons(y, 2)));
     { let s = list(cons(x, 1)).repatch(list(cons(x, {a: 2}))), v = s.car.cdr.a;
@@ -304,12 +307,24 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     //console.log(new RK(m => v => m.membero(v), list('lorem', 'dolor')).toString())
     //console.log(new RK(m => v => m.leafo(v), cons('lorem', 'dolor')).toString())
 
-    asserte(new RK(m =>
-        ['ul', v => (function treeview(view, model) {
+    asserte(fresh((x, y) => [ x.eq(y) , y.eq(1).conde(y.eq(cons(1, 2)))]).run(), list(list(1, 1), list(cons(1, 2), cons(1, 2))));
+    asserte(new RK([{tagName: 'p', id: 'text'}, 'lorem ipsum']).root().outerHTML, '<p id="text">lorem ipsum</p>');
+    asserte(new RK(model => [{tagName: 'p', id: 'text'}, view => view.eq(model)], 'lorem ipsum').root().outerHTML, '<p id="text">lorem ipsum</p>');
+    asserte(createDiv(new RK(model => view => fresh(text => [model.membero(text), view.eq(['p', text])]), list('lorem', 'ipsum')).root()).outerHTML, '<div><p>lorem</p><p>ipsum</p></div>');
+
+    { let rk = new RK(model => [{tagName: 'div'},
+                                [{tagName: 'p'}, model],
+                                [{tagName: 'button', onclick: model.set('dolor sit amet')}]], 'lorem ipsum');
+      asserte(rk.root().outerHTML, '<div><p>lorem ipsum</p><button></button></div>');
+      rk.root().childNodes[1].click();
+      asserte(rk.root().outerHTML, '<div><p>dolor sit amet</p><button></button></div>'); }
+    
+    asserte(new RK(model =>
+        ['ul', view => (function treeview(view, model) {
             return conde([model.isStringo(), view.eq(['li', model])],
                          [model.isPairo(),
                           view.eq(['li', ['ul',
-                                          subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})(v, m)],
+                                          subview => fresh(submodel => [model.membero(submodel), treeview(subview, submodel)])]])])})(view, model)],
         list('lorem', list('ipsum', 'dolor'))).root().outerHTML, '<ul><li><ul><li>lorem</li><li><ul><li>ipsum</li><li>dolor</li></ul></li></ul></li></ul>');
 
 

@@ -9,6 +9,7 @@ import {logging} from '../../../util.js';
                 active: true,
                 completed: true}
     
+//                 [{tagName: 'span', className: 'todo-count'}, ['strong', 0], ' item left'],
     
 
     function template(m) {
@@ -21,7 +22,6 @@ import {logging} from '../../../util.js';
                  [{tagName: 'input', id: 'toggle-all', className: 'toggle-all', type: 'checkbox'}],
                  [{tagName: 'label', for: 'toggle-all'}, 'Mark all as complete'], items_template(m)],
                 [{tagName: 'footer', className: 'footer'},
-                 [{tagName: 'span', className: 'todo-count'}, ['strong', 0], ' item left'],
                  [{tagName: 'ul', className: 'filters'},
                   ['li', [{tagName: 'a', className: 'selected', href: '#/',
                            onclick: m.set({active: true, completed: true})}, 'All']],
@@ -53,9 +53,10 @@ import {logging} from '../../../util.js';
                                          onclick: item.set(rest)}]])],
                            v => [editing.eq(true), v.eq([{tagName: 'input', className: 'edit', value: title,
                                                           onkeydown: e => {if (e.key === 'Enter') e.target.blur()},
-                                                          onblur: (e, t) => [editing.set(false), title.set(t)]}])]])])] }
+                                                          onblur: (e, t) => [editing.set(false), title.set(t)]}])]])])]; }
 
     //logging('render') //|| logging('parse') || logging('rerender') || logging('expand')
+    logging('reunify')
     let app = new RK(template, data);
     
     document.getElementById('root').replaceWith(app.root());

@@ -10,6 +10,7 @@ import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, 
 //TODO for an iterable, create an entire subtree with all sub-iterables generating only 1 copy, then clone that node and reuse it across all subsequent iterations
 //TODO give lvar an .orderby method that constructs a view ordered by whatever that binds to. then even if its bound multiply we just produce sibling dynamic sets ordered by different fns
 //TODO dont have to pass mvar anymore with lexical scope
+//TODO can reactive unify assign a concrete timestep so we can set fresh vars and resolve conflicting unifies by checking timestep, even if they conflict with source code goals/model vars?
 
 //diffing
 //if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
@@ -124,14 +125,15 @@ class List {
         else return new Pair(lvar, lvar);
     }
     walk_var(lvar) { return this.walk_binding(lvar).car; }
-    reify(lvar) {
-        if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr))); //TODO make this its own debug thing?
+    reify(lvar, diff=false) {
+        if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, diff))); //TODO make this its own debug thing?
+        if (diff & (lvar instanceof SVar)) return lvar;
         let v = this.walk(lvar);
         if (v instanceof LVar || primitive(v)) return v;
-        if (v instanceof QuotedVar) return this.reify(v.lvar);
-        if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
-        if (Array.isArray(v)) return v.map(e => this.reify(e));
-        return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
+        if (v instanceof QuotedVar) return this.reify(v.lvar, diff);
+        if (v instanceof Pair) return new Pair(this.reify(v.car, diff), this.reify(v.cdr, diff));
+        if (Array.isArray(v)) return v.map(e => this.reify(e, diff));
+        return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v, diff)]));
     }
     descendant(x, y) {//x ancestor, y descendant
         log('reunify', 'descendant', x, y);
@@ -263,7 +265,7 @@ class List {
     }
     repatch(patch) {
         //return patch.repatch2(this);
-        return patch.fold((s, p) => s.rebind(p.car, p.cdr, patch), this);
+        return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch), this);
     }
     repatch2(sub) {
         if (this.isNil()) return sub; // Out of patches
@@ -289,6 +291,7 @@ class List {
         return this.cdr.repatch2(sub.extend(x, normalized));
     }
     rebind(x, y, patch) {
+        throw Error()
         log('reunify', 'rebind', x, y, toString(patch));
         if (y instanceof LVar) return this;
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
@@ -305,6 +308,27 @@ class List {
                 self = self.rebind(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch);
             }
             else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
+        }
+        log('reunify', 'rebind', 'extend', x, normalized);
+        return self.extend(x, normalized);
+    }
+    rebind2(x, y, patch) {
+        log('reunify', 'rebind', x, y, toString(patch));
+        if (y instanceof LVar) return this.rebind2(x, this.reify(y), patch);
+        if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
+        let x_val = this.walk(x);
+        let self = this;
+        let normalized = Array.isArray(y) ? [] : Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
+        if (!(primitive(x_val) || x_val instanceof LVar)) {
+            Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
+            
+        }
+        for (let k in y) {
+            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) {
+                
+                self = self.rebind2(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch);
+            }
+            else self = self.rebind2(normalized[k] = new SVar(), y[k], patch);
         }
         log('reunify', 'rebind', 'extend', x, normalized);
         return self.extend(x, normalized);
@@ -467,14 +491,21 @@ class Goal {
     rediff(sub) {
         assert(sub);
         log('reunify', 'rediff', toString(sub));
-        // get [mvar, value, sub] pairs, then reify each value in sub skipping mvars
-        let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()}));
+        // reify each RU in its state (may not need to reify model vars bc all the same val already) (maybe that could let us target dom changes?)
+        // as we patch, always check for a more specific rhs
+        // convert to normal unifications and unify in empty sub to merge/conflict detect. then reify each back out and deduplicate
+        // when applying patch, stop if hit a more specific mvar in RU set and let that one handle itself
+        let patch = this.run(-1, {reify: false, substitution: sub}).fold((s,a) => a.reactively_update(s), nil);
+        /*
+        let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()})); //lhs walked
         let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
         let descendants = new Set();
         let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars, u.car, descendants)))).fold((p, u) => p.append(u), nil);
         
         let stratified = reified.filter(r => !descendants.has(r.car));
-        return stratified;
+*/
+        //return stratified;
+        return patch;
         
     }
     toString() { return JSON.stringify(this); }
@@ -654,6 +685,7 @@ class Failure extends Stream {
     mplus(s) { return s; };
     _mplus(s) { return s; };
     isIncomplete() { return false; }
+    reactively_update(ans) { return this; }
     step() { return this; }
     isFailure() { return true; }
     expand_ctn(ctn, cjs, rtrn) { return new FailView(cjs.conj(ctn)); }
@@ -696,6 +728,8 @@ class State extends Stream {
         //let diff = this.updates.map(u => this.substitution.);
         //return mvars;
     }
+    reactively_update(sub) { // Reify the reactive updates in this and add to this to check consistency
+        return this.updates.fold((s,u) => s.unify(this.substitution.walk_var(u.car), this.substitution.reify(u.cdr, true)), sub); }
     update(x, y) {
         return new State(this.substitution, this.updates.acons(x, y)); }
     extend(x, y) { return new State(this.substitution.extend(x, y), this.updates); }
