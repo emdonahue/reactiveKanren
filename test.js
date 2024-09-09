@@ -91,6 +91,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     asserte(list(cons(x, 1)).repatch(list(cons(x, 2))), list(cons(x, 2)));
     asserte(list(cons(x, 1), cons(y,2)).repatch(list(cons(x, y))), list(cons(x, 2), cons(y,2)));
+    asserte(list(cons(x, 1), cons(y,2)).repatch(list(cons(x, y), cons(y,3))), list(cons(y,3), cons(x, 3)));
+    asserte(list(cons(x, cons(z,y)), cons(z, 1), cons(y,nil)).repatch(list(cons(x, list(4, 5, 6)), cons(y,list(2,3)))).reify(x), list(4,2,3));
     //asserte(list(cons(x, 1)).repatch(list(cons(x, y))), list(cons(x, 1)));
     asserte(list(cons(x, {a: y}), cons(y, 1)).repatch(list(cons(x, {a: 2}))), list(cons(x, {a: y}), cons(y, 2)));
     { let s = list(cons(x, 1)).repatch(list(cons(x, {a: 2}))), v = s.car.cdr.a;

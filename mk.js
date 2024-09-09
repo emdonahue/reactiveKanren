@@ -74,8 +74,9 @@ class List {
         return this.filter(x => x.car != k).acons(k, v);
     }
     member(e) {
-        return this.memp((x) => x == e);
+        return this.memp(x => x == e);
     }
+    unassoc(key) { return this.filter(x => x.car !== key); }
     assoc(key) {
         let self = this;
         while (self instanceof Pair) {
@@ -265,7 +266,7 @@ class List {
     }
     repatch(patch) {
         //return patch.repatch2(this);
-        return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch), this);
+        return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch.unassoc(p.car)), this);
     }
     repatch2(sub) {
         if (this.isNil()) return sub; // Out of patches
@@ -314,7 +315,8 @@ class List {
     }
     rebind2(x, y, patch) {
         log('reunify', 'rebind', x, y, toString(patch));
-        if (y instanceof LVar) return this.rebind2(x, this.reify(y), patch);
+        if (patch.assoc(x)) return this;
+        if (y instanceof LVar) return this.rebind2(x, this.walk(y), patch);
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
         let x_val = this.walk(x);
         let self = this;
@@ -323,12 +325,12 @@ class List {
             Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
             
         }
-        for (let k in y) {
-            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) {
-                
-                self = self.rebind2(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch);
+        for (let k in y) { // For each complex new value,
+            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) { // If old val complex,
+                log('rebind', normalized[k], toString(patch), patch.assoc(normalized[k]));
+                self = self.rebind2(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch); // recurse.
             }
-            else self = self.rebind2(normalized[k] = new SVar(), y[k], patch);
+            else self = self.rebind2(normalized[k] = new SVar(), y[k], patch); // If old val simple, overwrite.
         }
         log('reunify', 'rebind', 'extend', x, normalized);
         return self.extend(x, normalized);
