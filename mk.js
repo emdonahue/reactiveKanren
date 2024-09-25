@@ -318,6 +318,7 @@ class List {
     }
     rebind2(x, y) {
         log('reunify', 'rebind', x, y);
+        assert(x instanceof SVar); //TODO check lhs is svar somewhere since its a programmer error
         //if (patch.assoc(x)) return this;
         if (y instanceof LVar) return this.rebind2(x, this.walk(y), patch);
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
@@ -632,7 +633,9 @@ class SetUnification extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    diff(sub) { return new this.constructor(sub.walk_var(this.lhs), this.rhs); }
+    diff(sub) {
+        //console.log(this, sub, sub.reify(this.rhs, false))
+        return new this.constructor(sub.walk_var(this.lhs), sub.reify(this.rhs, true)); }
     toString() { return `(${toString(this.lhs)} =s= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }
 }

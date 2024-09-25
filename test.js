@@ -76,7 +76,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
 
     asserte(x.set(1).rediff(nil), list(x.set(1)));
-    asserte(y.set(1).conj(y.eq(x)).rediff(nil), list(x.set(1)));
+    asserte(a.set(1).conj(a.eq(x)).rediff(nil), list(x.set(1)));
+    asserte(x.set(a).conj(a.eq(1)).rediff(nil), list(x.set(1)));
 /*
     asserte(a.set(1).rediff(list(cons(a, x))), list(cons(x, 1)));
     asserte(x.set(y).conj(y.set(x)).rediff(list(cons(x, 1), cons(y, 2))), list(cons(y, 1), cons(x, 2)));
