@@ -1,5 +1,5 @@
 "use strict"
-import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, is_pojo, assert} from './util.js';
+import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray} from './util.js';
 //TODO global generic 'model' variable object as a shortcut for (v,m) => v.eq(m), maybe generalize to path vars
 //TODO let query variables be added manually not just extracted from fresh
 //TODO use clone node over create element for speed when applicable (eg dynamic model)
@@ -41,11 +41,12 @@ class RK {
         this.update(g, this.substitution);
         return this;
     }
-    update(goal, sub) {
+    update(goal, sub) { //TODO rename update->set
         if (goal instanceof Succeed || goal instanceof Fail) return;
         let patch = goal.rediff(sub);
-        log('reunify', this.constructor.name, 'update', toString(patch), toString(this.substitution));
+        log('reunify', this.constructor.name, 'update', subToArray(patch), subToArray(this.substitution));
         this.substitution = this.substitution.repatch(patch);
+        log('reunify', this.constructor.name, 'update - patched', toString(this.substitution));
         log('rerender', this.constructor.name, toString(this.substitution));
         this.child = this.child.rerender(this.substitution, this);
     }
@@ -266,9 +267,11 @@ class List {
     }
     repatch(patch) {
         //return patch.repatch2(this);
-        return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch.unassoc(p.car)), this);
+        //return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch.unassoc(p.car)), this);
+        return patch.fold((s, p) => s.rebind2(p.lhs, p.rhs), this);
     }
     repatch2(sub) {
+        throw Error()
         if (this.isNil()) return sub; // Out of patches
         let {car: x, cdr: y} = this.car;
         if (primitive(y)) return this.cdr.repatch2(sub.extend(x,y));
@@ -313,9 +316,9 @@ class List {
         log('reunify', 'rebind', 'extend', x, normalized);
         return self.extend(x, normalized);
     }
-    rebind2(x, y, patch) {
-        log('reunify', 'rebind', x, y, toString(patch));
-        if (patch.assoc(x)) return this;
+    rebind2(x, y) {
+        log('reunify', 'rebind', x, y);
+        //if (patch.assoc(x)) return this;
         if (y instanceof LVar) return this.rebind2(x, this.walk(y), patch);
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
         let x_val = this.walk(x);
@@ -327,7 +330,6 @@ class List {
         }
         for (let k in y) { // For each complex new value,
             if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) { // If old val complex,
-                log('rebind', normalized[k], toString(patch), patch.assoc(normalized[k]));
                 self = self.rebind2(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch); // recurse.
             }
             else self = self.rebind2(normalized[k] = new SVar(), y[k], patch); // If old val simple, overwrite.
@@ -424,7 +426,8 @@ class LVar {
     }
     eq(x) { return this.unify(i); }
     eq(x) { return this.unify(x); }
-    set(x) { return new Reunification(this, x); }
+    set(x) { return new SetUnification(this, x); }
+    put(x) { return new PutUnification(this, x); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
     constraint(f, ...lvars) { return new Constraint(f, this, ...lvars); }
@@ -623,14 +626,19 @@ class Constraint extends Goal {
     toString() { return `${this.f}(${this.lvars})`; }
 }
 
-class Reunification extends Goal {
+class SetUnification extends Goal {
     constructor(lhs, rhs) {
         super();
         this.lhs = lhs;
         this.rhs = rhs;
     }
-    toString() { return `(${toString(this.lhs)} =!= ${toString(this.rhs)})`; }
-    eval(s, ctn=succeed) { return ctn.cont(s.update(this.lhs, this.rhs)); }
+    diff(sub) { return new this.constructor(sub.walk_var(this.lhs), this.rhs); }
+    toString() { return `(${toString(this.lhs)} =s= ${toString(this.rhs)})`; }
+    eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }
+}
+
+class PutUnification extends SetUnification {
+    toString() { return `(${toString(this.lhs)} =p= ${toString(this.rhs)})`; }
 }
 
 function conde(...condes) {
@@ -643,10 +651,6 @@ function conj(...conjs) {
 
 function unify(x, y) {
     return new Unification(x, y);
-}
-
-function reunify(x, y) {
-    return new Reunification(x, y);
 }
 
 function to_goal(g) {
@@ -731,9 +735,11 @@ class State extends Stream {
         //return mvars;
     }
     reactively_update(sub) { // Reify the reactive updates in this and add to this to check consistency
-        return this.updates.fold((s,u) => s.unify(this.substitution.walk_var(u.car), this.substitution.reify(u.cdr, true)), sub); }
-    update(x, y) {
-        return new State(this.substitution, this.updates.acons(x, y)); }
+        //TODO can we just walk var to the first model var?
+        //unify(this.substitution.walk_var(u.car), this.substitution.reify(u.cdr, true))
+        return this.updates.fold((s,u) => s.cons(u.diff(this.substitution)), sub); }
+    update(u) {
+        return new State(this.substitution, this.updates.cons(u)); }
     extend(x, y) { return new State(this.substitution.extend(x, y), this.updates); }
     eval(g) { return g.eval(this); }
     isIncomplete() { return false; }
@@ -1105,4 +1111,4 @@ class EventView {
 
 function view(template) { return new Template(template); }
 
-export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, reunify, failure, Goal, quote, QuotedVar, conj, SVar, view};
+export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, failure, Goal, quote, QuotedVar, conj, SVar, view};

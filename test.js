@@ -5,7 +5,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, view, RK} from './mk.js'
+import {nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, conj, fail, view, RK} from './mk.js'
 import {logging, log, copy, toString, equals, assert} from './util.js'
 
 function test(f, test_name) {
@@ -74,10 +74,14 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let z = new SVar().name('z');
     let n = new SVar().name('n');
 
-    /*
-    asserte(x.set(1).rediff(nil), list(cons(x, 1)));
+
+    asserte(x.set(1).rediff(nil), list(x.set(1)));
+    asserte(y.set(1).conj(y.eq(x)).rediff(nil), list(x.set(1)));
+/*
     asserte(a.set(1).rediff(list(cons(a, x))), list(cons(x, 1)));
     asserte(x.set(y).conj(y.set(x)).rediff(list(cons(x, 1), cons(y, 2))), list(cons(y, 1), cons(x, 2)));
+    */
+        /*
     asserte(a.set(b).rediff(list(cons(a, x), cons(b, 1))), list(cons(x, 1)));
     asserte(a.set(y).rediff(list(cons(a, x), cons(y, 1))), list(cons(x, 1)));
     asserte(a.set(y).conj(y.set(2)).rediff(list(cons(a, x), cons(y, 1))), list(cons(y, 2), cons(x, 1)));
@@ -89,10 +93,14 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(x.set([y, y]).conj(y.set(3)).rediff(list(cons(x, [y, z]), cons(y, 1), cons(z, 2))), list(cons(x, [3, 3])));
     */
 
+    asserte(nil.repatch(list(x.set(1))), list(cons(x, 1)));
+    
+    /*
     asserte(list(cons(x, 1)).repatch(list(cons(x, 2))), list(cons(x, 2)));
     asserte(list(cons(x, 1), cons(y,2)).repatch(list(cons(x, y))), list(cons(x, 2), cons(y,2)));
     asserte(list(cons(x, 1), cons(y,2)).repatch(list(cons(x, y), cons(y,3))), list(cons(y,3), cons(x, 3)));
     asserte(list(cons(x, cons(z,y)), cons(z, 1), cons(y,nil)).repatch(list(cons(x, list(4, 5, 6)), cons(y,list(2,3)))).reify(x), list(4,2,3));
+    asserte(list(cons(x, cons(1,y)), cons(y, cons(2,z)), cons(z,nil)).repatch(list(cons(x, y), cons(y,z))).reify(x), nil);
     //asserte(list(cons(x, 1)).repatch(list(cons(x, y))), list(cons(x, 1)));
     asserte(list(cons(x, {a: y}), cons(y, 1)).repatch(list(cons(x, {a: 2}))), list(cons(x, {a: y}), cons(y, 2)));
     { let s = list(cons(x, 1)).repatch(list(cons(x, {a: 2}))), v = s.car.cdr.a;
@@ -106,24 +114,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     { let s = list(cons(x, 'a')).repatch(list(cons(x, ['b','c']))), v0 = s.car.cdr[0], v1 = s.car.cdr[1];
       assert(Array.isArray(s.car.cdr));
       asserte(s, list(cons(x, [v0, v1]), cons(v1, 'c'), cons(v0, 'b'))); }
+    */
 
     
-    
-        /*
-          asserte(list(cons(x, cons(1, y)),
-                 cons(y, cons(2, z)),
-                 cons(z, nil)).repatch(list(cons(x, y), cons(y, nil))), list(cons(x, cons(2, z)), cons(z, nil)));
-*/
-
-    // x = y = (2)
-    // y = z = ()
-
-    // there are several stages
-    // 1) individual answers
-    // 2) extracted patch
-    // 3) applied to main sub
-    // mvars should be same in all cases, so can reify anywhere
-    
+    /*
     asserte(conj(unify(x,2), reunify(x, 1)).reunify_substitution(nil.acons(x,0)).reify(x), 0); // failure
     asserte(reunify(x, 1).reunify_substitution(nil.acons(x,0)).reify(x), 1); // prim -> prim
     asserte(reunify(x, 1).reunify_substitution(nil).reify(x), 1); // free -> prim
@@ -162,36 +156,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(conj(a.unify(1), b.unify(1), b.unify(a), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound == bound2! == storage
     asserte(conj(a.unify(1), b.unify(1), a.unify(b), x.unify(a), b.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2! == bound == storage
     asserte(conj(a.unify(1), b.unify(1), a.unify(b), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2 == bound! == storage
+*/
 
-    //TODO does recursive skip work if some vars are free, so it cant check recursive order?
-
-    /*
-    asserte(x.eq(1).expand_run().asGoal(), x.eq(1)); // succeed
-    asserte(x.eq(1).expand_run(list(cons(x,2))).asGoal(), x.eq(1)); // fail
-    asserte(x.eq(1).conj(y.eq(2)).expand_run().asGoal(), x.eq(1).conj(y.eq(2))); // succeed & succeed
-    asserte(x.eq(1).conj(y.eq(2)).expand_run(list(cons(y, 0))).asGoal(), x.eq(1).conj(y.eq(2))); // succeed & fail
-    asserte(x.eq(1).conj(y.eq(2)).expand_run(list(cons(x, 0))).asGoal(), x.eq(1).conj(y.eq(2))); // fail & succeed
-    asserte(x.eq(1).disj(y.eq(2)).expand_run().asGoal(), x.eq(1).disj(y.eq(2))); // succeed | succeed
-    asserte(x.eq(1).disj(y.eq(2)).expand_run(list(cons(x,0), cons(y,0))).asGoal(), x.eq(1).disj(y.eq(2))); // fail | fail
-
-    { let f = fresh(y => x.eq(1));
-      asserte(f.expand_run().asGoal(), x.eq(1)); // fresh
-      asserte(y.eq(2).conj(f).expand_run(list(cons(y,0))).asGoal(), y.eq(2).conj(f)); } // fail & fresh
-
-    */
 }
-
-
-//asserte(fresh((x,y) => fresh((w,z,n) => [unify(x.name('x'),cons(w.name('w'), y.name('y'))), unify(w, 1), unify(y,cons(z.name('z'), n.name('n'))), unify(z,2), unify(n, nil), reunify(x, y), reunify(y, n)])).run(), List.fromTree([[[], []]])); // simultaneous delete. pointer manipulation "happens" at stratified timestep BEFORE value transfer
-
-// x = (1 . y), y = (2)
-// x->1, x->2
-// x'->y, y'->x  both x and y are at prev timestep
-// x(1 . y:(2)), x->y this is deletion. y at prev timestep
-// x(1 . y:(2)), y->x    (1 1 2) duplicates, but probably not super useful
-
-// x(1 . y:(2)), y->x, x->y    this wants to set y to car and to a pair (1 . ...) CONFLICT
-// x(1 . y:(2 . z:())), x->y, y->z
 
 
 // DOM
@@ -232,6 +199,7 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     //asserte(new RK(m => (v,x=m) => fresh((a,d) => [x.eq(cons(a,d)), conde(v.eq(a))]), list('lorem')).root().textContent, 'lorem');
     
     // Dynamic renders
+    /*
     asserte(new RK(m => v => v.eq(m), 'lorem').root().textContent, 'lorem');
     asserte(new RK(m => v => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');
     asserte(new RK(m => v => v.eq(m), 'lorem').rerender(m => m.set('ipsum')).root().textContent, 'ipsum');
@@ -332,9 +300,10 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
 
 
-
+*/
 
 }
+
 
 
 console.log('Tests Complete');

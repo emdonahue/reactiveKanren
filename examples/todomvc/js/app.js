@@ -5,7 +5,8 @@ import {logging} from '../../../util.js';
 (function (window) {
 	'use strict';
 
-    let data = {todos: list({title: 'Buy a unicorn', done: false, editing: false}), //{title: 'Taste JavaScript', done: true}, 
+    let data = {todos: list({title: 'Buy a unicorn', done: true, editing: false},
+                           {title: 'Taste JavaScript', done: true, editing: false}, ),
                 active: true,
                 completed: true}
     
