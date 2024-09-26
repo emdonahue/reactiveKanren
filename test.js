@@ -74,13 +74,26 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let z = new SVar().name('z');
     let n = new SVar().name('n');
 
-    //TODO should setting a ground to itself result in a trivial delta or a null delta?
     asserte(x.set(1).rediff(nil), list(cons(x, 1)));
     asserte(x.set(1).rediff(list(cons(x, 0))), list(cons(x, 1)));
+    asserte(x.set(1).rediff(list(cons(x, 1))), list());
     asserte(a.set(1).conj(a.eq(x)).rediff(nil), list(cons(x, 1)));
     asserte(x.set(a).conj(a.eq(1)).rediff(nil), list(cons(x, 1)));
     asserte(x.set(1).rediff(list(cons(x, y))), list(cons(x, 1)));
-    //asserte(x.set({a:1}).rediff(list(cons(x,{})))
+    asserte(x.set(y).rediff(list(cons(x, 0), cons(y, 0))), list(cons(x, y)));
+    asserte(x.set({a:1}).rediff(list(cons(x,{a:y}), cons(y, 0))), list(cons(y, 1)));
+    asserte(x.set({a:1}).rediff(list(cons(x,{a:y,b:z}), cons(y, 0), cons(z, 0))), list(cons(x, {a:y}), cons(y, 1)));
+    asserte(x.set({0:1}).rediff(list(cons(x,[y]), cons(y, 0))), list(cons(x, {0:y}), cons(y, 1)));
+    asserte(x.set([1]).rediff(list(cons(x,[y]), cons(y, 0))), list(cons(y, 1)));
+    asserte(x.set({a:{b:1}}).rediff(list(cons(x,{a:y}), cons(y, {b:z}), cons(z, 0))), list(cons(z, 1)));
+    { let d = x.set({a:1}).rediff(list(cons(x,{}))), v = d.car.cdr.a;
+      asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
+    { let d = x.set({a:1}).rediff(list(cons(x, 0))), v = d.car.cdr.a;
+      asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
+    { let d = x.set({a:y}).rediff(list(cons(x, 0))), v = d.car.cdr.a;
+      asserte(d, list(cons(x, {a: v}), cons(v, y))); }
+    { let d = x.set({a:{b:1}}).rediff(list(cons(x,{}))), v = d.car.cdr.a, v2 = d.cdr.car.cdr.b;
+      asserte(d, list(cons(x, {a: v}), cons(v, {b: v2}), cons(v2, 1))); }
 
     asserte(x.put(1).rediff(nil), list(cons(x, 1)));
     asserte(x.put(1).rediff(list(cons(x, 0))), list(cons(x, 1)));

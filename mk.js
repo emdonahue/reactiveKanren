@@ -428,7 +428,7 @@ class LVar {
     }
     eq(x) { return this.unify(i); }
     eq(x) { return this.unify(x); }
-    set(x) { return new SetUnification(this, x); }
+    set(x) { return new PatchUnification(this, x); }
     put(x) { return new PatchUnification(this, x, true); }
     patch(x) { return new PatchUnification(this, x, true, true); }
     name(n) { this.label = n; return this; }
@@ -663,7 +663,7 @@ class PatchUnification extends SetUnification{
     }
     diff(sub, deltas, _x=this.lhs, _y=this.rhs) {
         log('reunify', this.constructor.name, 'init', _x, _y, toString(deltas), toString(sub));
-        let x_var = sub.walk_var(_x, true), x_val = this.put && sub.walk(_x), y = sub.walk(_y, true);
+        let x_var = sub.walk_var(_x, this.put), x_val = sub.walk(_x), y = sub.walk(_y, true);
         log('reunify', this.constructor.name, 'walk', x_val, y);
         if (equals(x_val, y)) return deltas;
         if (primitive(y) || y instanceof SVar) return deltas.cons(cons(x_var, y));
