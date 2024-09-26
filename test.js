@@ -155,12 +155,12 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     */
 
     asserte(nil.repatch(list(cons(x, 1))), list(cons(x, 1)));
-    asserte(list(cons(x, 0)).repatch(list(cons(x, 1))), list(cons(x, 1)));
-    asserte(list(cons(x, y), cons(y, 0)).repatch(list(cons(x, 1))), list(cons(x, 1), cons(y, 0)));
+    asserte(list(cons(x, 1)).repatch(list(cons(x, 0))), list(cons(x, 1)));
+    asserte(list(cons(x, 1)).repatch(list(cons(x, y), cons(y, 0))), list(cons(x, 1), cons(y, 0)));
 
-    asserte(nil.repatch(list(cons(x, 1))), list(cons(x, 1)));
-    asserte(list(cons(x, 0)).repatch(list(cons(x, 1))), list(cons(x, 1)));
-    asserte(list(cons(x, y), cons(y, 0)).repatch(list(cons(y, 1))), list(cons(y, 1), cons(x, y)));
+    asserte(list(cons(x, 1)).repatch(), list(cons(x, 1)));
+    asserte(list(cons(x, 1)).repatch(list(cons(x, 0))), list(cons(x, 1)));
+    asserte(list(cons(y, 1)).repatch(list(cons(x, y), cons(y, 0))), list(cons(y, 1), cons(x, y)));
     
     /*
     asserte(list(cons(x, 1)).repatch(list(cons(x, 2))), list(cons(x, 2)));

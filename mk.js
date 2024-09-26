@@ -31,7 +31,7 @@ function is_text(x) { return is_string(x) || is_number(x) || is_boolean(x); }
 class RK {
     constructor(template, data) {
         this.mvar = new SVar().name('model');
-        this.substitution = nil.repatch(this.mvar.set(data).rediff()); //TODO can we have an app init where we enrich with local vars (selected/editing flags) then track which vars were added and shed them when sending data outside? maybe tagged LVars for locals
+        this.substitution = this.mvar.set(data).rediff(); //TODO can we have an app init where we enrich with local vars (selected/editing flags) then track which vars were added and shed them when sending data outside? maybe tagged LVars for locals
         this.template = (template instanceof Function) ? template(this.mvar) : template;
         this.child = View.render(this.substitution, this, this.template);
     }
@@ -45,7 +45,7 @@ class RK {
         if (goal instanceof Succeed || goal instanceof Fail) return;
         let patch = goal.rediff(sub);
         log('reunify', this.constructor.name, 'update', subToArray(patch), subToArray(this.substitution));
-        this.substitution = this.substitution.repatch(patch);
+        this.substitution = patch.repatch(this.substitution);
         log('reunify', this.constructor.name, 'update - patched', toString(this.substitution));
         log('rerender', this.constructor.name, toString(this.substitution));
         this.child = this.child.rerender(this.substitution, this);
@@ -265,36 +265,8 @@ class List {
         if (v instanceof SVar) return equiv.cons(v);
         return equiv;
     }
-    repatch(patch) {
-        //return patch.repatch2(this);
-        //return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch.unassoc(p.car)), this);
-        //s.rebind2(p.lhs, p.rhs
-        return patch.fold((s, p) => s.extend(p.car, p.cdr), this);
-    }
-    repatch2(sub) {
-        throw Error()
-        if (this.isNil()) return sub; // Out of patches
-        let {car: x, cdr: y} = this.car;
-        if (primitive(y)) return this.cdr.repatch2(sub.extend(x,y));
-        if (!(primitive(x_val) || x_val instanceof LVar)) Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
-    
-            
+    repatch(sub=nil) { return this.fold((s, p) => s.extend(p.car, p.cdr), sub); }
 
-        let x_val = sub.walk(x);
-        let normalized = Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
-
-
-        for (let k in y) {
-            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) {
-
-                //sub = sub.rebind(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch);
-                
-            }
-            //else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
-            else throw Error('nyi')
-        }
-        return this.cdr.repatch2(sub.extend(x, normalized));
-    }
     rebind(x, y, patch) {
         throw Error()
         log('reunify', 'rebind', x, y, toString(patch));
