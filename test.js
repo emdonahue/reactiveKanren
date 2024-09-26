@@ -84,23 +84,34 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     asserte(x.put(1).rediff(nil), list(cons(x, 1)));
     asserte(x.put(1).rediff(list(cons(x, 0))), list(cons(x, 1)));
+    asserte(x.put(1).rediff(list(cons(x, 1))), list());
     asserte(a.put(1).conj(a.eq(x)).rediff(nil), list(cons(x, 1)));
     asserte(x.put(a).conj(a.eq(1)).rediff(nil), list(cons(x, 1)));
     asserte(x.put(1).rediff(list(cons(x, y))), list(cons(y, 1)));
+    asserte(x.put(y).rediff(list(cons(x, 0), cons(y, 0))), list(cons(x, y)));
     asserte(x.put({a:1}).rediff(list(cons(x,{a:y}), cons(y, 0))), list(cons(y, 1)));
     asserte(x.put({a:1}).rediff(list(cons(x,{a:y,b:z}), cons(y, 0), cons(z, 0))), list(cons(x, {a:y}), cons(y, 1)));
     asserte(x.put({0:1}).rediff(list(cons(x,[y]), cons(y, 0))), list(cons(x, {0:y}), cons(y, 1)));
+    asserte(x.put([1]).rediff(list(cons(x,[y]), cons(y, 0))), list(cons(y, 1)));
+    asserte(x.put({a:{b:1}}).rediff(list(cons(x,{a:y}), cons(y, {b:z}), cons(z, 0))), list(cons(z, 1)));
+    { let d = x.put({a:1}).rediff(list(cons(x,{}))), v = d.car.cdr.a;
+      asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
+    { let d = x.put({a:1}).rediff(list(cons(x, 0))), v = d.car.cdr.a;
+      asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
+    { let d = x.put({a:{b:1}}).rediff(list(cons(x,{}))), v = d.car.cdr.a, v2 = d.cdr.car.cdr.b;
+      asserte(d, list(cons(x, {a: v}), cons(v, {b: v2}), cons(v2, 1))); }
 
     asserte(x.patch(1).rediff(nil), list(cons(x, 1)));
     asserte(x.patch(1).rediff(list(cons(x, 0))), list(cons(x, 1)));
+    asserte(x.patch(1).rediff(list(cons(x, 1))), list());
     asserte(a.patch(1).conj(a.eq(x)).rediff(nil), list(cons(x, 1)));
     asserte(x.patch(a).conj(a.eq(1)).rediff(nil), list(cons(x, 1)));
     asserte(x.patch(1).rediff(list(cons(x, y))), list(cons(y, 1)));    
     asserte(x.patch({a:1}).rediff(list(cons(x,{a:y}), cons(y, 0))), list(cons(y, 1)));
-    asserte(x.patch({a:1}).rediff(list(cons(x,{a:y,b:z}), cons(y, 0), cons(z, 0))), list(cons(y, 1)));    
+    asserte(x.patch({a:1}).rediff(list(cons(x,{a:y,b:z}), cons(y, 0), cons(z, 0))), list(cons(y, 1)));
+    asserte(x.patch({0:1}).rediff(list(cons(x,[y]), cons(y, 0))), list(cons(x, {0:y}), cons(y, 1)));
     asserte(x.patch([1]).rediff(list(cons(x,[y]), cons(y, 0))), list(cons(y, 1)));
     asserte(x.patch({a:{b:1}}).rediff(list(cons(x,{a:y}), cons(y, {b:z}), cons(z, 0))), list(cons(z, 1)));
-    
     { let d = x.patch({a:1}).rediff(list(cons(x,{}))), v = d.car.cdr.a;
       asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
     { let d = x.patch({a:1}).rediff(list(cons(x, 0))), v = d.car.cdr.a;

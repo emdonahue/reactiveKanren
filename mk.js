@@ -114,8 +114,8 @@ class List {
         else head = self;
         return head;
     }
-    walk(lvar) {
-        if (!(lvar instanceof LVar)) return lvar;
+    walk(lvar, mvar=false) {
+        if (!(lvar instanceof LVar) || mvar && lvar instanceof SVar) return lvar;
         const v = this.assoc(lvar);
         if (v) { return this.walk(v.cdr); }
         else return lvar;
@@ -661,10 +661,11 @@ class PatchUnification extends SetUnification{
         this.patch = patch;
     }
     diff(sub, deltas, x=this.lhs, y=this.rhs) {
-        log('reunify', this.constructor.name, 'init', x, y, toString(sub));
-        var x_var = sub.walk_var(x, true), x = sub.walk(x), y = sub.walk(y);
+        log('reunify', this.constructor.name, 'init', x, y, toString(deltas), toString(sub));
+        var x_var = sub.walk_var(x, true), x = sub.walk(x), y = sub.walk(y, true);
         log('reunify', this.constructor.name, 'walk', x, y);
-        if (primitive(y)) return deltas.cons(cons(x_var, y));
+        if (equals(x, y)) return deltas;
+        if (primitive(y) || y instanceof SVar) return deltas.cons(cons(x_var, y));
 
         let extended = false, restricted = false;
         var x = primitive(x) || x instanceof SVar ? copy_empty(y) : x;
@@ -672,11 +673,11 @@ class PatchUnification extends SetUnification{
         
         for (let k in x) {
             if (!(k in y)) restricted = true;
-            if (this.patch) x_tended[k] = x[k]; }
+            if (this.patch || k in y) x_tended[k] = x[k]; }
         
         for (let k in y) {
             if (!(k in x)) extended = true;
-            if (!(k in x_tended)) x_tended[k] = (k in x) ? x[k] : new SVar(); //TODO check on 'in' vs hasOwn
+            if (!(k in x_tended)) x_tended[k] = new SVar(); //TODO check on 'in' vs hasOwn
             deltas = this.diff(sub, deltas, x_tended[k], y[k]); }
         
         return extended || Object.getPrototypeOf(x) !== Object.getPrototypeOf(y)
