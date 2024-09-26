@@ -429,8 +429,8 @@ class LVar {
     eq(x) { return this.unify(i); }
     eq(x) { return this.unify(x); }
     set(x) { return new SetUnification(this, x); }
-    put(x) { return new PatchUnification(this, x, false); }
-    patch(x) { return new PatchUnification(this, x, true); }
+    put(x) { return new PatchUnification(this, x, true); }
+    patch(x) { return new PatchUnification(this, x, true, true); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
     constraint(f, ...lvars) { return new Constraint(f, this, ...lvars); }
@@ -656,19 +656,20 @@ class PutUnification extends SetUnification {
 }
 
 class PatchUnification extends SetUnification{
-    constructor(lhs, rhs, patch) {
+    constructor(lhs, rhs, put=false, patch=false) {
         super(lhs, rhs);
+        this.put = put;
         this.patch = patch;
     }
-    diff(sub, deltas, x=this.lhs, y=this.rhs) {
-        log('reunify', this.constructor.name, 'init', x, y, toString(deltas), toString(sub));
-        var x_var = sub.walk_var(x, true), x = sub.walk(x), y = sub.walk(y, true);
-        log('reunify', this.constructor.name, 'walk', x, y);
-        if (equals(x, y)) return deltas;
+    diff(sub, deltas, _x=this.lhs, _y=this.rhs) {
+        log('reunify', this.constructor.name, 'init', _x, _y, toString(deltas), toString(sub));
+        let x_var = sub.walk_var(_x, true), x_val = this.put && sub.walk(_x), y = sub.walk(_y, true);
+        log('reunify', this.constructor.name, 'walk', x_val, y);
+        if (equals(x_val, y)) return deltas;
         if (primitive(y) || y instanceof SVar) return deltas.cons(cons(x_var, y));
 
         let extended = false, restricted = false;
-        var x = primitive(x) || x instanceof SVar ? copy_empty(y) : x;
+        var x = primitive(x_val) || x_val instanceof SVar ? copy_empty(y) : x_val;
         let x_tended = copy_empty(y);
         
         for (let k in x) {
