@@ -78,6 +78,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(x.set(1).rediff(nil), list(x.set(1)));
     asserte(a.set(1).conj(a.eq(x)).rediff(nil), list(x.set(1)));
     asserte(x.set(a).conj(a.eq(1)).rediff(nil), list(x.set(1)));
+    asserte(x.set(1).rediff(list(cons(x, y))), list(x.set(1)));
+
+    asserte(x.put(1).rediff(list(cons(x, y))), list(y.set(1)));
 /*
     asserte(a.set(1).rediff(list(cons(a, x))), list(cons(x, 1)));
     asserte(x.set(y).conj(y.set(x)).rediff(list(cons(x, 1), cons(y, 2))), list(cons(y, 1), cons(x, 2)));
@@ -95,6 +98,12 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     */
 
     asserte(nil.repatch(list(x.set(1))), list(cons(x, 1)));
+    asserte(list(cons(x, 0)).repatch(list(x.set(1))), list(cons(x, 1)));
+    asserte(list(cons(x, y), cons(y, 0)).repatch(list(x.set(1))), list(cons(x, 1), cons(y, 0)));
+
+    asserte(nil.repatch(list(x.put(1))), list(cons(x, 1)));
+    asserte(list(cons(x, 0)).repatch(list(x.put(1))), list(cons(x, 1)));
+    asserte(list(cons(x, y), cons(y, 0)).repatch(list(y.put(1))), list(cons(y, 1), cons(x, y)));
     
     /*
     asserte(list(cons(x, 1)).repatch(list(cons(x, 2))), list(cons(x, 2)));

@@ -120,13 +120,13 @@ class List {
         if (v) { return this.walk(v.cdr); }
         else return lvar;
     }
-    walk_binding(lvar) {
-        if (!(lvar instanceof LVar)) return new Pair(lvar, lvar);
+    walk_binding(lvar, mvars=false) {
+        if (!(lvar instanceof LVar) || (!mvars && (lvar instanceof SVar))) return new Pair(lvar, lvar);
         const v = this.assoc(lvar);
         if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr) : v; }
         else return new Pair(lvar, lvar);
     }
-    walk_var(lvar) { return this.walk_binding(lvar).car; }
+    walk_var(lvar, mvars=false) { return this.walk_binding(lvar, mvars).car; }
     reify(lvar, diff=false) {
         if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, diff))); //TODO make this its own debug thing?
         if (diff & (lvar instanceof SVar)) return lvar;
@@ -268,7 +268,8 @@ class List {
     repatch(patch) {
         //return patch.repatch2(this);
         //return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch.unassoc(p.car)), this);
-        return patch.fold((s, p) => s.rebind2(p.lhs, p.rhs), this);
+        //s.rebind2(p.lhs, p.rhs
+        return patch.fold((s, p) => p.repatch(s), this);
     }
     repatch2(sub) {
         throw Error()
@@ -318,7 +319,7 @@ class List {
     }
     rebind2(x, y) {
         log('reunify', 'rebind', x, y);
-        assert(x instanceof SVar); //TODO check lhs is svar somewhere since its a programmer error
+        assert(x instanceof SVar && (y instanceof SVar || !(y instanceof LVar))); //TODO check lhs is svar somewhere since its a programmer error
         //if (patch.assoc(x)) return this;
         if (y instanceof LVar) return this.rebind2(x, this.walk(y), patch);
         if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
@@ -633,6 +634,9 @@ class SetUnification extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+    repatch(sub) {
+        return sub.extend(this.lhs, this.rhs);
+    }
     diff(sub) {
         //console.log(this, sub, sub.reify(this.rhs, false))
         return new this.constructor(sub.walk_var(this.lhs), sub.reify(this.rhs, true)); }
@@ -641,6 +645,12 @@ class SetUnification extends Goal {
 }
 
 class PutUnification extends SetUnification {
+//    repatch(sub) {
+        
+    //    }
+    diff(sub) {
+        console.log(this, sub, sub.walk_var(this.lhs, true))
+        return new SetUnification(sub.walk_var(this.lhs, true), sub.reify(this.rhs, true)); }
     toString() { return `(${toString(this.lhs)} =p= ${toString(this.rhs)})`; }
 }
 
