@@ -1,5 +1,5 @@
 "use strict"
-import {logging, log, toString, copy, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray} from './util.js';
+import {logging, log, toString, copy, copy_empty, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray} from './util.js';
 //TODO global generic 'model' variable object as a shortcut for (v,m) => v.eq(m), maybe generalize to path vars
 //TODO let query variables be added manually not just extracted from fresh
 //TODO use clone node over create element for speed when applicable (eg dynamic model)
@@ -429,8 +429,8 @@ class LVar {
     eq(x) { return this.unify(i); }
     eq(x) { return this.unify(x); }
     set(x) { return new SetUnification(this, x); }
-    put(x) { return new PutUnification(this, x); }
-    patch(x) { return new PatchUnification(this, x); }
+    put(x) { return new PatchUnification(this, x, false); }
+    patch(x) { return new PatchUnification(this, x, true); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
     constraint(f, ...lvars) { return new Constraint(f, this, ...lvars); }
@@ -656,24 +656,31 @@ class PutUnification extends SetUnification {
 }
 
 class PatchUnification extends SetUnification{
+    constructor(lhs, rhs, patch) {
+        super(lhs, rhs);
+        this.patch = patch;
+    }
     diff(sub, deltas, x=this.lhs, y=this.rhs) {
         log('reunify', this.constructor.name, 'init', x, y, toString(sub));
         var x_var = sub.walk_var(x, true), x = sub.walk(x), y = sub.walk(y);
         log('reunify', this.constructor.name, 'walk', x, y);
         if (primitive(y)) return deltas.cons(cons(x_var, y));
 
+        let extended = false, restricted = false;
+        var x = primitive(x) || x instanceof SVar ? copy_empty(y) : x;
+        let x_tended = copy_empty(y);
         
-        let extended = false;
-        let x_tended = Array.isArray(y) ? [...x] : Object.assign(Object.create(Object.getPrototypeOf(y)), primitive(x) || (x instanceof SVar) ? {} : x); // type y but properties x in case y doesn't overwrite
+        for (let k in x) {
+            if (!(k in y)) restricted = true;
+            if (this.patch) x_tended[k] = x[k]; }
         
         for (let k in y) {
-            if (!(k in x_tended)) {
-                extended = true;
-                x_tended[k] = new SVar();
-            }
-            deltas = this.diff(sub, deltas, x_tended[k], y[k]);
-        }
-        return extended ? deltas.cons(cons(x_var, x_tended)) : deltas;
+            if (!(k in x)) extended = true;
+            if (!(k in x_tended)) x_tended[k] = (k in x) ? x[k] : new SVar(); //TODO check on 'in' vs hasOwn
+            deltas = this.diff(sub, deltas, x_tended[k], y[k]); }
+        
+        return extended || Object.getPrototypeOf(x) !== Object.getPrototypeOf(y)
+            || restricted && !this.patch ? deltas.cons(cons(x_var, x_tended)) : deltas;
     }
     
     toString() { return `(${toString(this.lhs)} =c= ${toString(this.rhs)})`; }

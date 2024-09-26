@@ -33,6 +33,10 @@ function copy(x) {//TODO convert to structuredclone?
     return Object.assign(Object.create(Object.getPrototypeOf(x)), x);
 }
 
+function copy_empty(x) {
+    return Array.isArray(x) ? [] : Object.create(Object.getPrototypeOf(x));
+}
+
 function equals(x, y) {
     return (x === y)
         || (Array.isArray(x) && Array.isArray(y) && x.length == y.length && x.every((e,i) => equals(e, y[i])))
@@ -50,4 +54,4 @@ function is_boolean(x) { return Object.prototype.toString.call(x) === '[object B
 function is_pojo(x) { return !!x && Object.getPrototypeOf(x) === Object.prototype; };
 
 
-export {logging, log, copy, toString, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray}
+export {logging, log, copy, toString, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray, copy_empty}
