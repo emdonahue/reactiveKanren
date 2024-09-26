@@ -661,10 +661,19 @@ class PatchUnification extends SetUnification{
         var x_var = sub.walk_var(x, true), x = sub.walk(x), y = sub.walk(y);
         log('reunify', this.constructor.name, 'walk', x, y);
         if (primitive(y)) return deltas.cons(cons(x_var, y));
+
+        
+        let extended = false;
+        let x_tended = Array.isArray(y) ? [...x] : Object.assign(Object.create(Object.getPrototypeOf(y)), primitive(x) || (x instanceof SVar) ? {} : x); // type y but properties x in case y doesn't overwrite
+        
         for (let k in y) {
-            deltas = this.diff(sub, deltas, x[k], y[k]);
+            if (!(k in x_tended)) {
+                extended = true;
+                x_tended[k] = new SVar();
+            }
+            deltas = this.diff(sub, deltas, x_tended[k], y[k]);
         }
-        return deltas;
+        return extended ? deltas.cons(cons(x_var, x_tended)) : deltas;
     }
     
     toString() { return `(${toString(this.lhs)} =c= ${toString(this.rhs)})`; }
