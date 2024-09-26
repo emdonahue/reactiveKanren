@@ -430,6 +430,7 @@ class LVar {
     eq(x) { return this.unify(x); }
     set(x) { return new SetUnification(this, x); }
     put(x) { return new PutUnification(this, x); }
+    patch(x) { return new PatchUnification(this, x); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
     constraint(f, ...lvars) { return new Constraint(f, this, ...lvars); }
@@ -637,9 +638,9 @@ class SetUnification extends Goal { //TODO the update patch can set or patch, bu
     repatch(sub) {
         return sub.extend(this.lhs, this.rhs);
     }
-    diff(sub) {
+    diff(sub, patch) {
         //console.log(this, sub, sub.reify(this.rhs, false))
-        return cons(sub.walk_var(this.lhs), sub.reify(this.rhs, true)); }
+        return patch.cons(cons(sub.walk_var(this.lhs), sub.reify(this.rhs, true))); }
     toString() { return `(${toString(this.lhs)} =s= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }
 }
@@ -648,10 +649,25 @@ class PutUnification extends SetUnification {
 //    repatch(sub) {
         
     //    }
-    diff(sub) {
-        console.log(this, sub, sub.walk_var(this.lhs, true))
-        return cons(sub.walk_var(this.lhs, true), sub.reify(this.rhs, true)); }
+    diff(sub, patch) {
+        //console.log(this, sub, sub.walk_var(this.lhs, true))
+        return patch.cons(cons(sub.walk_var(this.lhs, true), sub.reify(this.rhs, true))); }
     toString() { return `(${toString(this.lhs)} =p= ${toString(this.rhs)})`; }
+}
+
+class PatchUnification extends SetUnification{
+    diff(sub, deltas, x=this.lhs, y=this.rhs) {
+        log('reunify', this.constructor.name, 'init', x, y, toString(sub));
+        var x_var = sub.walk_var(x, true), x = sub.walk(x), y = sub.walk(y);
+        log('reunify', this.constructor.name, 'walk', x, y);
+        if (primitive(y)) return deltas.cons(cons(x_var, y));
+        for (let k in y) {
+            deltas = this.diff(sub, deltas, x[k], y[k]);
+        }
+        return deltas;
+    }
+    
+    toString() { return `(${toString(this.lhs)} =c= ${toString(this.rhs)})`; }
 }
 
 function conde(...condes) {
@@ -750,7 +766,7 @@ class State extends Stream {
     reactively_update(sub) { // Reify the reactive updates in this and add to this to check consistency
         //TODO can we just walk var to the first model var?
         //unify(this.substitution.walk_var(u.car), this.substitution.reify(u.cdr, true))
-        return this.updates.fold((s,u) => s.cons(u.diff(this.substitution)), sub); }
+        return this.updates.fold((s,u) => u.diff(this.substitution, s), sub); }
     update(u) {
         return new State(this.substitution, this.updates.cons(u)); }
     extend(x, y) { return new State(this.substitution.extend(x, y), this.updates); }
