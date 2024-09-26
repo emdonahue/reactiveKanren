@@ -31,7 +31,7 @@ function is_text(x) { return is_string(x) || is_number(x) || is_boolean(x); }
 class RK {
     constructor(template, data) {
         this.mvar = new SVar().name('model');
-        this.substitution = this.mvar.set(data).reunify_substitution(nil); //TODO can we have an app init where we enrich with local vars (selected/editing flags) then track which vars were added and shed them when sending data outside? maybe tagged LVars for locals
+        this.substitution = nil.repatch(this.mvar.set(data).rediff()); //TODO can we have an app init where we enrich with local vars (selected/editing flags) then track which vars were added and shed them when sending data outside? maybe tagged LVars for locals
         this.template = (template instanceof Function) ? template(this.mvar) : template;
         this.child = View.render(this.substitution, this, this.template);
     }
@@ -496,7 +496,7 @@ class Goal {
     suspend(s) { return new Suspended(s, this) }
     apply(sub) { return sub.isFailure() ? failure : this.run(1, {reify: false, substitution: sub}).firstAnswer(); }
     is_disj() { return false; }
-    rediff(sub) {
+    rediff(sub=nil) {
         assert(sub);
         log('reunify', 'rediff', toString(sub));
         // reify each RU in its state (may not need to reify model vars bc all the same val already) (maybe that could let us target dom changes?)
