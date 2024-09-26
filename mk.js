@@ -269,7 +269,7 @@ class List {
         //return patch.repatch2(this);
         //return patch.fold((s, p) => s.rebind2(p.car, patch.reify(p.cdr), patch.unassoc(p.car)), this);
         //s.rebind2(p.lhs, p.rhs
-        return patch.fold((s, p) => p.repatch(s), this);
+        return patch.fold((s, p) => s.extend(p.car, p.cdr), this);
     }
     repatch2(sub) {
         throw Error()
@@ -628,7 +628,7 @@ class Constraint extends Goal {
     toString() { return `${this.f}(${this.lvars})`; }
 }
 
-class SetUnification extends Goal {
+class SetUnification extends Goal { //TODO the update patch can set or patch, but is distinct from the user constructed patch goal. diff objects. unless perhaps patch can precompute a list of sets? then we only need simple set object diff, which would be great
     constructor(lhs, rhs) {
         super();
         this.lhs = lhs;
@@ -639,7 +639,7 @@ class SetUnification extends Goal {
     }
     diff(sub) {
         //console.log(this, sub, sub.reify(this.rhs, false))
-        return new this.constructor(sub.walk_var(this.lhs), sub.reify(this.rhs, true)); }
+        return cons(sub.walk_var(this.lhs), sub.reify(this.rhs, true)); }
     toString() { return `(${toString(this.lhs)} =s= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }
 }
@@ -650,7 +650,7 @@ class PutUnification extends SetUnification {
     //    }
     diff(sub) {
         console.log(this, sub, sub.walk_var(this.lhs, true))
-        return new SetUnification(sub.walk_var(this.lhs, true), sub.reify(this.rhs, true)); }
+        return cons(sub.walk_var(this.lhs, true), sub.reify(this.rhs, true)); }
     toString() { return `(${toString(this.lhs)} =p= ${toString(this.rhs)})`; }
 }
 
