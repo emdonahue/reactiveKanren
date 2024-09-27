@@ -31,7 +31,7 @@ function is_text(x) { return is_string(x) || is_number(x) || is_boolean(x); }
 // APP INTERFACE
 class RK {
     constructor(template, data) {
-        this.mvar = new SVar().name('model');
+        this.mvar = new MVar().name('model');
         this.substitution = this.mvar.set(data).rediff(); //TODO can we have an app init where we enrich with local vars (selected/editing flags) then track which vars were added and shed them when sending data outside? maybe tagged LVars for locals
         log('render', this.constructor.name, 'substitution', subToArray(this.substitution));
         this.template = (template instanceof Function) ? template(this.mvar) : template;
@@ -43,13 +43,11 @@ class RK {
         this.update(g, this.substitution);
         return this;
     }
-    update(goal, sub) { //TODO rename update->set
-        if (goal instanceof Succeed || goal instanceof Fail) return;
-        let patch = goal.rediff(sub);
-        log('reunify', this.constructor.name, 'update', subToArray(patch), subToArray(this.substitution));
+    update(patch) { //TODO rename update->set
+        if (patch.isNil()) return;
+        log('reunify', this.constructor.name, subToArray(patch), subToArray(this.substitution));
         this.substitution = patch.repatch(this.substitution);
-        log('reunify', this.constructor.name, 'update - patched', toString(this.substitution));
-        log('rerender', this.constructor.name, toString(this.substitution));
+        log('rerender', this.constructor.name, subToArray(this.substitution));
         this.child = this.child.rerender(this.substitution, this);
     }
     toString() { return `(RK ${this.child})` }}
@@ -118,13 +116,13 @@ class List {
     }
     walk(lvar, walk_mvars=true) { return this.walk_binding(lvar, walk_mvars).cdr; }
     walk_binding(lvar, walk_mvars=true) {
-        if (!(lvar instanceof LVar) || !walk_mvars && lvar instanceof SVar) return new Pair(lvar, lvar);
+        if (!(lvar instanceof LVar) || !walk_mvars && lvar instanceof MVar) return new Pair(lvar, lvar);
         const v = this.assoc(lvar);
         if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr, walk_mvars) : v; }
         else return new Pair(lvar, lvar); }
     reify(lvar, diff=false) {
         if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, diff))); //TODO make this its own debug thing?
-        if (diff & (lvar instanceof SVar)) return lvar;
+        if (diff & (lvar instanceof MVar)) return lvar;
         let v = this.walk(lvar);
         if (v instanceof LVar || primitive(v)) return v;
         if (v instanceof QuotedVar) return this.reify(v.lvar, diff);
@@ -132,7 +130,9 @@ class List {
         if (Array.isArray(v)) return v.map(e => this.reify(e, diff));
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v, diff)]));
     }
+    toState(updates) { return new State(this, updates); }
     descendant(x, y) {//x ancestor, y descendant
+        throw Error(); //TODO remove
         log('reunify', 'descendant', x, y);
         if (x === y) return true;
         x = this.walk(x);
@@ -201,10 +201,6 @@ class Pair extends List {
     }
     append(xs) {
         return new Pair(this.car, this.cdr.append(xs));
-    }
-    update_substitution(curr, prev=curr, next=this) { // Called on the updates substitution with the normal substitution as a parameter.
-        log('reunify', 'update_substitution', toString(curr));
-        return curr.update_binding(this.caar(), this.cdar(), prev, next, this.cdr);
     }
     every(f) {
         f(this.car);
@@ -275,7 +271,7 @@ class LVar {
     tailo(x) { return conde(x.eq(this), fresh((a,d) => [this.eq(cons(a,d)), d.tailo(x)])) };
 }
 
-class SVar extends LVar {
+class MVar extends LVar {
     toString() { return `[${this.label}${this.label ? ':' : ''}${this.id}]`; }
 }
 
@@ -322,23 +318,7 @@ class Goal {
     rediff(sub=nil) {
         assert(sub);
         log('reunify', 'rediff', subToArray(sub));
-        // reify each RU in its state (may not need to reify model vars bc all the same val already) (maybe that could let us target dom changes?)
-        // as we patch, always check for a more specific rhs
-        // convert to normal unifications and unify in empty sub to merge/conflict detect. then reify each back out and deduplicate
-        // when applying patch, stop if hit a more specific mvar in RU set and let that one handle itself
-        let patch = this.run(-1, {reify: false, substitution: sub}).fold((s,a) => a.reactively_update(s), nil);
-        /*
-        let answers = this.run(-1, {reify: false, substitution: sub}).map(a => ({answer: a, updates: a.reactive_updates()})); //lhs walked
-        let mvars = answers.fold((mvars, u) => u.updates.fold((mvars, u) => mvars.set(u.car, u.cdr), mvars), new Map());
-        let descendants = new Set();
-        let reified = answers.map(a => a.updates.map(u => cons(u.car, a.answer.substitution.rereify(u.cdr, mvars, u.car, descendants)))).fold((p, u) => p.append(u), nil);
-        
-        let stratified = reified.filter(r => !descendants.has(r.car));
-*/
-        //return stratified;
-        return patch;
-        
-    }
+        return this.run(-1, {reify: false, substitution: sub}).fold((s,a) => a.rediff(s), nil); }
     toString() { return JSON.stringify(this); }
 }
 
@@ -466,10 +446,10 @@ class Reunification extends Goal {
         log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x_val, y, toString(deltas), subToArray(sub));
         
         if (equals(x_val, y)) return deltas; // No changes => no deltas
-        if (primitive(y) || y instanceof SVar) return deltas.cons(cons(x_var, y)); // Primitive y naively overwrites anything
+        if (primitive(y) || y instanceof MVar) return deltas.cons(cons(x_var, y)); // Primitive y naively overwrites anything
 
         let extended = false, restricted = false; // Will we add or remove properties?
-        var x = primitive(x_val) || x_val instanceof SVar ? copy_empty(y) : x_val;
+        var x = primitive(x_val) || x_val instanceof MVar ? copy_empty(y) : x_val;
         let x_tended = copy_empty(y);
         
         for (let k in x) {
@@ -478,7 +458,7 @@ class Reunification extends Goal {
         
         for (let k in y) {
             if (!(k in x)) extended = true; // If we extend the container, we need to update it.
-            if (!(k in x_tended)) x_tended[k] = new SVar(); //TODO check on 'in' vs hasOwn
+            if (!(k in x_tended)) x_tended[k] = new MVar(); //TODO check on 'in' vs hasOwn
             deltas = this.diff(sub, deltas, x_tended[k], y[k]); }
         
         return extended || Object.getPrototypeOf(x) !== Object.getPrototypeOf(y)
@@ -537,9 +517,10 @@ class Failure extends Stream {
     mplus(s) { return s; };
     _mplus(s) { return s; };
     isIncomplete() { return false; }
-    reactively_update(ans) { return this; }
+    rediff(ans) { return this; }
     step() { return this; }
     isFailure() { return true; }
+    toState() { return this; }
     expand_ctn(ctn, cjs, rtrn) { return new FailView(cjs.conj(ctn)); }
 }
 
@@ -552,15 +533,9 @@ class State extends Stream {
     }
     take(n) { return list(this); }
     reify(x) { return this.substitution.reify(x); }
-    unify(x, y) {
-        let s = this.substitution.unify(x, y);
-        log('unify', x, y, toString(this.substitution), '->', s);
-        if (s == failure) return s;
-        return new State(s, this.updates); }
-    reactively_update(sub) { // Reify the reactive updates in this and add to this to check consistency
-        return this.updates.fold((s,u) => u.diff(this.substitution, s), sub); }
-    update(u) {
-        return new State(this.substitution, this.updates.cons(u)); }
+    unify(x, y) { return this.substitution.unify(x, y).toState(this.updates); }
+    rediff(sub) { return this.updates.fold((s,u) => u.diff(this.substitution, s), sub); }
+    update(u) { return new State(this.substitution, this.updates.cons(u)); }
     extend(x, y) { return new State(this.substitution.extend(x, y), this.updates); }
     eval(g) { return g.eval(this); }
     isIncomplete() { return false; }
@@ -571,13 +546,6 @@ class State extends Stream {
     walk_binding(lvar) { return this.substitution.walk_binding(lvar); }
     walk(lvar) { return this.substitution.walk(lvar); }
     expand_ctn(ctn, cjs, rtrn) { return ctn.expand_ctn(this, cjs, rtrn); }
-}
-
-
-function descendant_order(x,y,s) { // Descendants go first, so -1 if x is a descendant of y
-    if (occurs_check(y, x, s)) return -1; //TODO delete fn
-    else if (occurs_check(x, y, s)) return 1;
-    return 0;
 }
 
 function occurs_check(x,y,s) { // Check if y occurs in x
@@ -922,8 +890,9 @@ class EventView {
         this.substitution = sub; }
     
     static render(sub, node, event, handler, app) {
-        let self = new this(sub);
-        node.addEventListener(event, e => app.update(handler instanceof Goal ? handler : to_goal(handler(e, e.target.value)), self.substitution));
+        let self = new this(sub); // Keep a reference to the view, which may mutate its sub.
+        node.addEventListener(event, e =>
+            app.update((handler instanceof Goal ? handler : to_goal(handler(e, e.target.value))).rediff(self.substitution)));
         return self; }
     
     rerender(sub) {
@@ -933,4 +902,4 @@ class EventView {
 
 function view(template) { return new Template(template); }
 
-export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, failure, Goal, quote, QuotedVar, conj, SVar, view};
+export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, failure, Goal, quote, QuotedVar, conj, MVar, view};
