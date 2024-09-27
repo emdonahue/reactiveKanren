@@ -116,18 +116,12 @@ class List {
         else head = self;
         return head;
     }
-    walk(lvar, mvar=false) {
-        if (!(lvar instanceof LVar) || mvar && lvar instanceof SVar) return lvar;
+    walk(lvar, walk_mvars=true) { return this.walk_binding(lvar, walk_mvars).cdr; }
+    walk_binding(lvar, walk_mvars=true) {
+        if (!(lvar instanceof LVar) || !walk_mvars && lvar instanceof SVar) return new Pair(lvar, lvar);
         const v = this.assoc(lvar);
-        if (v) { return this.walk(v.cdr); }
-        else return lvar;
-    }
-    walk_binding(lvar, mvars=false) {
-        if (!(lvar instanceof LVar) || mvars && lvar instanceof SVar) return new Pair(lvar, lvar);
-        const v = this.assoc(lvar);
-        if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr) : v; }
-        else return new Pair(lvar, lvar);
-    }
+        if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr, walk_mvars) : v; }
+        else return new Pair(lvar, lvar); }
     reify(lvar, diff=false) {
         if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, diff))); //TODO make this its own debug thing?
         if (diff & (lvar instanceof SVar)) return lvar;
@@ -467,8 +461,8 @@ class Reunification extends Goal {
         this.patch = patch; }
     
     diff(sub, deltas, _x=this.lhs, _y=this.rhs) {
-        let {car: x_var, cdr: x_varval} = sub.walk_binding(_x, !this.put);
-        let x_val = sub.walk(x_varval), y = sub.walk(_y, true);
+        let {car: x_var, cdr: x_varval} = sub.walk_binding(_x, this.put);
+        let x_val = sub.walk(x_varval), y = sub.walk(_y, false);
         log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x_val, y, toString(deltas), subToArray(sub));
         
         if (equals(x_val, y)) return deltas; // No changes => no deltas
