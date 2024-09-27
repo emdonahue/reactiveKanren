@@ -75,6 +75,8 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let n = new MVar().name('n');
 
     asserte(x.set(1).rediff(nil), list(cons(x, 1)));
+    asserte(x.set(1).conj(fail).rediff(nil), nil);
+    asserte(x.set(1).conj(x.set(2)).rediff(nil), nil);
     asserte(x.set(1).rediff(list(cons(x, 0))), list(cons(x, 1)));
     asserte(x.set(1).rediff(list(cons(x, 1))), list());
     asserte(a.set(1).conj(a.eq(x)).rediff(nil), list(cons(x, 1)));

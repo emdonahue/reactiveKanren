@@ -65,6 +65,7 @@ class List {
     length() {
         return this.toArray().length;
     }
+    asDiff() { return this; }
     cons(e) {
         return new Pair(e, this);
     }
@@ -131,26 +132,8 @@ class List {
         return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v, diff)]));
     }
     toState(updates) { return new State(this, updates); }
-    descendant(x, y) {//x ancestor, y descendant
-        throw Error(); //TODO remove
-        log('reunify', 'descendant', x, y);
-        if (x === y) return true;
-        x = this.walk(x);
-        if (primitive(x)) return false;
-        for (let k in x) {
-            if (this.descendant(x[k], y)) return true;
-        }
-        return false;
-    }
-    walk_path(lvar, prop, ...path) {
-        let v = this.walk(lvar);
-        if (path.length == 0) return v[prop];
-        return this.walk_path(v[prop], ...path);
-    }
-    toString() {
-        return '(' + this._toString() + ')';
-    }
-    unify(x_var, y_var) { //DOC unifier has to be very lazy about preserving variable paths and not updating to latest value
+    toString() { return '(' + this._toString() + ')'; }
+    unify(x_var, y_var) { // unifier has to be very lazy about preserving variable paths and not updating to latest value
         let x, y;
         ({car: x_var, cdr: x} = this.walk_binding(x_var));
         ({car: y_var, cdr: y} = this.walk_binding(y_var));
@@ -318,7 +301,7 @@ class Goal {
     rediff(sub=nil) {
         assert(sub);
         log('reunify', 'rediff', subToArray(sub));
-        return this.run(-1, {reify: false, substitution: sub}).fold((s,a) => a.rediff(s), nil); }
+        return this.run(-1, {reify: false, substitution: sub}).fold((s,a) => a.rediff(s), nil).asDiff(); }
     toString() { return JSON.stringify(this); }
 }
 
@@ -446,7 +429,7 @@ class Reunification extends Goal {
         log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x_val, y, toString(deltas), subToArray(sub));
         
         if (equals(x_val, y)) return deltas; // No changes => no deltas
-        if (primitive(y) || y instanceof MVar) return deltas.cons(cons(x_var, y)); // Primitive y naively overwrites anything
+        if (primitive(y) || y instanceof MVar) return deltas.unify(x_var, y); // Primitive y naively overwrites anything
 
         let extended = false, restricted = false; // Will we add or remove properties?
         var x = primitive(x_val) || x_val instanceof MVar ? copy_empty(y) : x_val;
@@ -462,7 +445,7 @@ class Reunification extends Goal {
             deltas = this.diff(sub, deltas, x_tended[k], y[k]); }
         
         return extended || Object.getPrototypeOf(x) !== Object.getPrototypeOf(y)
-            || restricted && !this.patch ? deltas.cons(cons(x_var, x_tended)) : deltas; }
+            || restricted && !this.patch ? deltas.unify(x_var, x_tended) : deltas; }
     
     toString() { return `(${toString(this.lhs)} =${this.patch ? 'patch' : this.put ? 'put' : 'set'}= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }}
@@ -517,10 +500,10 @@ class Failure extends Stream {
     mplus(s) { return s; };
     _mplus(s) { return s; };
     isIncomplete() { return false; }
-    rediff(ans) { return this; }
     step() { return this; }
     isFailure() { return true; }
     toState() { return this; }
+    asDiff() { return nil; }
     expand_ctn(ctn, cjs, rtrn) { return new FailView(cjs.conj(ctn)); }
 }
 
