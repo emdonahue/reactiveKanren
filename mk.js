@@ -11,6 +11,7 @@ import {logging, log, toString, copy, copy_empty, equals, is_string, is_number, 
 //TODO give lvar an .orderby method that constructs a view ordered by whatever that binds to. then even if its bound multiply we just produce sibling dynamic sets ordered by different fns
 //TODO dont have to pass mvar anymore with lexical scope
 //TODO can reactive unify assign a concrete timestep so we can set fresh vars and resolve conflicting unifies by checking timestep, even if they conflict with source code goals/model vars?
+//TODO have compiler strip all asserts, errors, tostrings, so ensure each is on its own line
 
 //diffing
 //if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
@@ -127,7 +128,6 @@ class List {
         if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr) : v; }
         else return new Pair(lvar, lvar);
     }
-    walk_var(lvar, mvars=false) { return this.walk_binding(lvar, mvars).car; } //TODO try to simplify walk var/binding/normal
     reify(lvar, diff=false) {
         if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, diff))); //TODO make this its own debug thing?
         if (diff & (lvar instanceof SVar)) return lvar;
@@ -147,37 +147,6 @@ class List {
             if (this.descendant(x[k], y)) return true;
         }
         return false;
-    }
-    rereify(_lvar, mvars, parent, descendants) {
-        log('reunify', 'rereify', _lvar, mvars);
-        let {car: lvar, cdr: val} = this.walk_binding(_lvar);
-        this.descendant(parent, lvar)
-        
-        if (mvars.has(lvar) && this.descendant(parent, lvar)) {
-            let descendant = mvars.get(lvar);
-            descendants.add(lvar);
-            return this.rereify(descendant, mvars, parent, descendants); //lvar;
-        }
-        if (val instanceof LVar) throw Error(val);
-        if (primitive(val)) return val;
-        /*
-        let r = Array.isArray(val) ? new Array(val.length) : Object.create(Object.getPrototypeOf(val));
-        for (let k in val) {
-            log('reunify', 'rereify', 'iterate', val, k, val[k], mvars.has(val[k])am);
-            if (mvars.has(val[k])) {
-                log('reunify', 'rereify', 'recursive', val[k], mvars.get(val[k]));
-                r[k] = this.rereify(mvars.get(val[k]), mvars, true)
-            }
-            else {
-                r[k] = this.rereify(val[k], mvars, true);
-            }
-    
-            //r[k] = mvars.has(val[k]) ? this.rereify(mvars.get(val[k]), mvars, true) : this.rereify(val[k], mvars, true);
-        }
-        return r;
-        */
-        if (Array.isArray(val)) return val.map(e => this.rereify(e, mvars, parent, descendants));
-        return Object.assign(Object.create(Object.getPrototypeOf(val)), (Object.fromEntries(Object.entries(val).map(([k,v]) => [k, this.rereify(v, mvars, parent, descendants)]))));
     }
     walk_path(lvar, prop, ...path) {
         let v = this.walk(lvar);
@@ -206,65 +175,6 @@ class List {
             if (s.isFailure()) return failure;
         }
         return s;
-    }
-    update_binding(x, y, prev=nil, next=nil, updates=nil) { //TODO create an atomic quote wrapping form that prevents us from normalizing the substructure of a term, so we can decide where to let the system insert indirection
-        if (primitive(x)) return this;
-        let {car: x_var, cdr: x_val} = prev.walk_binding(x);
-
-        //let {car: y_var, cdr: y_val} = prev.walk_binding(y);
-        let y_val = prev.walk(y);
-        /*
-        if (next.assoc(x_var)) {
-            y_val = next.assoc(x_var).cdr;
-            log('reunify', 'subterm', x_var, y_val, next);
-        }
-        */
-        log('reunify', 'lookup', x_var, x_val, y_val, prev);
-
-
-        /*
-        //if (next.assoc(y_var)) { //TODO need to walk repeatedly until exhausted
-        let y_update = next.assoc(y_var);
-        //log('reunify', 'occurs-check', 'x_var', x_var, 'y_var', y_var, 'y_update', y_update, 'occurs', occurs_check(x_var, y_var, prev), 'prev', prev);
-        if (y_update && occurs_check(x_var, y_var, prev)) {
-            log('reunify', 'occurs', 'x_var', x_var, 'y_var', y_var, 'y_val', y_val, 'y_update', y_update.cdr, 'curr', this, 'updates', updates);
-            y_val = prev.walk(y_update.cdr);
-            updates = updates.remove(y_update);
-        }
-
-        if (x_val instanceof QuotedVar && !(y_val instanceof QuotedVar)) {
-            return this.update_binding(x_val.lvar, y_val, prev, next, updates);
-        }
-        */
-
-        // Old prim values dont need to be reconciled, so just create new storage and update the new value.
-        if (primitive(y_val) || y_val instanceof QuotedVar) {
-            log('reunify', 'y prim', x_var, y_val);
-            return updates.update_substitution(this.extend(x_var, y_val), prev, next); }
-
-        else { // If old and new are objects, update the properties that exist and allocate new storage for those that don't.
-            let norm = copy(y_val); //TODO should be type of y_val
-            if (!primitive(x_val) && !(x_val instanceof LVar)) Object.assign(norm, x_val);
-
-            for (let k in y_val) { // For each attr of the new value,
-                if (!primitive(x_val) && !(x_val instanceof LVar) && Object.hasOwn(x_val, k)) { // if it already exists in the target, merge those bindings.
-                    //s = s.update_binding(x_val[k], y_val[k], prev, next);
-                    updates = updates.acons(x_val[k], y_val[k]);
-                }
-                else { // Otherwise, allocate new memory for the new values.
-                    norm[k] = new SVar();
-                    updates = updates.acons(norm[k], y_val[k]);
-                    //s = s.update_binding(norm[k], y_val[k], prev, next);
-                }
-            }
-            log('reunify', 'complex', x_var, norm);
-            return updates.update_substitution(this.extend(x_var, norm), prev, next); //TODO we dont have to extend if we don't add any properties
-        }
-    }
-    equiv_svars(v) { // Find all svars that point to the same svar as v in this substitution.
-        let equiv = this.filter(b => b.cdr === v).map(b => this.equiv_svars(b.car)).fold((x,y) => x.append(y), nil)
-        if (v instanceof SVar) return equiv.cons(v);
-        return equiv;
     }
     repatch(sub=nil) { return this.fold((s, p) => s.extend(p.car, p.cdr), sub); }
 }
@@ -407,12 +317,6 @@ class Goal {
     }
     expand_run(s=nil, v=[]) { //TODO remove default viewleaf
         return this.expand(new State(s), succeed, succeed, v);
-    }
-    reunify_substitution(sub) {
-        let r = this.run(-1, {reify: false, substitution: sub});
-        let updates = r.map(st => st.reify_updates()).fold((ups, up) => up.append(ups), nil); //TODO may need to walk_binding the reunifications so theyre not dependent on transient state that will be thrown away. also, what happens if setting free vars?
-        log('reunify', 'updates', updates, sub);
-        return updates.update_substitution(sub);
     }
     cont(s) { return s.isFailure() ? failure : this.eval(s); }
     expand_ctn(s, cjs, v) {
@@ -563,7 +467,8 @@ class Reunification extends Goal {
         this.patch = patch; }
     
     diff(sub, deltas, _x=this.lhs, _y=this.rhs) {
-        let x_var = sub.walk_var(_x, !this.put), x_val = sub.walk(_x), y = sub.walk(_y, true);
+        let {car: x_var, cdr: x_varval} = sub.walk_binding(_x, !this.put);
+        let x_val = sub.walk(x_varval), y = sub.walk(_y, true);
         log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x_val, y, toString(deltas), subToArray(sub));
         
         if (equals(x_val, y)) return deltas; // No changes => no deltas
@@ -658,32 +563,7 @@ class State extends Stream {
         log('unify', x, y, toString(this.substitution), '->', s);
         if (s == failure) return s;
         return new State(s, this.updates); }
-    reify_updates() {
-        return this.updates.map(u =>
-            this.substitution.equiv_svars(this.walk_binding(u.car).car).map(v => cons(v, this.reify_update(u.cdr, this.walk_binding(u.car).car))))
-            .fold((x,y) => x.append(y), nil); }
-    reify_update(lvar, parent) {
-        let {car: vr, cdr: v} = this.substitution.walk_binding(lvar);
-        log('reunify', 'skipreify', parent, lvar, vr, v);
-        if (vr != parent && occurs_check(parent, vr, this.substitution) && this.updates.assoc(vr)) {
-            return this.reify_update(this.updates.assoc(vr).cdr, parent);
-        }
-        if (v instanceof LVar || primitive(v)) return v;
-        if (v instanceof QuotedVar) return this.reify(v.lvar);
-        if (v instanceof Pair) return new Pair(this.reify(v.car), this.reify(v.cdr));
-        if (Array.isArray(v)) return v.map(e => this.reify(e));
-        return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v)]));
-    }
-    reactive_updates() {
-        return this.updates.map(u => cons(this.substitution.walk_var(u.car), u.cdr));
-    }
-    patch(mvars) {
-        //let diff = this.updates.map(u => this.substitution.);
-        //return mvars;
-    }
     reactively_update(sub) { // Reify the reactive updates in this and add to this to check consistency
-        //TODO can we just walk var to the first model var?
-        //unify(this.substitution.walk_var(u.car), this.substitution.reify(u.cdr, true))
         return this.updates.fold((s,u) => u.diff(this.substitution, s), sub); }
     update(u) {
         return new State(this.substitution, this.updates.cons(u)); }

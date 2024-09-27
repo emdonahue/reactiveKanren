@@ -13,6 +13,7 @@ function log(...args) {
 }
 
 function subToArray(sub) {
+    if (!sub.cdr) return [];
     let a = [];
     sub.map(e => a[e.car.id] = [e.car.label, toString(e.cdr)]);
     return a;

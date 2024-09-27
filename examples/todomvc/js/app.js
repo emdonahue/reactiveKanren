@@ -25,11 +25,11 @@ import {logging} from '../../../util.js';
                 [{tagName: 'footer', className: 'footer'},
                  [{tagName: 'ul', className: 'filters'},
                   ['li', [{tagName: 'a', className: 'selected', href: '#/',
-                           onclick: m.set({active: true, completed: true})}, 'All']],
+                           onclick: m.patch({active: true, completed: true})}, 'All']],
                   ['li', [{tagName: 'a', href: '#/active',
-                           onclick: m.set({active: true, completed: false})}, 'Active']],
+                           onclick: m.patch({active: true, completed: false})}, 'Active']],
                   ['li', [{tagName: 'a', href: '#/completed',
-                           onclick: m.set({active: false, completed: true})}, 'Completed']]],
+                           onclick: m.patch({active: false, completed: true})}, 'Completed']]],
                  [{tagName: 'button', className: 'clear-completed',
                    onclick: fresh((todos, item, rest) => [m.eq({todos: todos}), todos.tailo(item), item.eq(cons({done: true}, rest)), item.set(rest)])}, 'Clear completed']]]; }
 
@@ -48,7 +48,7 @@ import {logging} from '../../../util.js';
                                  v.name('non-edit view').eq([{tagName: 'div', className: 'view',
                                         ondblclick: e => editing.set(true)},
                                        [{tagName: 'input', id: 'check', className: 'toggle', type: 'checkbox', checked: done,
-                                         oninput: e => (done.set(e.target.checked))}],
+                                         oninput: e => done.set(e.target.checked)}],
                                        ['label', title],
                                        [{tagName: 'button', className: 'destroy',
                                          onclick: item.set(rest)}]])],
