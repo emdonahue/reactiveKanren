@@ -1,5 +1,5 @@
 "use strict"
-import {logging, log, toString, copy, copy_empty, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray} from './util.js';
+import {logging, log, toString, copy, copy_empty, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray, subToLabels} from './util.js';
 //TODO global generic 'model' variable object as a shortcut for (v,m) => v.eq(m), maybe generalize to path vars
 //TODO let query variables be added manually not just extracted from fresh
 //TODO use clone node over create element for speed when applicable (eg dynamic model)
@@ -32,6 +32,7 @@ class RK {
     constructor(template, data) {
         this.mvar = new SVar().name('model');
         this.substitution = this.mvar.set(data).rediff(); //TODO can we have an app init where we enrich with local vars (selected/editing flags) then track which vars were added and shed them when sending data outside? maybe tagged LVars for locals
+        log('render', this.constructor.name, 'substitution', subToArray(this.substitution));
         this.template = (template instanceof Function) ? template(this.mvar) : template;
         this.child = View.render(this.substitution, this, this.template);
     }
@@ -121,12 +122,12 @@ class List {
         else return lvar;
     }
     walk_binding(lvar, mvars=false) {
-        if (!(lvar instanceof LVar) || (!mvars && (lvar instanceof SVar))) return new Pair(lvar, lvar);
+        if (!(lvar instanceof LVar) || mvars && lvar instanceof SVar) return new Pair(lvar, lvar);
         const v = this.assoc(lvar);
         if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr) : v; }
         else return new Pair(lvar, lvar);
     }
-    walk_var(lvar, mvars=false) { return this.walk_binding(lvar, mvars).car; }
+    walk_var(lvar, mvars=false) { return this.walk_binding(lvar, mvars).car; } //TODO try to simplify walk var/binding/normal
     reify(lvar, diff=false) {
         if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, diff))); //TODO make this its own debug thing?
         if (diff & (lvar instanceof SVar)) return lvar;
@@ -266,54 +267,6 @@ class List {
         return equiv;
     }
     repatch(sub=nil) { return this.fold((s, p) => s.extend(p.car, p.cdr), sub); }
-
-    rebind(x, y, patch) {
-        throw Error()
-        log('reunify', 'rebind', x, y, toString(patch));
-        if (y instanceof LVar) return this;
-        if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
-        let x_val = this.walk(x);
-        let self = this;
-        let normalized = Array.isArray(y) ? [] : Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
-        if (!(primitive(x_val) || x_val instanceof LVar)) {
-            Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
-            
-        }
-        for (let k in y) {
-            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) {
-                
-                self = self.rebind(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch);
-            }
-            else self = self.rebind(normalized[k] = new SVar(), y[k], patch);
-        }
-        log('reunify', 'rebind', 'extend', x, normalized);
-        return self.extend(x, normalized);
-    }
-    rebind2(x, y) {
-        log('reunify', 'rebind', x, y);
-        assert(x instanceof SVar && (y instanceof SVar || !(y instanceof LVar))); //TODO check lhs is svar somewhere since its a programmer error
-        //if (patch.assoc(x)) return this;
-        if (y instanceof LVar) return this.rebind2(x, this.walk(y), patch);
-        if (primitive(y)) return this.extend(x, y); // x is a model var so no need for walk_binding: no indirection
-        let x_val = this.walk(x);
-        let self = this;
-        let normalized = Array.isArray(y) ? [] : Object.create(Object.getPrototypeOf(y)); // type y but properties x_val
-        if (!(primitive(x_val) || x_val instanceof LVar)) {
-            Object.assign(normalized, x_val); // assign existing properties in case y doesn't overwrite
-            
-        }
-        for (let k in y) { // For each complex new value,
-            if (!(primitive(x_val) || x_val instanceof LVar) && Object.hasOwn(x_val, k)) { // If old val complex,
-                self = self.rebind2(normalized[k], patch.assoc(normalized[k])?.cdr ?? y[k], patch); // recurse.
-            }
-            else self = self.rebind2(normalized[k] = new SVar(), y[k], patch); // If old val simple, overwrite.
-        }
-        log('reunify', 'rebind', 'extend', x, normalized);
-        return self.extend(x, normalized);
-    }
-    restratify() {
-        return this
-    }
 }
 
 class Pair extends List {
@@ -400,9 +353,9 @@ class LVar {
     }
     eq(x) { return this.unify(i); }
     eq(x) { return this.unify(x); }
-    set(x) { return new PatchUnification(this, x); }
-    put(x) { return new PatchUnification(this, x, true); }
-    patch(x) { return new PatchUnification(this, x, true, true); }
+    set(x) { return new Reunification(this, x); }
+    put(x) { return new Reunification(this, x, true); }
+    patch(x) { return new Reunification(this, x, true, true); }
     name(n) { this.label = n; return this; }
     quote() { return new QuotedVar(this); }
     constraint(f, ...lvars) { return new Constraint(f, this, ...lvars); }
@@ -470,7 +423,7 @@ class Goal {
     is_disj() { return false; }
     rediff(sub=nil) {
         assert(sub);
-        log('reunify', 'rediff', toString(sub));
+        log('reunify', 'rediff', subToArray(sub));
         // reify each RU in its state (may not need to reify model vars bc all the same val already) (maybe that could let us target dom changes?)
         // as we patch, always check for a more specific rhs
         // convert to normal unifications and unify in empty sub to merge/conflict detect. then reify each back out and deduplicate
@@ -601,64 +554,39 @@ class Constraint extends Goal {
     toString() { return `${this.f}(${this.lvars})`; }
 }
 
-class SetUnification extends Goal { //TODO the update patch can set or patch, but is distinct from the user constructed patch goal. diff objects. unless perhaps patch can precompute a list of sets? then we only need simple set object diff, which would be great
-    constructor(lhs, rhs) {
+class Reunification extends Goal {
+    constructor(lhs, rhs, put=false, patch=false) {
         super();
         this.lhs = lhs;
         this.rhs = rhs;
-    }
-    repatch(sub) {
-        return sub.extend(this.lhs, this.rhs);
-    }
-    diff(sub, patch) {
-        //console.log(this, sub, sub.reify(this.rhs, false))
-        return patch.cons(cons(sub.walk_var(this.lhs), sub.reify(this.rhs, true))); }
-    toString() { return `(${toString(this.lhs)} =s= ${toString(this.rhs)})`; }
-    eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }
-}
-
-class PutUnification extends SetUnification {
-//    repatch(sub) {
-        
-    //    }
-    diff(sub, patch) {
-        //console.log(this, sub, sub.walk_var(this.lhs, true))
-        return patch.cons(cons(sub.walk_var(this.lhs, true), sub.reify(this.rhs, true))); }
-    toString() { return `(${toString(this.lhs)} =p= ${toString(this.rhs)})`; }
-}
-
-class PatchUnification extends SetUnification{
-    constructor(lhs, rhs, put=false, patch=false) {
-        super(lhs, rhs);
         this.put = put;
-        this.patch = patch;
-    }
+        this.patch = patch; }
+    
     diff(sub, deltas, _x=this.lhs, _y=this.rhs) {
-        log('reunify', this.constructor.name, 'init', _x, _y, toString(deltas), toString(sub));
-        let x_var = sub.walk_var(_x, this.put), x_val = sub.walk(_x), y = sub.walk(_y, true);
-        log('reunify', this.constructor.name, 'walk', x_val, y);
-        if (equals(x_val, y)) return deltas;
-        if (primitive(y) || y instanceof SVar) return deltas.cons(cons(x_var, y));
+        let x_var = sub.walk_var(_x, !this.put), x_val = sub.walk(_x), y = sub.walk(_y, true);
+        log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x_val, y, toString(deltas), subToArray(sub));
+        
+        if (equals(x_val, y)) return deltas; // No changes => no deltas
+        if (primitive(y) || y instanceof SVar) return deltas.cons(cons(x_var, y)); // Primitive y naively overwrites anything
 
-        let extended = false, restricted = false;
+        let extended = false, restricted = false; // Will we add or remove properties?
         var x = primitive(x_val) || x_val instanceof SVar ? copy_empty(y) : x_val;
         let x_tended = copy_empty(y);
         
         for (let k in x) {
-            if (!(k in y)) restricted = true;
+            if (!(k in y)) restricted = true; // If we restrict the container and are not patching, we need to update it.
             if (this.patch || k in y) x_tended[k] = x[k]; }
         
         for (let k in y) {
-            if (!(k in x)) extended = true;
+            if (!(k in x)) extended = true; // If we extend the container, we need to update it.
             if (!(k in x_tended)) x_tended[k] = new SVar(); //TODO check on 'in' vs hasOwn
             deltas = this.diff(sub, deltas, x_tended[k], y[k]); }
         
         return extended || Object.getPrototypeOf(x) !== Object.getPrototypeOf(y)
-            || restricted && !this.patch ? deltas.cons(cons(x_var, x_tended)) : deltas;
-    }
+            || restricted && !this.patch ? deltas.cons(cons(x_var, x_tended)) : deltas; }
     
-    toString() { return `(${toString(this.lhs)} =c= ${toString(this.rhs)})`; }
-}
+    toString() { return `(${toString(this.lhs)} =${this.patch ? 'patch' : this.put ? 'put' : 'set'}= ${toString(this.rhs)})`; }
+    eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }}
 
 function conde(...condes) {
     return condes.reduceRight((cs, c) => to_goal(c).disj(cs), fail);
@@ -858,14 +786,14 @@ class GoalView { //Replaces a child template and generates one sibling node per 
     }
     
     static render_lvar(sub, app, template) {
-        log('render', this.name, 'lvar', template, toString(sub));
+        log('render', this.name, 'lvar', template, subToArray(sub));
         return new this(template, null, AnswerView.render(succeed, sub, template, app)); }
     
     static render_f(sub, app, f) {
         assert(app instanceof RK)
         let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, o)); // Since o takes up second slot, there's no good api for binding f to 'this' for recursive anonymous functions
-        log('render', this.name, 'f', g, toString(sub));
-        return log('render', this.name + '^', toString(sub), new this(v, o, g.expand_run(sub, [v, app]))); }
+        log('render', this.name, 'f', g, subToArray(sub));
+        return log('render', this.name + '^', subToArray(sub), new this(v, o, g.expand_run(sub, [v, app]))); }
     
     root() {
         let r = this.child.root();
@@ -874,7 +802,7 @@ class GoalView { //Replaces a child template and generates one sibling node per 
     sortfn() { return (a,b) => a.order == b.order ? 0 : a.order < b.order ? -1 : 1; }
     subviews(child=this.child) { return child.items().sort(this.sortfn()); }
     rerender(sub, app) {
-        log('rerender', this.constructor.name, toString(sub));
+        log('rerender', this.constructor.name, subToArray(sub));
         let add = [], del = [], nochange = [];
 
         this.child.firstNode()?.before(this.comment);
@@ -912,7 +840,7 @@ class CondeView {
         this.rhs.toArray(a);
         return a; }
     rerender(sub, app, vvar, nodecursor) {
-        log('rerender', this.constructor.name, toString(sub));
+        log('rerender', this.constructor.name, subToArray(sub));
         assert(nodecursor);
         sub = this.goal.apply(sub);
         if (sub.isFailure()) {
@@ -940,7 +868,7 @@ class FailView { // Failures on the initial render that may expand to leaves or 
     remove() {}
     root(fragment=document.createDocumentFragment()) { return fragment; }
     rerender(sub, app, vvar, nodecursor) {
-        log('rerender', this.constructor.name, toString(sub));
+        log('rerender', this.constructor.name, subToArray(sub));
         assert(nodecursor);
         let expanded = this.goal.expand_run(sub, [vvar, app]);
         if (expanded instanceof this.constructor) return [expanded, nodecursor];
@@ -957,7 +885,7 @@ class FailureView { // Rerender failures of atomic leaves that may cache nodes
     lastNode() { return null; }
     remove() {}
     rerender(sub, app, vvar, nodecursor) {
-        log('rerender', this.constructor.name, toString(sub));
+        log('rerender', this.constructor.name, subToArray(sub));
         let [c,nextcursor] = this.child.rerender(sub, app, vvar, nodecursor);
         if (c instanceof this.constructor) return [c, nodecursor];
         nodecursor.after(c.root()); // Normally items would not make changes to dom, so add in items that were previously removed.
@@ -975,18 +903,19 @@ class AnswerView { // Displayable iterable item
         this.order = order; }
     static render(goal, sub, vvar, app, ovar) {
         assert(app instanceof RK)
-        log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', toString(sub));
+        log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', subToArray(sub));
         if (!sub) return new FailView(goal);
         let template = sub.walk(vvar);
+        if (template instanceof LVar) console.log(vvar, template, subToArray(sub))
         assert(!(template instanceof List), !(template instanceof LVar));
         return new this(goal, template, View.render(sub, app, template), ovar); }
     rerender(sub, app, vvar, nodecursor) {
         sub = this.goal.apply(sub);
         if (sub.isFailure()) {
-            log('rerender', this.constructor.name, 'fail', vvar, toString(sub));
+            log('rerender', this.constructor.name, 'fail', vvar, subToArray(sub));
             this.remove();
             return [new FailureView(this), nodecursor]; }
-        log('rerender', this.constructor.name, vvar, sub.walk(vvar), toString(sub));
+        log('rerender', this.constructor.name, vvar, sub.walk(vvar), subToArray(sub));
         assert(!(sub.walk(vvar) instanceof List), !(sub.walk(vvar) instanceof LVar));
         this.child = this.child.rerender(sub, app, sub.walk(vvar));
         return [this, this.lastNode()];
@@ -1056,7 +985,7 @@ class NodeView {
             let v = View.render(sub, app, template); //TODO thread app
             this.node.replaceWith(v.root());
             return v; }
-        log('rerender', this.constructor.name, template, this.template, equals(template, this.template), this.children, toString(sub));
+        log('rerender', this.constructor.name, template, this.template, equals(template, this.template), this.children, subToArray(sub));
         for (let i in this.children) this.children[i] = this.children[i].rerender(sub, app);
         return this;
     }
@@ -1097,7 +1026,7 @@ class AttrView {
         this.vvar = vvar; }
     
     static render(sub, node, attr, val) {        
-        log('render', this.name, toString(sub));
+        log('render', this.name, subToArray(sub));
         if (val instanceof LVar) return this.render_lvar(sub, node, attr, val);
         else if (val instanceof Function) this.render_f(sub, node, attr, val, new LVar());
         else throw Error(val); }
@@ -1108,7 +1037,7 @@ class AttrView {
         return new this(node, attr, val(vvar), vvar).rerender(sub); }
     
     rerender(sub, app) {
-        log('rerender', this.constructor.name, this.node, this.attr, sub.reify(this.vvar), this.vvar, toString(sub))
+        log('rerender', this.constructor.name, this.node, this.attr, sub.reify(this.vvar), this.vvar, subToArray(sub))
         let vals = this.goal.run(-1, {reify: this.vvar, substitution: sub});
         if (vals.isNil()) delete this.node[this.attr];
         else this.node[this.attr] = vals.join(' ');

@@ -14,7 +14,13 @@ function log(...args) {
 
 function subToArray(sub) {
     let a = [];
-    sub.map(e => a[e.car] = toString(e.cdr));
+    sub.map(e => a[e.car.id] = [e.car.label, toString(e.cdr)]);
+    return a;
+}
+
+function subToLabels(sub) {
+    let a = [];
+    sub.map(e => a[e.car.id] = e.car.label);
     return a;
 }
 
@@ -54,4 +60,4 @@ function is_boolean(x) { return Object.prototype.toString.call(x) === '[object B
 function is_pojo(x) { return !!x && Object.getPrototypeOf(x) === Object.prototype; };
 
 
-export {logging, log, copy, toString, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray, copy_empty}
+export {logging, log, copy, toString, equals, is_string, is_number, is_boolean, is_pojo, assert, subToArray, subToLabels, copy_empty}

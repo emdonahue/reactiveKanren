@@ -1,4 +1,4 @@
-import {RK, nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, reunify, conj, fail, view} from '../../../mk.js'
+import {RK, nil, LVar, SVar, list, unify, quote, succeed, fresh, List, cons, conde, conj, fail, view} from '../../../mk.js'
 
 import {logging} from '../../../util.js';
 
@@ -37,27 +37,28 @@ import {logging} from '../../../util.js';
         return [{tagName: 'ul', className: 'todo-list'},
                 v =>
                 fresh((todos, todo, item, rest, title, done, editing, strikethru, active, completed) =>
-                    [m.eq({todos: todos, active: active, completed: completed}),
-                     todos.tailo(item),
-                     item.eq(cons(todo, rest)),
-                     todo.eq({title: title, done: done, editing: editing}),
+                    [m.eq({todos: todos.name('todos'), active: active.name('active'), completed: completed.name('completed')}),
+                     todos.tailo(item.name('item')),
+                     item.eq(cons(todo.name('todo'), rest.name('rest'))),
+                     todo.eq({title: title.name('title'), done: done.name('done'), editing: editing.name('editing')}),
                      conde([done.eq(true), completed.eq(true), strikethru.eq('completed')],
-                           [done.eq(false), active.eq(true), strikethru.eq('')]),
-                     v.eq([{tagName: 'li', className: strikethru},
+                           [done.eq(false), active.eq(true), strikethru.name('strikethru').eq('')]),
+                     v.name('item-view').eq([{tagName: 'li', className: strikethru},
                            v => [editing.eq(false),
-                                 v.eq([{tagName: 'div', className: 'view',
+                                 v.name('non-edit view').eq([{tagName: 'div', className: 'view',
                                         ondblclick: e => editing.set(true)},
                                        [{tagName: 'input', id: 'check', className: 'toggle', type: 'checkbox', checked: done,
                                          oninput: e => (done.set(e.target.checked))}],
                                        ['label', title],
                                        [{tagName: 'button', className: 'destroy',
                                          onclick: item.set(rest)}]])],
-                           v => [editing.eq(true), v.eq([{tagName: 'input', className: 'edit', value: title,
+                                             v => [editing.eq(true), v.name('edit-view').eq([{tagName: 'input', className: 'edit', value: title,
                                                           onkeydown: e => {if (e.key === 'Enter') e.target.blur()},
                                                           onblur: (e, t) => [editing.set(false), title.set(t)]}])]])])]; }
 
     //logging('render') //|| logging('parse') || logging('rerender') || logging('expand')
-    logging('reunify')
+    //logging('reunify')
+    //logging('render')
     let app = new RK(template, data);
     
     document.getElementById('root').replaceWith(app.root());
