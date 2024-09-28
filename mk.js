@@ -425,27 +425,22 @@ class Reunification extends Goal {
     
     diff(sub, deltas, _x=this.lhs, _y=this.rhs) {
         let {car: x_var, cdr: x_varval} = sub.walk_binding(_x, this.put);
-        let x_val = sub.walk(x_varval), y = sub.walk(_y, false);
-        log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x_val, y, toString(deltas), subToArray(sub));
+        let x = sub.walk(x_varval), y = sub.walk(_y, false);
+        log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x, y, toString(deltas), subToArray(sub));
         
-        if (equals(x_val, y)) return deltas; // No changes => no deltas
+        if (equals(x, y)) return deltas; // No changes => no deltas
         if (primitive(y) || y instanceof MVar) return deltas.unify(x_var, y); // Primitive y naively overwrites anything
 
-        let extended = false, restricted = false; // Will we add or remove properties?
-        var x = !this.patch || primitive(x_val) || x_val instanceof MVar ? copy_empty(y) : x_val;
-        let x_tended = copy_empty(y);
+        let extended = Object.getPrototypeOf(x) !== Object.getPrototypeOf(y); // Will we add properties or change type?
+        let x_tended = Object.assign(copy_empty(y), !this.patch || primitive(x) || x instanceof MVar ? {} : x); // Only keep x properties if patching & has them
         
-        for (let k in x) {
-            if (!(k in y)) restricted = true; // If we restrict the container and are not patching, we need to update it.
-            if (this.patch || k in y) x_tended[k] = x[k]; }
-        
-        for (let k in y) {
-            if (!(k in x)) extended = true; // If we extend the container, we need to update it.
-            if (!(k in x_tended)) x_tended[k] = new MVar(); //TODO check on 'in' vs hasOwn
+        for (let k in y) { // Patch or create new properties in x for each in y
+            if (!(k in x_tended)) { //TODO check on 'in' vs hasOwn
+                extended = true; // If we extend the container, we need to update it.
+                x_tended[k] = new MVar(); }
             deltas = this.diff(sub, deltas, x_tended[k], y[k]); }
         
-        return extended || Object.getPrototypeOf(x) !== Object.getPrototypeOf(y)
-            || restricted && !this.patch ? deltas.unify(x_var, x_tended) : deltas; }
+        return extended || !this.patch ? deltas.unify(x_var, x_tended) : deltas; }
     
     toString() { return `(${toString(this.lhs)} =${this.patch ? 'patch' : this.put ? 'put' : 'set'}= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }}
