@@ -432,7 +432,7 @@ class Reunification extends Goal {
         if (primitive(y) || y instanceof MVar) return deltas.unify(x_var, y); // Primitive y naively overwrites anything
 
         let extended = false, restricted = false; // Will we add or remove properties?
-        var x = primitive(x_val) || x_val instanceof MVar ? copy_empty(y) : x_val;
+        var x = !this.patch || primitive(x_val) || x_val instanceof MVar ? copy_empty(y) : x_val;
         let x_tended = copy_empty(y);
         
         for (let k in x) {
