@@ -138,7 +138,7 @@ class List {
     toState(updates) { return new State(this, updates); }
     toString() { return '(' + this._toString() + ')'; }
     unify(x_var, y_var) { // unifier has to be very lazy about preserving variable paths and not updating to latest value
-        let x, y;
+        let x, y; //TODO make a classic unifier mode and use it when unifying all the updates to create the diff, since they no longer need to preserve provenance
         ({car: x_var, cdr: x} = this.walk_binding(x_var));
         ({car: y_var, cdr: y} = this.walk_binding(y_var));
         log('unify', x_var, x, y_var, y);
