@@ -273,6 +273,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(new RK([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
     asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
+    asserte(new RK([{className: ['ipsum', 'dolor']}, 'lorem']).root().className, 'ipsum dolor');
+
+    // Static MK renders
     asserte(new RK([{name: v => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
     asserte(new RK(m => [{name: v => v.eq(m)}, 'lorem'], 'ipsum').root().name, 'ipsum');
     asserte(new RK(m => v => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');

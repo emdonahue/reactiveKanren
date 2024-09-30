@@ -12,6 +12,7 @@ import {logging, log, toString, copy, copy_empty, equals, is_string, is_number, 
 //TODO dont have to pass mvar anymore with lexical scope
 //TODO can reactive unify assign a concrete timestep so we can set fresh vars and resolve conflicting unifies by checking timestep, even if they conflict with source code goals/model vars?
 //TODO have compiler strip all asserts, errors, tostrings, so ensure each is on its own line
+//TODO replace tagName with tag or something shorter
 
 //diffing
 //if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
@@ -791,6 +792,7 @@ class NodeView {
             if (k === 'tagName') continue;
             else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, parent, k.substr(2), to_goal(tparent[k]), app));
             else if (is_text(tparent[k])) parent[k] = tparent[k];
+            else if (Array.isArray(tparent[k]) && tparent[k].every(e => is_text(e))) parent[k] = tparent[k].join(' ');
             else children.push(AttrView.render(sub, parent, k, tparent[k]));
         }
         return parent;

@@ -28,7 +28,16 @@ document.body.append(app.root());
 
 This will append the text 'lorem ipsum' to the body of the document. The string argument, 'lorem ipsum', represents the "view template" for this application. The template describes the HTML structure of the entire reactiveKanren application instance. The template may be as simple as a single string, as in this instance, or it may describe an entire single-page application containing dynamic model data.
 
-The following examples illustrate the template syntax for more complicated views:
+The following examples illustrate the template syntax for more complicated views. All of these are valid template arguments for the RK constructor:
+
+### Text Nodes
+```javascript
+'lorem ipsum'
+```
+
+```html
+lorem ipsum
+```
 
 ### HTML Nodes
 
@@ -38,4 +47,24 @@ The following examples illustrate the template syntax for more complicated views
 
 ```html
 <p>lorem ipsum</p>
+```
+
+### HTML Nodes with properties
+
+```javascript
+[{tagName: 'p', id: 'content'}, 'lorem ipsum']
+```
+
+```html
+<p id="content">lorem ipsum</p>
+```
+
+### HTML Nodes with space-delimited properties
+
+```javascript
+[{tagName: 'p', className: ['bold', 'italics']}, 'lorem ipsum']
+```
+
+```html
+<p class="bold italics">lorem ipsum</p>
 ```
