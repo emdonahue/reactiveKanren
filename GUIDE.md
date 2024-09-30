@@ -8,7 +8,7 @@ reactiveKanren is implemented as a single Javascript module, and can be imported
 
 ```javascript
 import {RK} from 'path/to/mk.js'
-'''
+```
 
 Replace ```path/to/mk.js``` with the path to the mk.js module file.
 
