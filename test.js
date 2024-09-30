@@ -74,13 +74,18 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     let z = new MVar().name('z');
     let n = new MVar().name('n');
 
-    asserte(x.set(1).rediff(nil), list(cons(x, 1)));
-    asserte(x.set(1).conj(fail).rediff(nil), nil);
-    asserte(x.set(1).conj(x.set(2)).rediff(nil), nil);
+    //TODO occurs check reactive unification
+    //TODO what happens if we unify mvars and then set them, which reifies them in the substitution in which they're unified (in particular unifying mvar -> mvar)
+    
+    asserte(x.set(1).rediff(), list(cons(x, 1)));
+    asserte(x.set(1).conj(fail).rediff(), nil);
+    asserte(x.set(1).conj(y.set(2)).rediff(), list(cons(x, 1), cons(y, 2)));
+    asserte(x.set(1).conde(y.set(2)).rediff(), list(cons(y, 2), cons(x, 1)));
+    asserte(x.set(1).conj(x.set(2)).rediff(), nil);
     asserte(x.set(1).rediff(list(cons(x, 0))), list(cons(x, 1)));
     asserte(x.set(1).rediff(list(cons(x, 1))), list());
-    asserte(a.set(1).conj(a.eq(x)).rediff(nil), list(cons(x, 1)));
-    asserte(x.set(a).conj(a.eq(1)).rediff(nil), list(cons(x, 1)));
+    asserte(a.set(1).conj(a.eq(x)).rediff(), list(cons(x, 1)));
+    asserte(x.set(a).conj(a.eq(1)).rediff(), list(cons(x, 1)));
     asserte(x.set(1).rediff(list(cons(x, y))), list(cons(x, 1)));
     asserte(x.set(y).rediff(list(cons(x, 0), cons(y, 0))), list(cons(x, y)));
     asserte(x.set(y).rediff(list(cons(x, {a:y}), cons(y, 0))), list(cons(x, y)));
@@ -98,14 +103,20 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(d, list(cons(x, {a: v}), cons(v, y))); }
     { let d = x.set({a:{b:1}}).rediff(list(cons(x,{}))), v = d.car.cdr.a, v2 = d.cdr.car.cdr.b;
       asserte(d, list(cons(x, {a: v}), cons(v, {b: v2}), cons(v2, 1))); }
-
-    asserte(x.put(1).rediff(nil), list(cons(x, 1)));
-    asserte(x.put(1).conj(fail).rediff(nil), nil);
-    asserte(x.put(1).conj(x.set(2)).rediff(nil), nil);
+    { let d = x.set({a:a}).conj(a.eq(1)).rediff(), v = d.car.cdr.a;
+      asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
+    { let d = x.set({a:a,b:b}).conj(a.eq(1).conde(b.eq(2))).rediff(list(cons(x, {a:y,b:z}), cons(y, 0), cons(z, 0))),
+          v = d.car.car, v2 = d.cdr.car.car, v3 = d.cdr.car.cdr, v4 = d.ref(2).cdr.b;
+      asserte(d, list(cons(v, 2), cons(v2, v3), cons(x, {a: v3, b: v4}), cons(v4, v), cons(v3, 1))); }
+    
+    asserte(x.put(1).rediff(), list(cons(x, 1)));
+    asserte(x.put(1).conj(fail).rediff(), nil);
+    asserte(x.put(1).conj(y.put(2)).rediff(), list(cons(x, 1), cons(y, 2)));
+    asserte(x.put(1).conj(x.set(2)).rediff(), nil);
     asserte(x.put(1).rediff(list(cons(x, 0))), list(cons(x, 1)));
     asserte(x.put(1).rediff(list(cons(x, 1))), list());
-    asserte(a.put(1).conj(a.eq(x)).rediff(nil), list(cons(x, 1)));
-    asserte(x.put(a).conj(a.eq(1)).rediff(nil), list(cons(x, 1)));
+    asserte(a.put(1).conj(a.eq(x)).rediff(), list(cons(x, 1)));
+    asserte(x.put(a).conj(a.eq(1)).rediff(), list(cons(x, 1)));
     asserte(x.put(1).rediff(list(cons(x, y))), list(cons(y, 1)));
     asserte(x.put(y).rediff(list(cons(x, 0), cons(y, 0))), list(cons(x, y)));
     asserte(x.put(y).rediff(list(cons(x, {a:y}), cons(y, 0))), list(cons(x, y)));
@@ -123,14 +134,18 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(d, list(cons(x, {a: v}), cons(v, y))); }
     { let d = x.put({a:{b:1}}).rediff(list(cons(x,{}))), v = d.car.cdr.a, v2 = d.cdr.car.cdr.b;
       asserte(d, list(cons(x, {a: v}), cons(v, {b: v2}), cons(v2, 1))); }
+    { let d = x.put({a:a,b:b}).conj(a.eq(1).conde(b.eq(2))).rediff(list(cons(x, {a:y,b:z}), cons(y, 0), cons(z, 0))),
+          v = d.car.car, v2 = d.cdr.car.car, v3 = d.cdr.car.cdr, v4 = d.ref(2).cdr.b;
+      asserte(d, list(cons(v, 2), cons(v2, v3), cons(x, {a: v3, b: v4}), cons(v4, v), cons(v3, 1))); }
 
-    asserte(x.patch(1).rediff(nil), list(cons(x, 1)));
-    asserte(x.patch(1).conj(fail).rediff(nil), nil);
-    asserte(x.patch(1).conj(x.set(2)).rediff(nil), nil);
+    asserte(x.patch(1).rediff(), list(cons(x, 1)));
+    asserte(x.patch(1).conj(fail).rediff(), nil);
+    asserte(x.patch(1).conj(y.patch(2)).rediff(), list(cons(x, 1), cons(y, 2)));
+    asserte(x.patch(1).conj(x.set(2)).rediff(), nil);
     asserte(x.patch(1).rediff(list(cons(x, 0))), list(cons(x, 1)));
     asserte(x.patch(1).rediff(list(cons(x, 1))), list());
-    asserte(a.patch(1).conj(a.eq(x)).rediff(nil), list(cons(x, 1)));
-    asserte(x.patch(a).conj(a.eq(1)).rediff(nil), list(cons(x, 1)));
+    asserte(a.patch(1).conj(a.eq(x)).rediff(), list(cons(x, 1)));
+    asserte(x.patch(a).conj(a.eq(1)).rediff(), list(cons(x, 1)));
     asserte(x.patch(1).rediff(list(cons(x, y))), list(cons(y, 1)));
     asserte(x.put(y).rediff(list(cons(x, 0), cons(y, 0))), list(cons(x, y)));
     asserte(x.patch({a:1}).rediff(list(cons(x,{a:y}), cons(y, 0))), list(cons(y, 1)));
@@ -142,10 +157,18 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
       asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
     { let d = x.patch({a:1}).rediff(list(cons(x, 0))), v = d.car.cdr.a;
       asserte(d, list(cons(x, {a: v}), cons(v, 1))); }
+    { let d = x.patch({a:1}).rediff(list(cons(x, {a:y}), cons(y, 0)));
+      asserte(d, list(cons(y, 1))); }
+    { let d = x.patch({a:1}).rediff(list(cons(x, {a:y,b:z}), cons(y, 0), cons(z, 0)));
+      asserte(d, list(cons(y, 1))); }
+    { let d = x.patch({a:1}).rediff(list(cons(x, [y]), cons(y, 0))), v = d.car.cdr.a;
+      asserte(d, list(cons(x, {0:y, a:v}), cons(v, 1))); }
     { let d = x.patch({a:y}).rediff(list(cons(x, 0))), v = d.car.cdr.a;
       asserte(d, list(cons(x, {a: v}), cons(v, y))); }
     { let d = x.patch({a:{b:1}}).rediff(list(cons(x,{}))), v = d.car.cdr.a, v2 = d.cdr.car.cdr.b;
       asserte(d, list(cons(x, {a: v}), cons(v, {b: v2}), cons(v2, 1))); }
+    { let d = x.patch({a:a,b:b}).conj(a.eq(1).conde(b.eq(2))).rediff(list(cons(x, {a:y,b:z}), cons(y, 0), cons(z, 0)));
+      asserte(d, list(cons(z, 2), cons(y, 1))); }
     
     //asserte(x.patch({a:1}).rediff(list(cons(x,0))), list(cons(y, 1)));
 /*

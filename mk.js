@@ -65,6 +65,10 @@ class List {
     length() {
         return this.toArray().length;
     }
+    ref(n) {
+        let self = this;
+        while (self instanceof Pair && 0 < n--) { self = self.cdr; }
+        return self.car; }
     asDiff() { return this; }
     cons(e) {
         return new Pair(e, this);
@@ -121,15 +125,15 @@ class List {
         const v = this.assoc(lvar);
         if (v) { return (v.cdr instanceof LVar) ? this.walk_binding(v.cdr, walk_mvars) : v; }
         else return new Pair(lvar, lvar); }
-    reify(lvar, diff=false) {
-        if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, diff))); //TODO make this its own debug thing?
-        if (diff & (lvar instanceof MVar)) return lvar;
-        let v = this.walk(lvar);
+    reify(lvar, walk_mvars=true) {
+        if (arguments.length == 0) return this.map((b) => new Pair(b.car, this.reify(b.cdr, walk_mvars))); //TODO make this its own debug thing?
+        if (!walk_mvars && lvar instanceof MVar) return lvar;
+        let v = this.walk(lvar, walk_mvars);
         if (v instanceof LVar || primitive(v)) return v;
-        if (v instanceof QuotedVar) return this.reify(v.lvar, diff);
-        if (v instanceof Pair) return new Pair(this.reify(v.car, diff), this.reify(v.cdr, diff));
-        if (Array.isArray(v)) return v.map(e => this.reify(e, diff));
-        return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v, diff)]));
+        if (v instanceof QuotedVar) return this.reify(v.lvar, walk_mvars);
+        if (v instanceof Pair) return new Pair(this.reify(v.car, walk_mvars), this.reify(v.cdr, walk_mvars));
+        if (Array.isArray(v)) return v.map(e => this.reify(e, walk_mvars));
+        return Object.fromEntries(Object.entries(v).map(([k,v]) => [k, this.reify(v, walk_mvars)]));
     }
     toState(updates) { return new State(this, updates); }
     toString() { return '(' + this._toString() + ')'; }
@@ -225,6 +229,7 @@ function list(...xs) { return cons(...xs, nil); }
 class LVar {
     static id = 0;
     constructor(name='') {
+        assert(is_string(name));
 	this.id = LVar.id++;
         this.label = name;
     }
@@ -301,7 +306,10 @@ class Goal {
     rediff(sub=nil) {
         assert(sub);
         log('reunify', 'rediff', subToArray(sub));
-        return this.run(-1, {reify: false, substitution: sub}).fold((s,a) => a.rediff(s), nil).asDiff(); }
+        let diff = this.run(-1, {reify: false, substitution: sub})
+            .fold((s,a) => a.rediff(s), nil).asDiff();
+        return diff.map(d => cons(d.car, diff.reify(d.cdr, false)))
+            .filter(d => d.car instanceof MVar); }
     toString() { return JSON.stringify(this); }
 }
 
@@ -424,12 +432,13 @@ class Reunification extends Goal {
         this.patch = patch; }
     
     diff(sub, deltas, _x=this.lhs, _y=this.rhs) {
-        let {car: x_var, cdr: x_varval} = sub.walk_binding(_x, this.put);
+        let {car: x_var, cdr: x_varval} = sub.walk_binding(_x, this.put); //TODO may need to revise named destructuring for closure compiler
+        assert(x_var instanceof MVar);
         let x = sub.walk(x_varval), y = sub.walk(_y, false);
         log('reunify', this.constructor.name, 'diff', _x, _y, x_var, x, y, toString(deltas), subToArray(sub));
         
         if (equals(x, y)) return deltas; // No changes => no deltas
-        if (primitive(y) || y instanceof MVar) return deltas.unify(x_var, y); // Primitive y naively overwrites anything
+        if (primitive(y) || y instanceof LVar) return deltas.unify(x_var, y); // Primitive y naively overwrites anything
 
         let extended = Object.getPrototypeOf(x) !== Object.getPrototypeOf(y); // Will we add properties or change type?
         let x_tended = Object.assign(copy_empty(y), !this.patch || primitive(x) || x instanceof MVar ? {} : x); // Only keep x properties if patching & has them
