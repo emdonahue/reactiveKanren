@@ -13,6 +13,7 @@ import {logging, log, toString, copy, copy_empty, equals, is_string, is_number, 
 //TODO can reactive unify assign a concrete timestep so we can set fresh vars and resolve conflicting unifies by checking timestep, even if they conflict with source code goals/model vars?
 //TODO have compiler strip all asserts, errors, tostrings, so ensure each is on its own line
 //TODO replace tagName with tag or something shorter
+//TODO add an 'abbrev' object to RK that translates tag -> tagName, class -> className by default but can be adjusted by user
 
 //diffing
 //if dynamic nodes are unsorted, then we know that they can only insert or remove, not reorder? no, the model might change
@@ -736,7 +737,6 @@ class AnswerView { // Displayable iterable item
         log('render', this.name, sub?.reify(vvar), vvar+'', goal+'', subToArray(sub));
         if (!sub) return new FailView(goal);
         let template = sub.walk(vvar);
-        if (template instanceof LVar) console.log(vvar, template, subToArray(sub))
         assert(!(template instanceof List), !(template instanceof LVar));
         return new this(goal, template, View.render(sub, app, template), ovar); }
     rerender(sub, app, vvar, nodecursor) {
@@ -791,12 +791,22 @@ class NodeView {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
             else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, parent, k.substr(2), to_goal(tparent[k]), app));
-            else if (is_text(tparent[k])) parent[k] = tparent[k];
-            else if (Array.isArray(tparent[k]) && tparent[k].every(e => is_text(e))) parent[k] = tparent[k].join(' ');
-            else children.push(AttrView.render(sub, parent, k, tparent[k]));
+            this.render_property(tparent[k], parent, k, sub, app, children);
         }
         return parent;
     }
+    static render_property(tproperty, parent, propname, sub, app, children) {
+        if (is_text(tproperty)) parent[propname] = tproperty;
+        else if (Array.isArray(tproperty) && tproperty.flat(Infinity).every(e => is_text(e))) {
+            parent[propname] = tproperty.flat(Infinity).join(' '); }
+        else if (tproperty instanceof LVar || tproperty instanceof Function) {
+            children.push(AttrView.render(sub, parent, propname, tproperty)); }
+        else {
+            if (Object.values(tproperty).every(e => !e || e === true)) {
+                parent[propname] = Object.entries(tproperty).filter(e => e[1]).map(e => e[0]).join(' '); }
+            else {
+                for (let k in tproperty) {
+                    this.render_property(tproperty[k], parent[propname], k, sub, app, children); }}}}
     static render_children(parent, tchildren, sub, app, children) {
         log('render', this.name, 'children', parent, tchildren);
         for (let tchild of tchildren) {

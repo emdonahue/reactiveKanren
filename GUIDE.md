@@ -30,7 +30,7 @@ This will append the text 'lorem ipsum' to the body of the document. The string 
 
 The following examples illustrate the template syntax for more complicated views. All of these are valid template arguments for the RK constructor:
 
-### Text Nodes
+### Text nodes
 ```javascript
 'lorem ipsum'
 ```
@@ -39,7 +39,7 @@ The following examples illustrate the template syntax for more complicated views
 lorem ipsum
 ```
 
-### HTML Nodes
+### HTML nodes
 
 ```javascript
 ['p', 'lorem ipsum']
@@ -49,7 +49,7 @@ lorem ipsum
 <p>lorem ipsum</p>
 ```
 
-### HTML Nodes with properties
+### HTML nodes with properties
 
 ```javascript
 [{tagName: 'p', id: 'content'}, 'lorem ipsum']
@@ -59,12 +59,29 @@ lorem ipsum
 <p id="content">lorem ipsum</p>
 ```
 
-### HTML Nodes with space-delimited properties
+### HTML nodes with space-delimited properties
+
+Properties accept an array of strings or an object containing string-boolean pairs. In the former case, the strings are joined together with spaces separating them. In the latter case, keys with ```true``` values will be joined together with spaces. Object keys with falsy values will be ignored:
 
 ```javascript
-[{tagName: 'p', className: ['bold', 'italics']}, 'lorem ipsum']
+[{tagName: 'p', className: ['class1', 'class2']}, 'lorem ipsum']
+```
+
+```javascript
+[{tagName: 'p', className: {class1: true, class2: true, class3: false, class4: null}}, 'lorem ipsum']
 ```
 
 ```html
-<p class="bold italics">lorem ipsum</p>
+<p class="class1 class2">lorem ipsum</p>
+```
+
+### HTML nodes with CSS style properties
+Properties also accept objects containing string-string pairs. In this case, the keys are set to the values on the property object. Because 'style' accesses the style object of DOM nodes, keys and values set to the 'style' property will be set on the CSS object of that DOM node, changing the style. No CSS-specific formatting is done to the keys and values, although it is expected that the style object is the main use case for this syntax.
+
+```javascript
+[{tagName: 'p', style: {color: 'black'}}, 'lorem ipsum']
+```
+
+```html
+<p style="color: black;">lorem ipsum</p>
 ```
