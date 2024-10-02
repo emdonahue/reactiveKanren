@@ -275,7 +275,9 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
     asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
     asserte(new RK([{className: ['ipsum', 'dolor']}, 'lorem']).root().className, 'ipsum dolor');
     asserte(new RK([{className: {ipsum: true}}, 'lorem']).root().className, 'ipsum');
-    asserte(new RK([{style: {color: 'black'}}, 'lorem']).root().style.color, 'black');
+    asserte(new RK([{style: {border: '1px solid black'}}, 'lorem']).root().style.border, '1px solid black');
+    asserte(new RK([{style: {border: ['1px', 'solid', 'black']}}, 'lorem']).root().style.border, '1px solid black');
+    asserte(new RK([{style: {border: {'1px':true, solid: true, black: true}}}, 'lorem']).root().style.border, '1px solid black'); //TODO check if property is empty string or undefined vs a css object or other object
     //asserte(new RK([{style: {background: ['1px', 'solid', 'black']}}, 'lorem']).root().style.color, 'black');
 
     // Static MK renders

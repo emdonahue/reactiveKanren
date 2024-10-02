@@ -76,12 +76,20 @@ Properties accept an array of strings or an object containing string-boolean pai
 ```
 
 ### HTML nodes with CSS style properties
-Properties also accept objects containing string-string pairs. In this case, the keys are set to the values on the property object. Because 'style' accesses the style object of DOM nodes, keys and values set to the 'style' property will be set on the CSS object of that DOM node, changing the style. No CSS-specific formatting is done to the keys and values, although it is expected that the style object is the main use case for this syntax.
+Properties also accept objects containing string-string, string-array, and string-object pairs. These are primarily useful for the style property. String-string pairs set the style named by the key to the value. String-array pairs set the style named by the key to the whitespace-delimited concatenation of array elements, which must be strings. String-object pairs set the style named by the key to the whitespace-delimited concatenation of the key names for which the corresponding values are ```true```:
 
 ```javascript
-[{tagName: 'p', style: {color: 'black'}}, 'lorem ipsum']
+[{tagName: 'p', style: {border: '1px solid black'}}, 'lorem ipsum']
+```
+
+```javascript
+[{tagName: 'p', style: {border: ['1px', 'solid', 'black']}}, 'lorem ipsum']
+```
+
+```javascript
+[{tagName: 'p', style: {border: {'1px': true, solid: true, black: true}}, 'lorem ipsum']
 ```
 
 ```html
-<p style="color: black;">lorem ipsum</p>
+<p style="border: 1px solid black;">lorem ipsum</p>
 ```
