@@ -39,9 +39,6 @@ class RK {
         this.template = (template instanceof Function) ? template(this.mvar) : template;
         this.child = View.render(this.substitution, this, this.template);
     }
-    static list(...xs) { return cons(...xs, nil); }
-    static cons(...xs) { return xs.reduceRight((x,y) => new Pair(y, x)); }
-    static eq(x, y) { return new Unification(x, y); }
     root() { return this.child.root(); }
     rerender(g) {//TODO rename this to be part of the rerender chain and provide a different user-facing api
         if (g instanceof Function) return this.rerender(g(this.mvar));
@@ -61,7 +58,6 @@ class RK {
 
 // Lists
 class List {
-    static fromTree(a) { return list(...a).map(x => Array.isArray(x) ? this.fromTree(x) : x); }
     [Symbol.iterator]() { return this.toArray()[Symbol.iterator](); }
     length() { return this.toArray().length; }
     ref(n) {
@@ -152,8 +148,9 @@ class List {
         }
         return s;
     }
-    repatch(sub=nil) { return this.fold((s, p) => s.extend(p.car, p.cdr), sub); }
-}
+    repatch(sub=nil) { return this.fold((s, p) => s.extend(p.car, p.cdr), sub); }}
+function list(...xs) { return cons(...xs, nil); }
+function cons(...xs) { return xs.reduceRight((x,y) => new Pair(y, x)); }
 
 class Pair extends List {
     constructor(car, cdr) {
@@ -227,7 +224,7 @@ class LVar {
     toString() {
         return `<${this.label}${this.label ? ':' : ''}${this.id}>`;
     }
-    eq(x) { return RK.eq(this, x); }
+    eq(x) { return eq(this, x); }
     set(x) { return new Reunification(this, x); }
     put(x) { return new Reunification(this, x, true); }
     patch(x) { return new Reunification(this, x, true, true); }
@@ -243,8 +240,8 @@ class LVar {
     leafo(x) { return conde([this.isNotPairo(), this.eq(x)],
                             [fresh((a,b) => [this.eq(cons(a,b)), conde(a.leafo(x), b.leafo(x))])]); }
     imembero(x,o,n=0) { return fresh((a,b) => [this.eq(cons(a,b)), conde([a.eq(x), o.eq(n)], b.imembero(x,o,n+1))]); } //TODO make imembero accept ground order terms
-    tailo(x) { return conde(x.eq(this), fresh((a,d) => [this.eq(cons(a,d)), d.tailo(x)])) };
-}
+    tailo(x) { return conde(x.eq(this), fresh((a,d) => [this.eq(cons(a,d)), d.tailo(x)])) }}
+function eq(x, y) { return new Unification(x, y); }
 
 class MVar extends LVar {
     toString() { return `[${this.label}${this.label ? ':' : ''}${this.id}]`; }
@@ -263,11 +260,12 @@ function primitive(x) {
 }
 
 class Goal {
-    conj(x) {
-        if (succeed === x) return this;
-        if (fail === x) return fail;
-        return new Conj(this, x);
-    }
+    static as_goal(g) {
+        if (Array.isArray(g)) return g.reduceRight((cs, c) => Goal.as_goal(c).conj(Goal.as_goal(cs)));
+        else if (true === g) return succeed;
+        else if (!g) return fail;
+        else return g; }
+    conj(...xs) { return conj(this, ...xs); }
     disj(x) {
         if (fail === x) return this;
         return new Disj(this, x);
@@ -297,8 +295,11 @@ class Goal {
             .fold((s,a) => a.rediff(s), nil).asDiff();
         return diff.map(d => cons(d.car, diff.reify(d.cdr, false)))
             .filter(d => d.car instanceof MVar); }
-    toString() { return JSON.stringify(this); }
-}
+    toString() { return JSON.stringify(this); }}
+
+function conde(...condes) { return condes.reduceRight((cs, c) => Goal.as_goal(c).disj(cs), fail); }
+
+function conj(...conjs) { return conjs.reduceRight((cs, c) => Conj.conj(Goal.as_goal(c), cs), succeed); }
 
 class Succeed extends Goal {
     eval(s) { return s; }
@@ -308,7 +309,6 @@ class Succeed extends Goal {
         log('expand', 'return', this+'', cjs, s.substitution+'');
         return AnswerView.render(cjs, s.substitution, ...args);
     }
-    conj(g) { return g; }
     expand(s, ctn, cjs, v) { return s.expand_ctn(ctn, cjs, v); }
     toString() { return 'succeed'; }
 }
@@ -316,7 +316,6 @@ class Succeed extends Goal {
 class Fail extends Goal {
     eval(s) { return failure; }
     suspend(s) { return failure; }
-    conj(g) { return fail; }
     expand(s, ctn, cjs, v) {
         log('expand', 'fail', cjs.conj(ctn));
         return new FailView(cjs.conj(ctn)); }
@@ -330,6 +329,11 @@ class Conj extends Goal {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+    static conj(x, y) {
+        if (x === fail || y === fail) return fail;
+        if (x === succeed) return y;
+        if (y === succeed) return x;
+        return new this(x, y); }
     filter(f) { return this.lhs.filter(f).conj(this.rhs.filter(f)); }
     eval(s, ctn=succeed) {
         return this.lhs.eval(s, this.rhs.conj(ctn));
@@ -371,7 +375,7 @@ class Fresh extends Goal {
     expand(s, ctn, cjs, v) {
         return this.instantiate().expand(s, ctn, cjs, v);
     }
-    instantiate() { return to_goal(this.ctn(...this.vars)); }
+    instantiate() { return Goal.as_goal(this.ctn(...this.vars)); }
     toString() { return `(fresh ${this.vars} ${this.ctn})`; }
 }
 
@@ -440,21 +444,6 @@ class Reunification extends Goal {
     
     toString() { return `(${toString(this.lhs)} =${this.patch ? 'patch' : this.put ? 'put' : 'set'}= ${toString(this.rhs)})`; }
     eval(s, ctn=succeed) { return ctn.cont(s.update(this)); }}
-
-function conde(...condes) {
-    return condes.reduceRight((cs, c) => to_goal(c).disj(cs), fail);
-}
-
-function conj(...conjs) {
-    return conjs.reduceRight((cs, c) => to_goal(c).conj(cs), succeed);
-}
-
-function to_goal(g) {
-    if (Array.isArray(g)) return g.reduceRight((cs, c) => to_goal(c).conj(to_goal(cs)));
-    else if (true === g) return succeed;
-    else if (!g) return fail;
-    else return g;
-}
 
 function fresh(f) {
     return new Fresh(List.repeat(f.length, () => new LVar()), f);
@@ -597,7 +586,7 @@ class GoalView { //Replaces a child template and generates one sibling node per 
     
     static render_f(sub, app, f) {
         assert(app instanceof RK)
-        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = to_goal(f(v, o)); // Since o takes up second slot, there's no good api for binding f to 'this' for recursive anonymous functions
+        let v = new LVar('view').name('view'), o = new LVar().name('order'), g = Goal.as_goal(f(v, o)); // Since o takes up second slot, there's no good api for binding f to 'this' for recursive anonymous functions
         log('render', this.name, 'f', g, subToArray(sub));
         return log('render', this.name + '^', subToArray(sub), new this(v, o, g.expand_run(sub, [v, app]))); }
     
@@ -765,7 +754,7 @@ class NodeView {
         for (let k in tparent) {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
-            else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, parent, k.substr(2), to_goal(tparent[k]), app));
+            else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, parent, k.substr(2), Goal.as_goal(tparent[k]), app));
             this.render_property(tparent[k], parent, k, sub, app, children);
         }
         return parent;
@@ -866,7 +855,7 @@ class EventView {
     static render(sub, node, event, handler, app) {
         let self = new this(sub); // Keep a reference to the view, which may mutate its sub.
         node.addEventListener(event, e =>
-            app.update((handler instanceof Goal ? handler : to_goal(handler(e, e.target.value))).rediff(self.substitution)));
+            app.update((handler instanceof Goal ? handler : Goal.as_goal(handler(e, e.target.value))).rediff(self.substitution)));
         return self; }
     
     rerender(sub) {
@@ -875,11 +864,8 @@ class EventView {
 
 // Constants
 const nil = new Empty();
-const fail = new Fail;
-const succeed = new Succeed;
-const failure = new Failure;
+const fail = new Fail();
+const succeed = new Succeed();
+const failure = new Failure();
 
-export let list = RK.list;
-export let cons = RK.cons;
-export let eq = RK.eq;
-export {RK as default, List, succeed, fail, fresh, conde, LVar, failure, conj, MVar};
+export {RK, list, cons, eq, succeed, fail, fresh, conj, conde, LVar, MVar};

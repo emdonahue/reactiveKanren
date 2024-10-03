@@ -5,7 +5,7 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {default as RK, eq, LVar, MVar, list, succeed, fresh, List, cons, conde, conj, fail} from './mk.js'
+import {RK, eq, LVar, MVar, list, succeed, fresh, cons, conde, conj, fail} from './mk.js'
 import {logging, log, copy, toString, equals, assert} from './util.js'
 
 const nil = list();
@@ -30,25 +30,31 @@ function createDiv(child) {
     return div;
 }
 
-
 // MK TEST
 
-// Core
+// Cons
+asserte(list(), list());
+asserte(cons(1, nil), list(1));
+asserte(cons(1, cons(2, cons(3, nil))), list(1, 2, 3));
+
+// Unification
 asserte(succeed.run(), list(nil));
 asserte(fresh(x => x.eq(1)).run(), list(list(1)));
-asserte(fresh(x => x.eq(1)).run(), List.fromTree([[1]]));
+asserte(fresh(x => x.eq(1)).run(), list(list(1)));
 asserte(fresh(x => x.eq([1,2])).run(), list(list([1,2])));
-asserte(fresh((x, y) => [x.eq(1), y.eq(2)]).run(), List.fromTree([[1, 2]]));
+asserte(fresh((x, y) => [x.eq(1), y.eq(2)]).run(), list(list(1, 2)));
 asserte(fresh(x => [x.eq(1), x.eq(2)]).run(), nil);
-asserte(fresh((x, y) => eq(cons(x,y), cons(1,2))).run(), List.fromTree([[1, 2]]));
-asserte(fresh((x, y) => eq({a:x, b:y}, {a:1, b:2})).run(), List.fromTree([[1, 2]]));
-asserte(fresh(x => eq({a:1, b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
-asserte(fresh(x => eq({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
-asserte(fresh(x => eq({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
-asserte(fresh(x => conde(x.eq(1), x.eq(2))).run(2), List.fromTree([[1], [2]]));
-asserte(fresh((x,y) => [x.eq(cons(1, y)), y.eq(cons(2, nil))]).run(), List.fromTree([[list(1, 2), list(2)]]));
-asserte(fresh(x => [conde(x.eq(1), x.eq(1)), x.eq(1)]).run(), List.fromTree([[1], [1]]));
+asserte(fresh((x, y) => eq(cons(x,y), cons(1,2))).run(), list(list(1, 2)));
+asserte(fresh((x, y) => eq({a:x, b:y}, {a:1, b:2})).run(), list(list(1, 2)));
+asserte(fresh(x => eq({a:1, b:x}, {a:1, b:2})).run(), list(list(2)));
+asserte(fresh(x => eq({b:x}, {a:1, b:2})).run(), list(list(2)));
+asserte(fresh(x => eq({a:1, b:2}, {b:x})).run(), list(list(2)));
+asserte(fresh(x => conde(x.eq(1), x.eq(2))).run(2), list(list(1), list(2)));
+asserte(fresh((x,y) => [x.eq(cons(1, y)), y.eq(cons(2, nil))]).run(), list(list(list(1, 2), list(2))));
+asserte(fresh(x => [conde(x.eq(1), x.eq(1)), x.eq(1)]).run(), list(list(1), list(1)));
 asserte(fresh(x => eq({car:x}, cons(1,2))).run(), list());
+asserte(fresh((x, y, z) => x.eq(1).conj(y.eq(2), z.eq(3))).run(), list(list(1, 2, 3)));
+asserte(fresh((x, y, z) => [x.eq(1), [y.eq(2), [z.eq(3)]]]).run(), list(list(1, 2, 3)));
 
 // Lists
 asserte(fresh(xs => [xs.eq(nil), xs.membero(1)]).run(), nil);

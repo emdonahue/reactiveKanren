@@ -7,7 +7,7 @@ This guide offers an intuitive overview of reactiveKanren's basic usage. For a c
 reactiveKanren is implemented as a single Javascript module, and can be imported with the following statement:
 
 ```javascript
-import RK from 'path/to/mk.js'
+import {RK} from 'path/to/mk.js'
 ```
 
 Replace ```path/to/mk.js``` with the path to the mk.js module file.
@@ -99,23 +99,52 @@ Properties also accept objects containing string-string, string-array, and strin
 Dynamic templates can be written using miniKanren, a small logic programming language embedded in Javascript. This section serves as a basic primer for the implementation of miniKanren that serves as a basis for reactiveKanren, but some familiarity with miniKanren and with Scheme or Lisp will be helpful.
 
 ### Cons lists
-reactiveKanren exports ```list``` and ```cons``` for creating Scheme-style linked lists, which are useful for implementing common miniKanren idioms. Both accept an arbitrary number of arguments and return a list, in the case of ```list``` or a series of linked list segments terminated by the final argument, in the case of ```cons```. All exported functions can also be accessed as static properties of the main RK object:
+reactiveKanren exports ```list``` and ```cons``` for creating Scheme-style linked lists, which are useful for implementing common miniKanren idioms. Both accept an arbitrary number of arguments and return a list, in the case of ```list``` or a series of linked list segments terminated by the final argument, in the case of ```cons```:
 
 ```javascript
-import {default as RK, cons, list} from 'path/to/mk.js';
+import {cons, list} from 'path/to/mk.js';
 
 list(1, 2, 3); // -> (1 2 3)
-RK.list(1, 2, 3); // -> (1 2 3)
-
 cons(1, 2, 3); // -> (1 2 . 3)
-RK.cons(1, 2, 3); // -> (1 2 . 3)
 ```
 
-### miniKanren goals
+### Unification (eq)
 Every expression in the miniKanren language, up to and including an entire program, is referred to as a "goal." When run, a goal returns a stream of answers. The simplest goal is called unification, which assigns variables to values. Assume we have a miniKanren variable ```x```, also known as a "logic" variable. If we then unify ```x``` with the number 1 using the ```eq``` unification method of logic variables and run the goal:
 
 ```javascript
-x.eq
+x.eq(1).run(); // -> ((1))
 ```
 
-we receive a list of answers
+we receive a list of answers. Each answer is itself a list of values, and each value corresponds to one of the logic variables we have assigned in our goal. In this case, we receive a list containing a single answer, and that answer contains the single value, 1, which we assigned to ```x```.
+
+```eq```, like the other logic variable methods that will be discussed in this section, is a shorthand for passing the logic variable in as the first argument to the more general ```eq``` function, which can also be imported and used directly:
+
+```javascript
+import {eq} from 'path/to/mk.js';
+
+eq(x, 1).run(); // -> ((1))
+```
+
+### Fresh
+In order to create a new logic variable, we use ```fresh```:
+
+```javascript
+fresh(x => x.eq(1)).run(); // -> ((1))
+```
+
+```fresh``` accepts a function of arbitrary arity and calls that function with a new logic variable for each argument in the function.
+
+### Conj
+The ```conj``` method can apply multiple goals to the same answer:
+
+```javascript
+fresh((x, y, z) => x.eq(1).conj(y.eq(2), z.eq(3))).run(); // -> ((1 2 3))
+```
+
+```conj``` accepts an arbitrary number of goals and runs them all in the current answer. In this case, it runs three unifications, which bind ```x```, ```y```, and ```z``` to 1, 2, and 3, respectively.
+
+Anywhere a goal can appear in reactiveKanren, an array of goals can be substituted instead, which will be interpreted as a conjunction of all contained goals:
+
+```javascript
+fresh((x, y, z) => [x.eq(1), [y.eq(2), [z.eq(3)]]]).run(); // -> ((1 2 3))
+```
