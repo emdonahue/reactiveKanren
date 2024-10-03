@@ -39,6 +39,9 @@ class RK {
         this.template = (template instanceof Function) ? template(this.mvar) : template;
         this.child = View.render(this.substitution, this, this.template);
     }
+    static list(...xs) { return cons(...xs, nil); }
+    static cons(...xs) { return xs.reduceRight((x,y) => new Pair(y, x)); }
+    static eq(x, y) { return new Unification(x, y); }
     root() { return this.child.root(); }
     rerender(g) {//TODO rename this to be part of the rerender chain and provide a different user-facing api
         if (g instanceof Function) return this.rerender(g(this.mvar));
@@ -58,26 +61,16 @@ class RK {
 
 // Lists
 class List {
-    static fromTree(a) {
-        return list(...a).map(x => Array.isArray(x) ? this.fromTree(x) : x);
-    }
-    [Symbol.iterator]() {
-        return this.toArray()[Symbol.iterator]();
-    }
-    length() {
-        return this.toArray().length;
-    }
+    static fromTree(a) { return list(...a).map(x => Array.isArray(x) ? this.fromTree(x) : x); }
+    [Symbol.iterator]() { return this.toArray()[Symbol.iterator](); }
+    length() { return this.toArray().length; }
     ref(n) {
         let self = this;
         while (self instanceof Pair && 0 < n--) { self = self.cdr; }
         return self.car; }
     asDiff() { return this; }
-    cons(e) {
-        return new Pair(e, this);
-    }
-    acons(k, v) {
-        return this.cons(new Pair(k, v));
-    }
+    cons(e) { return new Pair(e, this); }
+    acons(k, v) { return this.cons(new Pair(k, v)); }
     extend(k, v) { //TODO make a separate filter(remove) based extend for reactive
         return this.filter(x => x.car != k).acons(k, v);
     }
@@ -223,10 +216,6 @@ class Empty extends List {
     _toString() { return ''; }
 }
 
-function cons(...xs) { return xs.reduceRight((x,y) => new Pair(y, x)); }
-
-function list(...xs) { return cons(...xs, nil); }
-
 // Vars & Data
 class LVar {
     static id = 0;
@@ -238,11 +227,7 @@ class LVar {
     toString() {
         return `<${this.label}${this.label ? ':' : ''}${this.id}>`;
     }
-    unify(x) {
-        return new Unification(this, x);
-    }
-    eq(x) { return this.unify(i); }
-    eq(x) { return this.unify(x); }
+    eq(x) { return RK.eq(this, x); }
     set(x) { return new Reunification(this, x); }
     put(x) { return new Reunification(this, x, true); }
     patch(x) { return new Reunification(this, x, true, true); }
@@ -464,10 +449,6 @@ function conj(...conjs) {
     return conjs.reduceRight((cs, c) => to_goal(c).conj(cs), succeed);
 }
 
-function unify(x, y) {
-    return new Unification(x, y);
-}
-
 function to_goal(g) {
     if (Array.isArray(g)) return g.reduceRight((cs, c) => to_goal(c).conj(to_goal(cs)));
     else if (true === g) return succeed;
@@ -584,12 +565,6 @@ class MPlus extends Stream {
         return this.lhs.step().mplus(this.rhs);
     }
 }
-
-// Constants
-const nil = new Empty();
-const fail = new Fail;
-const succeed = new Succeed;
-const failure = new Failure;
 
 // DOM
 
@@ -898,7 +873,13 @@ class EventView {
         this.substitution = sub;
         return this; }}
 
+// Constants
+const nil = new Empty();
+const fail = new Fail;
+const succeed = new Succeed;
+const failure = new Failure;
 
-function view(template) { return new Template(template); }
-
-export {RK, nil, cons, list, List, Pair, LVar, primitive, succeed, fail, fresh, conde, unify, failure, Goal, quote, QuotedVar, conj, MVar, view};
+export let list = RK.list;
+export let cons = RK.cons;
+export let eq = RK.eq;
+export {RK as default, List, succeed, fail, fresh, conde, LVar, failure, conj, MVar};

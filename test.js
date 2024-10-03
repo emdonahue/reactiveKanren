@@ -5,8 +5,10 @@
 //TODO can we quote vars to preserve references?
 //TODO make special storage vars so that unifying normal-storage makes normal->storage binding, whereas storage-storage just checks equality
 
-import {nil, LVar, MVar, list, unify, quote, succeed, fresh, List, cons, conde, conj, fail, view, RK} from './mk.js'
+import {default as RK, eq, LVar, MVar, list, succeed, fresh, List, cons, conde, conj, fail} from './mk.js'
 import {logging, log, copy, toString, equals, assert} from './util.js'
+
+const nil = list();
 
 function test(f, test_name) {
     try {
@@ -33,20 +35,20 @@ function createDiv(child) {
 
 // Core
 asserte(succeed.run(), list(nil));
-asserte(fresh((x) => unify(x, 1)).run(), List.fromTree([[1]]));
-asserte(fresh((x) => unify(x, [1,2])).run(), list(list([1,2])));
-asserte(fresh((x, y) => [x.unify(1), y.unify(2)]).run(), List.fromTree([[1, 2]]));
-asserte(fresh((x) => [x.unify(1), x.unify(2)]).run(), nil);
-asserte(fresh((x, y) => unify(cons(x,y), cons(1,2))).run(), List.fromTree([[1, 2]]));
-asserte(fresh((x, y) => unify({a:x, b:y}, {a:1, b:2})).run(), List.fromTree([[1, 2]]));
-asserte(fresh((x) => unify({a:1, b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
-asserte(fresh((x) => unify({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
-asserte(fresh((x) => unify({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
-asserte(fresh((x) => conde(x.unify(1), x.unify(2))).run(2), List.fromTree([[1], [2]]));
-asserte(fresh((x,y) => [unify(x,cons(1, y)), unify(y,cons(2, nil))]).run(), List.fromTree([[list(1, 2), list(2)]]));
-asserte(fresh(x => [conde(unify(x,1), unify(x,1)), unify(x,1)]).run(), List.fromTree([[1], [1]]));
-asserte(fresh((x) => unify(x, quote(1))).run(), List.fromTree([[1]]));
-asserte(fresh((x) => unify({car:x}, cons(1,2))).run(), list());
+asserte(fresh(x => x.eq(1)).run(), list(list(1)));
+asserte(fresh(x => x.eq(1)).run(), List.fromTree([[1]]));
+asserte(fresh(x => x.eq([1,2])).run(), list(list([1,2])));
+asserte(fresh((x, y) => [x.eq(1), y.eq(2)]).run(), List.fromTree([[1, 2]]));
+asserte(fresh(x => [x.eq(1), x.eq(2)]).run(), nil);
+asserte(fresh((x, y) => eq(cons(x,y), cons(1,2))).run(), List.fromTree([[1, 2]]));
+asserte(fresh((x, y) => eq({a:x, b:y}, {a:1, b:2})).run(), List.fromTree([[1, 2]]));
+asserte(fresh(x => eq({a:1, b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
+asserte(fresh(x => eq({b:x}, {a:1, b:2})).run(), List.fromTree([[2]]));
+asserte(fresh(x => eq({a:1, b:2}, {b:x})).run(), List.fromTree([[2]]));
+asserte(fresh(x => conde(x.eq(1), x.eq(2))).run(2), List.fromTree([[1], [2]]));
+asserte(fresh((x,y) => [x.eq(cons(1, y)), y.eq(cons(2, nil))]).run(), List.fromTree([[list(1, 2), list(2)]]));
+asserte(fresh(x => [conde(x.eq(1), x.eq(1)), x.eq(1)]).run(), List.fromTree([[1], [1]]));
+asserte(fresh(x => eq({car:x}, cons(1,2))).run(), list());
 
 // Lists
 asserte(fresh(xs => [xs.eq(nil), xs.membero(1)]).run(), nil);
@@ -56,12 +58,12 @@ asserte(fresh(() => fresh(xs => [xs.eq(list(1)), xs.membero(1)])).run(), list(li
 asserte(fresh(x => fresh(xs => [xs.eq(list(1, 2, 3)), xs.membero(x)])).run(), list(list(1), list(2), list(3)));
 
 // Constraints
-asserte(fresh((x) => [unify(x, 1), x.isStringo()]).run(), nil);
-asserte(fresh((x) => [unify(x, 'a'), x.isStringo()]).run(), list(list('a')));
-asserte(fresh((x) => [unify(x, 1), x.isNumbero()]).run(), list(list(1)));
-asserte(fresh((x) => [unify(x, 'a'), x.isNumbero()]).run(), nil);
-asserte(fresh((x) => [unify(x, 1), x.isPairo()]).run(), nil);
-asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))));
+asserte(fresh((x) => [x.eq(1), x.isStringo()]).run(), nil);
+asserte(fresh((x) => [x.eq('a'), x.isStringo()]).run(), list(list('a')));
+asserte(fresh((x) => [x.eq(1), x.isNumbero()]).run(), list(list(1)));
+asserte(fresh((x) => [x.eq('a'), x.isNumbero()]).run(), nil);
+asserte(fresh((x) => [x.eq(1), x.isPairo()]).run(), nil);
+asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))));
 
 
 
@@ -246,16 +248,16 @@ asserte(fresh((x) => [unify(x, cons(1,2)), x.isPairo()]).run(), list(list(cons(1
 
     asserte(conj(reunify(x, y), reunify(y,n)).reunify_substitution(list(cons(x,cons(w,y)), cons(w,1), cons(y,cons(z,n)), cons(z,2), cons(n,nil))).reify(x), nil); // simultaneous delete link
 
-    asserte(conj(a.unify(1), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // storage == bound!
-    asserte(conj(a.unify(1), a.unify(x), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // bound! == storage
-    asserte(conj(a.unify(1), x.unify(a), x.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // storage! == bound
-    asserte(conj(a.unify(1), a.unify(x), x.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // bound == storage!
-    asserte(conj(x.unify(y), y.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
-    asserte(conj(x.unify(y), x.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
-    asserte(conj(a.unify(1), b.unify(1), b.unify(a), x.unify(a), b.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound! == bound2 == storage
-    asserte(conj(a.unify(1), b.unify(1), b.unify(a), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound == bound2! == storage
-    asserte(conj(a.unify(1), b.unify(1), a.unify(b), x.unify(a), b.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2! == bound == storage
-    asserte(conj(a.unify(1), b.unify(1), a.unify(b), x.unify(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2 == bound! == storage
+    asserte(conj(a.eq(1), x.eq(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // storage == bound!
+    asserte(conj(a.eq(1), a.eq(x), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // bound! == storage
+    asserte(conj(a.eq(1), x.eq(a), x.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // storage! == bound
+    asserte(conj(a.eq(1), a.eq(x), x.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); // bound == storage!
+    asserte(conj(x.eq(y), y.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
+    asserte(conj(x.eq(y), x.set(2)).reunify_substitution(list(cons(x,1), cons(y,1))).reify([x,y]), [2,2]); // storage == storage
+    asserte(conj(a.eq(1), b.eq(1), b.eq(a), x.eq(a), b.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound! == bound2 == storage
+    asserte(conj(a.eq(1), b.eq(1), b.eq(a), x.eq(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound == bound2! == storage
+    asserte(conj(a.eq(1), b.eq(1), a.eq(b), x.eq(a), b.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2! == bound == storage
+    asserte(conj(a.eq(1), b.eq(1), a.eq(b), x.eq(a), a.set(2)).reunify_substitution(list(cons(x,1))).reify(x), 2); //bound2 == bound! == storage
 */
 
 }
