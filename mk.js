@@ -266,13 +266,7 @@ class Goal {
         else if (!g) return fail;
         else return g; }
     conj(...xs) { return conj(this, ...xs); }
-    disj(x) {
-        if (fail === x) return this;
-        return new Disj(this, x);
-    }
-    conde(...g) {
-        return conde(this, ...g);
-    }
+    conde(...g) { return conde(this, ...g); }
     filter(f) { return f(this) ? this : succeed; }
     run(n=-1, {reify=nil, substitution=nil}={}) {
         return this.eval(new State(substitution)).take(n).map(s => reify ? log('run', 'reify', s.substitution.reify(reify)) : s);
@@ -297,7 +291,7 @@ class Goal {
             .filter(d => d.car instanceof MVar); }
     toString() { return JSON.stringify(this); }}
 
-function conde(...condes) { return condes.reduceRight((cs, c) => Goal.as_goal(c).disj(cs), fail); }
+function conde(...condes) { return condes.reduceRight((cs, c) => Conde.conde(Goal.as_goal(c), cs), fail); }
 
 function conj(...conjs) { return conjs.reduceRight((cs, c) => Conj.conj(Goal.as_goal(c), cs), succeed); }
 
@@ -345,12 +339,15 @@ class Conj extends Goal {
     toString() { return `(${this.lhs} & ${this.rhs})`; }
 }
 
-class Disj extends Goal {
+class Conde extends Goal {
     constructor(lhs, rhs) {
         super();
         this.lhs = lhs;
-        this.rhs = rhs;
-    }
+        this.rhs = rhs; }
+    static conde(x, y) {
+        if (x === fail) return y;
+        if (y === fail) return x;
+        return new this(x, y); }
     is_disj() { return true; }
     eval(s, ctn=succeed) {
         return this.lhs.eval(s, ctn).mplus(this.rhs.eval(s, ctn));

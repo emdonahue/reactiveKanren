@@ -109,13 +109,15 @@ cons(1, 2, 3); // -> (1 2 . 3)
 ```
 
 ### Unification (eq)
-Every expression in the miniKanren language, up to and including an entire program, is referred to as a "goal." When run, a goal returns a stream of answers. The simplest goal is called unification, which assigns variables to values. Assume we have a miniKanren variable ```x```, also known as a "logic" variable. If we then unify ```x``` with the number 1 using the ```eq``` unification method of logic variables and run the goal:
+Every expression in the miniKanren language, up to and including an entire program, is referred to as a "goal." When run, a goal returns a stream of answers for subsequent processing by other goals. Each answer represents the set values bound to a set of top level variables called "query variables."
+
+The simplest goal is called unification, which binds variables to values. Assume we have a miniKanren variable ```x```, also known as a "logic" variable to distinguish it from Javascript variables. If we then unify ```x``` with the number 1 using the ```eq``` unification method of logic variables and run the goal:
 
 ```javascript
 x.eq(1).run(); // -> ((1))
 ```
 
-we receive a list of answers. Each answer is itself a list of values, and each value corresponds to one of the logic variables we have assigned in our goal. In this case, we receive a list containing a single answer, and that answer contains the single value, 1, which we assigned to ```x```.
+we receive a list of answers. Each answer is itself a list of values, and each value corresponds to one of the logic variables we have bound in our goal. In this case, we receive a list containing a single answer, and that answer contains the single value, 1, which we assigned to ```x```.
 
 ```eq```, like the other logic variable methods that will be discussed in this section, is a shorthand for passing the logic variable in as the first argument to the more general ```eq``` function, which can also be imported and used directly:
 
@@ -123,6 +125,19 @@ we receive a list of answers. Each answer is itself a list of values, and each v
 import {eq} from 'path/to/mk.js';
 
 eq(x, 1).run(); // -> ((1))
+```
+
+Much of the expressivity of logic programming comes from the fact that unification combines conditional logic and data manipulation in a compact form. When complex structures such as arrays or Javascript objects are unified, miniKanren recursively unifies their common properties:
+
+```javascript
+eq({a: 1, b: 2}, {a: x}).run(); // -> ((1))
+```
+
+Here, unifying the Javascript object ```{a: 1, b: 2}``` with the smaller object ```{a: x}``` recursively unifies the ```a``` property of each object, binding ```x``` to 1 while ignoring the ```b``` property not shared by both objects. This form of unification can be used to easily destructure complex terms based on matching patterns. Note too that unification is symmetric:
+
+```javascript
+eq(x, 1); // -> ((1))
+eq(1, x); // -> ((1))
 ```
 
 ### Fresh
@@ -135,16 +150,50 @@ fresh(x => x.eq(1)).run(); // -> ((1))
 ```fresh``` accepts a function of arbitrary arity and calls that function with a new logic variable for each argument in the function.
 
 ### Conj
-The ```conj``` method can apply multiple goals to the same answer:
+The ```conj``` method runs multiple goals in the context of the same answer.
 
 ```javascript
 fresh((x, y, z) => x.eq(1).conj(y.eq(2), z.eq(3))).run(); // -> ((1 2 3))
 ```
 
-```conj``` accepts an arbitrary number of goals and runs them all in the current answer. In this case, it runs three unifications, which bind ```x```, ```y```, and ```z``` to 1, 2, and 3, respectively.
+Here we receive a single answer, but each of the three unifications has bound its respective variable within that answer. ```conj``` accepts an arbitrary number of subgoals.
 
 Anywhere a goal can appear in reactiveKanren, an array of goals can be substituted instead, which will be interpreted as a conjunction of all contained goals:
 
 ```javascript
-fresh((x, y, z) => [x.eq(1), [y.eq(2), [z.eq(3)]]]).run(); // -> ((1 2 3))
+fresh((x, y, z) => [x.eq(1), y.eq(2), z.eq(3)]).run(); // -> ((1 2 3))
 ```
+
+Note that a variable can only have a single value within a single answer:
+
+```javascript
+fresh(x => x.eq(1).conj(x.eq(2))).run(); // -> ()
+```
+
+This goal returned an empty stream containing no answers because ```x``` cannot have both 1 and 2 as values within a single answer. 
+
+### Conde
+```conde``` creates multiple answers and runs each of its subgoals in the context of a new answer:
+
+```javascript
+fresh(x => x.eq(1).conde(x.eq(2), x.eq(3))).run(); // -> ((1) (2) (3))
+```
+
+Like ```conj```, ```conde``` accepts an arbitrary number of goals and runs them all. In this case, it runs three unifications, which bind ```x``` to 1, 2, or 3, each in a separate answer so as to avoid conflicts.
+
+## Dynamic Templates
+In order to generate a dynamic view that displays and allows users to interact with application data, we can inject miniKanren into our view template in the form of a dynamic template.
+
+### Variable Templates
+First, we must load some dynamic data into the application. This is done through the optional second argument to the ```RK``` constructor:
+
+```javascript
+let app = new RK(model => model, 'lorem ipsum);
+document.body.append(app.root());
+```
+
+In this example, the string 'lorem ipsum' represents our applicaion's model data. The first argument to the constructor has been replaced with a single-argument function that accepts a logic variable bound to our application's model data, in this case, `lorem ipsum'. The simplest dynamic template is the variable template, which consists simply of a variable bound to a valid reactiveKanren template. Because ```model``` is bound to 'lorem ipsum', and strings are valid templates, ```model``` will be replaced by 'lorem ipsum' and template processing will proceed as normal, injecting the text node `lorem ipsum' into the document body.
+
+### Goal Templates
+
+### Function Templates
