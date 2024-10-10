@@ -272,7 +272,7 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
 // DOM
 
 {
-    // Static renders
+    // Static Templates
     asserte(new RK('lorem').root().textContent, 'lorem');
     asserte(new RK(['span']).root().outerHTML, '<span></span>');
     asserte(new RK(['span', 'lorem']).root().outerHTML, '<span>lorem</span>');
@@ -280,15 +280,33 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
     asserte(new RK(['p', [{tagName: 'span'}, 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
     asserte(new RK([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
     asserte(new RK([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
+    asserte(new RK([{name: 'ipsum'}]).root().name, 'ipsum');
+    asserte(new RK([{className: ['ipsum', 'dolor']}]).root().className, 'ipsum dolor');
+    asserte(new RK([{className: ['lorem', ['ipsum', 'dolor']]}]).root().className, 'lorem ipsum dolor');
+    asserte(new RK([{className: [{ipsum: true}]}]).root().className, 'ipsum');
+    asserte(new RK([{style: 'border: 1px solid black;'}]).root().style.border, '1px solid black');
+    asserte(new RK([{style: ['border:', '1px', 'solid', 'black;']}]).root().style.border, '1px solid black');
+    asserte(new RK([{style: [{'border:': true, '1px': true, solid: true, 'black;': true}]}]).root().style.border, '1px solid black');
+    asserte(new RK([{style: {border: '1px solid black'}}]).root().style.border, '1px solid black');
+    asserte(new RK([{style: {border: ['1px', 'solid', 'black']}}]).root().style.border, '1px solid black');
+    asserte(new RK([{style: {border: [{'1px':true, solid: true, black: true}]}}]).root().style.border, '1px solid black');
+
+    // Variable Templates
+    asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
+    asserte(new RK(m => ['span', m], 'lorem').root().outerHTML, '<span>lorem</span>');
+    asserte(new RK(m => ['p', m], ['span', 'lorem']).root().outerHTML, '<p><span>lorem</span></p>');
+
+    asserte(new RK(['p', [{tagName: 'span'}, 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
+    asserte(new RK([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
     asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
     asserte(new RK([{className: ['ipsum', 'dolor']}, 'lorem']).root().className, 'ipsum dolor');
-    asserte(new RK([{className: {ipsum: true}}, 'lorem']).root().className, 'ipsum');
+    asserte(new RK([{className: [{ipsum: true}]}, 'lorem']).root().className, 'ipsum');
     asserte(new RK([{style: {border: '1px solid black'}}, 'lorem']).root().style.border, '1px solid black');
     asserte(new RK([{style: {border: ['1px', 'solid', 'black']}}, 'lorem']).root().style.border, '1px solid black');
-    asserte(new RK([{style: {border: {'1px':true, solid: true, black: true}}}, 'lorem']).root().style.border, '1px solid black'); //TODO check if property is empty string or undefined vs a css object or other object
-    //asserte(new RK([{style: {background: ['1px', 'solid', 'black']}}, 'lorem']).root().style.color, 'black');
-
-    // Static MK renders
+    asserte(new RK([{style: {border: [{'1px':true, solid: true, black: true}]}}, 'lorem']).root().style.border, '1px solid black');
+    
+    // Static Templates
     asserte(new RK([{name: v => v.eq('ipsum')}, 'lorem']).root().name, 'ipsum');
     asserte(new RK(m => [{name: v => v.eq(m)}, 'lorem'], 'ipsum').root().name, 'ipsum');
     asserte(new RK(m => v => v.eq([{name: m}, 'lorem']), 'ipsum').root().name, 'ipsum');
@@ -314,7 +332,7 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
     asserte(new RK(m => v => fresh(x => [x.eq('lorem'), v.eq(['span', x])])).root().outerHTML, '<span>lorem</span>');
     //asserte(new RK(m => (v,x=m) => fresh((a,d) => [x.eq(cons(a,d)), conde(v.eq(a))]), list('lorem')).root().textContent, 'lorem');
     
-    // Dynamic renders
+    // Variable Templates
     /*
     asserte(new RK(m => v => v.eq(m), 'lorem').root().textContent, 'lorem');
     asserte(new RK(m => v => v.eq(m), 'lorem').rerender(m => m.set('lorem')).root().textContent, 'lorem');

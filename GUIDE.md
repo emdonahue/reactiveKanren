@@ -181,19 +181,41 @@ fresh(x => x.eq(1).conde(x.eq(2), x.eq(3))).run(); // -> ((1) (2) (3))
 
 Like ```conj```, ```conde``` accepts an arbitrary number of goals and runs them all. In this case, it runs three unifications, which bind ```x``` to 1, 2, or 3, each in a separate answer so as to avoid conflicts.
 
-## Dynamic Templates
-In order to generate a dynamic view that displays and allows users to interact with application data, we can inject miniKanren into our view template in the form of a dynamic template.
-
-### Variable Templates
-First, we must load some dynamic data into the application. This is done through the optional second argument to the ```RK``` constructor:
+## Variable Templates
+In order to generate a dynamic view that displays and allows users to interact with application data, we can inject miniKanren into our view template in the form of a dynamic template. The simplest dynamic template is the variable template, which consists simply of a variable bound to a valid reactiveKanren template. First, we must load some dynamic data into the application. This is done through the optional second argument to the ```RK``` constructor:
 
 ```javascript
-let app = new RK(model => model, 'lorem ipsum);
+let app = new RK(model => model, 'lorem ipsum');
 document.body.append(app.root());
 ```
 
-In this example, the string 'lorem ipsum' represents our applicaion's model data. The first argument to the constructor has been replaced with a single-argument function that accepts a logic variable bound to our application's model data, in this case, `lorem ipsum'. The simplest dynamic template is the variable template, which consists simply of a variable bound to a valid reactiveKanren template. Because ```model``` is bound to 'lorem ipsum', and strings are valid templates, ```model``` will be replaced by 'lorem ipsum' and template processing will proceed as normal, injecting the text node `lorem ipsum' into the document body.
+```html
+lorem ipsum
+```
 
-### Goal Templates
+In this example, the string 'lorem ipsum' represents our applicaion's model data. The first argument to the constructor has been replaced with a single-argument function that accepts a logic variable bound to our application's model data, in this case, `lorem ipsum'. Note that ```model``` here is a logic variable that is bound internally to the string 'lorem ipsum'---it is not the Javascript string object itself.
 
-### Function Templates
+ Because ```model``` is bound to 'lorem ipsum', and strings are valid templates, ```model``` will be replaced by 'lorem ipsum' and template processing will proceed as normal, injecting the text node `lorem ipsum' into the document body. Logic variables can also appear within more complex templates, so long as they are bound to a valid subtemplate for the location in which they appear:
+
+```javascript
+let app = new RK(model => ['p', model], 'lorem ipsum');
+```
+
+```html
+<p>lorem ipsum</p>
+```
+
+```javascript
+let app = new RK(model => ['p', model], ['span', 'lorem ipsum']);
+```
+
+```html
+<p><span>lorem ipsum</span></p>
+```
+
+
+Note that ```tagName``` must be a static string, since it is an immutable property of a DOM node.
+
+## Goal Templates
+
+## Function Templates

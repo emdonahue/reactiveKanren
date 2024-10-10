@@ -752,27 +752,16 @@ class NodeView {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
             else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, parent, k.substr(2), Goal.as_goal(tparent[k]), app));
-            this.render_property(tparent[k], parent, k, sub, app, children);
+            else AttrView.render(k, tparent[k], parent, sub, app, children);
         }
         return parent;
     }
-    static render_property(tproperty, parent, propname, sub, app, children) {
-        if (is_text(tproperty)) parent[propname] = tproperty;
-        else if (Array.isArray(tproperty) && tproperty.flat(Infinity).every(e => is_text(e))) {
-            parent[propname] = tproperty.flat(Infinity).join(' '); }
-        else if (tproperty instanceof LVar || tproperty instanceof Function) {
-            children.push(AttrView.render(sub, parent, propname, tproperty)); }
-        else {
-            if (Object.values(tproperty).every(e => !e || e === true)) {
-                parent[propname] = Object.entries(tproperty).filter(e => e[1]).map(e => e[0]).join(' '); }
-            else {
-                for (let k in tproperty) {
-                    this.render_property(tproperty[k], parent[propname], k, sub, app, children); }}}}
+    
     static render_children(parent, tchildren, sub, app, children) {
         log('render', this.name, 'children', parent, tchildren);
         for (let tchild of tchildren) {
-            this.render_child(parent, tchild, sub, app, children); }
-    }
+            this.render_child(parent, tchild, sub, app, children); }}
+    
     static render_child(parent, tchild, sub, app, children) {
         log('render', this.name, 'child', parent, tchild);
         if (is_text(tchild)) parent.append(tchild);
@@ -826,12 +815,41 @@ class AttrView {
         this.attr = attr; //TODO if attr is tagName, generate new node, swap children, and swap into dom
         this.goal = goal;
         this.vvar = vvar; }
+
+    static parse_template(tmpl, tstatic=[], tdynamic=[]) {
+        if (is_text(tmpl)) tstatic.push(tmpl);
+        else if (tmpl instanceof LVar || tmpl instanceof Function) tdynamic.push(tmpl);
+        else if (Array.isArray(tmpl)) tmpl.forEach(e => this.parse_template(e, tstatic, tdynamic));
+        else {
+            Object.entries(tmpl).forEach(([k,v]) => {
+                if (v instanceof LVar || v instanceof Function) tdynamic.push({[k]: v});
+                else if (v) tstatic.push(k); });}
+        return [tstatic, tdynamic];
+    }
     
-    static render(sub, node, attr, val) {        
+    static render_string(tpropname, tpropval, parent, sub, app, children) {
+        //if (!(is_text(tpropval) || tpropval instanceof LVar || tpropval instanceof Function || Array.isArray(tpropval) ||
+        //Object.values(tpropval).every(v => v instanceof Goal))) return this.render_string();
+        let [tstatic, tdynamic] = this.parse_template(tpropval);
+        if (!tdynamic.length) return parent[tpropname] = tstatic.join(' ');
+        if (is_text(tpropval)) parent[tpropname] = tpropval;
+        else if (Array.isArray(tpropval) && tpropval.flat(Infinity).every(e => is_text(e))) {
+            parent[tpropname] = tpropval.flat(Infinity).join(' '); }
+        else if (tpropval instanceof LVar) children.push(this.render_lvar(sub, parent, tpropname, tpropval));
+        else if (tpropval instanceof Function) children.push(this.render_f(sub, parent, tpropname, tpropval, new LVar()));
+        else {
+            if (Object.values(tpropval).every(e => !e || e === true)) {
+                parent[tpropname] = Object.entries(tpropval).filter(e => e[1]).map(e => e[0]).join(' '); }
+            else {
+                for (let k in tpropval) {
+                    this.render_string(k, tpropval[k], parent[tpropname], sub, app, children); }}}}
+    
+    static render(tpropname, tpropval, parent, sub, app, children) {
         log('render', this.name, subToArray(sub));
-        if (val instanceof LVar) return this.render_lvar(sub, node, attr, val);
-        else if (val instanceof Function) this.render_f(sub, node, attr, val, new LVar());
-        else throw Error(val); }
+        if (is_text(tpropval) || tpropval instanceof LVar || tpropval instanceof Function || Array.isArray(tpropval) ||
+            Object.values(tpropval).every(v => v instanceof Goal)) {
+            this.render_string(tpropname, tpropval, parent, sub, app, children); }
+        else Object.entries(tpropval).forEach(([k,v]) => this.render(k, v, parent[tpropname], sub, app, children)); }
 
     static render_lvar(sub, node, attr, val) { return new this(node, attr, succeed, val).rerender(sub); }
     
