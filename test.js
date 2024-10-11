@@ -284,6 +284,7 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
     asserte(new RK([{className: ['ipsum', 'dolor']}]).root().className, 'ipsum dolor');
     asserte(new RK([{className: ['lorem', ['ipsum', 'dolor']]}]).root().className, 'lorem ipsum dolor');
     asserte(new RK([{className: [{ipsum: true}]}]).root().className, 'ipsum');
+    asserte(new RK([{className: ['lorem', ['ipsum'], {dolor: true}]}]).root().className, 'lorem ipsum dolor');
     asserte(new RK([{style: 'border: 1px solid black;'}]).root().style.border, '1px solid black');
     asserte(new RK([{style: ['border:', '1px', 'solid', 'black;']}]).root().style.border, '1px solid black');
     asserte(new RK([{style: [{'border:': true, '1px': true, solid: true, 'black;': true}]}]).root().style.border, '1px solid black');
@@ -295,11 +296,12 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
     asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
     asserte(new RK(m => ['span', m], 'lorem').root().outerHTML, '<span>lorem</span>');
     asserte(new RK(m => ['p', m], ['span', 'lorem']).root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK(m => ['p', [m, 'lorem']], 'span').root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK(m => ['p', [m, 'lorem']], {tagName: 'span'}).root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK(m => ['p', [{tagName: m}, 'lorem']], 'span').root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK(m => [m, 'lorem'], {}).root().outerHTML, '<div>lorem</div>');
+    asserte(new RK(m => [{name: m}, 'lorem'], 'ipsum').root().name, 'ipsum');
 
-    asserte(new RK(['p', [{tagName: 'span'}, 'lorem']]).root().outerHTML, '<p><span>lorem</span></p>');
-    asserte(new RK([{tagName: 'span'}, 'lorem']).root().outerHTML, '<span>lorem</span>');
-    asserte(new RK([{}, 'lorem']).root().outerHTML, '<div>lorem</div>');
-    asserte(new RK([{name: 'ipsum'}, 'lorem']).root().name, 'ipsum');
     asserte(new RK([{className: ['ipsum', 'dolor']}, 'lorem']).root().className, 'ipsum dolor');
     asserte(new RK([{className: [{ipsum: true}]}, 'lorem']).root().className, 'ipsum');
     asserte(new RK([{style: {border: '1px solid black'}}, 'lorem']).root().style.border, '1px solid black');

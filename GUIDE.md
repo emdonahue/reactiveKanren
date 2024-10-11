@@ -59,24 +59,26 @@ lorem ipsum
 <p id="content">lorem ipsum</p>
 ```
 
-### HTML nodes with space-delimited properties
+Note: if ```tagName``` is omitted, 'div' is used as the default ```tagName```.
 
-Properties accept an array of strings or an object containing string-boolean pairs. In the former case, the strings are joined together with spaces separating them. In the latter case, keys with ```true``` values will be joined together with spaces. Object keys with falsy values will be ignored:
+### HTML nodes with whitespace-delimited properties
+
+In addition to strings, properties also accept arrays. Each element of the array will be rendered into a string, and then joined together with delimiting whitespace. Array elements may be strings. They may also be objects, in which case the keys for all truthy values will be joined together into a string delimited by whitespace. Elements may also recursively be arrays, which may contain any of the previously mentioned element types:
 
 ```javascript
-[{tagName: 'p', className: ['class1', 'class2']}, 'lorem ipsum']
+[{tagName: 'p', className: ['class1', 'class2', 'class3']}, 'lorem ipsum']
 ```
 
 ```javascript
-[{tagName: 'p', className: {class1: true, class2: true, class3: false, class4: null}}, 'lorem ipsum']
+[{tagName: 'p', className: ['class1', ['class2'], {class3: true, class3: false, class4: null}]}, 'lorem ipsum']
 ```
 
 ```html
-<p class="class1 class2">lorem ipsum</p>
+<p class="class1 class2 class3">lorem ipsum</p>
 ```
 
 ### HTML nodes with CSS style properties
-Properties also accept objects containing string-string, string-array, and string-object pairs. These are primarily useful for the style property. String-string pairs set the style named by the key to the value. String-array pairs set the style named by the key to the whitespace-delimited concatenation of array elements, which must be strings. String-object pairs set the style named by the key to the whitespace-delimited concatenation of the key names for which the corresponding values are ```true```:
+Properties also accept objects. This is useful for properties such as ```style```, which return objects with their own string properties. In this case, the template uses the same syntax as in [HTML nodes with whitespace-delimited properties](#html-nodes-with-whitespace-delimited-properties) to set the string properties of the style object:
 
 ```javascript
 [{tagName: 'p', style: {border: '1px solid black'}}, 'lorem ipsum']
@@ -87,7 +89,7 @@ Properties also accept objects containing string-string, string-array, and strin
 ```
 
 ```javascript
-[{tagName: 'p', style: {border: {'1px': true, solid: true, black: true}}, 'lorem ipsum']
+[{tagName: 'p', style: {border: ['1px', ['solid'], {black: true}]}, 'lorem ipsum']
 ```
 
 ```html
@@ -214,7 +216,6 @@ let app = new RK(model => ['p', model], ['span', 'lorem ipsum']);
 ```
 
 
-Note that ```tagName``` must be a static string, since it is an immutable property of a DOM node.
 
 ## Goal Templates
 

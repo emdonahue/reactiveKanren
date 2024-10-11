@@ -740,14 +740,16 @@ class NodeView {
         return new this(template, children, node);
     }
     static render_node([tparent, ...tchildren], sub, app, children) {
-        let parent = this.render_parent(tparent, sub, app, children);
+        log('render', this.name, 'render_node', tparent, sub.walk(tparent), tchildren);
+        let parent = this.render_parent(sub.walk(tparent), sub, app, children);
         this.render_children(parent, [...tchildren], sub, app, children);
         return parent;
     }
     static render_parent(tparent, sub, app, children) {
-        if (is_string(tparent)) return this.render_parent({tagName: tparent});
+        log('render', this.name, 'render_parent', tparent);
+        if (is_string(tparent)) return this.render_parent({tagName: tparent}, sub, app, children);
         if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, children);
-        let parent = document.createElement(tparent.tagName ?? 'div');
+        let parent = document.createElement(tparent.tagName ? sub.walk(tparent.tagName) : 'div');
         for (let k in tparent) {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
