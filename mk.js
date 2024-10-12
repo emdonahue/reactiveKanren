@@ -45,7 +45,10 @@ class RK {
         this.update(g, this.substitution);
         return this;
     }
-    update(patch) { //TODO rename update->set
+    update(f) {
+        this.patch(f(this.mvar).rediff(this.substitution));
+        return this; }
+    patch(patch) { //TODO rename update->set
         if (patch.isNil()) return;
         log('reunify', this.constructor.name, subToArray(patch), subToArray(this.substitution));
         this.substitution = patch.repatch(this.substitution);
@@ -872,7 +875,7 @@ class EventView {
     static render(sub, node, event, handler, app) {
         let self = new this(sub); // Keep a reference to the view, which may mutate its sub.
         node.addEventListener(event, e =>
-            app.update((handler instanceof Goal ? handler : Goal.as_goal(handler(e, e.target.value))).rediff(self.substitution)));
+            app.patch((handler instanceof Goal ? handler : Goal.as_goal(handler(e, e.target.value))).rediff(self.substitution)));
         return self; }
     
     rerender(sub) {

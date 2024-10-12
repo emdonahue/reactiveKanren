@@ -294,6 +294,7 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
 
     // Variable Templates
     asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
+    asserte(new RK(m => m, 'lorem').update(m => m.set('ipsum')).root().textContent, 'ipsum');
     asserte(new RK(m => ['span', m], 'lorem').root().outerHTML, '<span>lorem</span>');
     asserte(new RK(m => ['p', m], ['span', 'lorem']).root().outerHTML, '<p><span>lorem</span></p>');
     asserte(new RK(m => ['p', [m, 'lorem']], 'span').root().outerHTML, '<p><span>lorem</span></p>');
@@ -302,6 +303,7 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
     asserte(new RK(m => [m, 'lorem'], {}).root().outerHTML, '<div>lorem</div>');
     asserte(new RK(m => [{name: m}, 'lorem'], 'ipsum').root().name, 'ipsum');
 
+    //TODO can we just reify the parent part of the template and use the nodeview to compare and rerender if needed?
     asserte(new RK([{className: ['ipsum', 'dolor']}, 'lorem']).root().className, 'ipsum dolor');
     asserte(new RK([{className: [{ipsum: true}]}, 'lorem']).root().className, 'ipsum');
     asserte(new RK([{style: {border: '1px solid black'}}, 'lorem']).root().style.border, '1px solid black');
