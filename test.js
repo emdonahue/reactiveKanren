@@ -296,8 +296,14 @@ asserte(fresh((x) => [x.eq(cons(1,2)), x.isPairo()]).run(), list(list(cons(1,2))
     asserte(new RK(m => m, 'lorem').root().textContent, 'lorem');
     asserte(new RK(m => m, 'lorem').update(m => m.set('ipsum')).root().textContent, 'ipsum');
     asserte(new RK(m => ['span', m], 'lorem').root().outerHTML, '<span>lorem</span>');
+    asserte(new RK(m => ['span', m], 'lorem').update(m => m.set('ipsum')).root().outerHTML, '<span>ipsum</span>');
     asserte(new RK(m => ['p', m], ['span', 'lorem']).root().outerHTML, '<p><span>lorem</span></p>');
+    asserte(new RK(m => ['p', m], ['span', 'lorem']).update(m => m.set(['span', 'ipsum'])).root().outerHTML, '<p><span>ipsum</span></p>');
+    asserte(new RK(m => [m, 'lorem'], 'p').root().outerHTML, '<p>lorem</p>');
+    asserte(new RK(m => [m, 'lorem'], 'span').update(m => m.set('span')).root().outerHTML, '<span>lorem</span>');
     asserte(new RK(m => ['p', [m, 'lorem']], 'span').root().outerHTML, '<p><span>lorem</span></p>');
+    logging('rerender')
+    asserte(new RK(m => ['p', [m, 'lorem']], 'span').update(m => m.set('b')).root().outerHTML, '<p><b>lorem</b></p>');
     asserte(new RK(m => ['p', [m, 'lorem']], {tagName: 'span'}).root().outerHTML, '<p><span>lorem</span></p>');
     asserte(new RK(m => ['p', [{tagName: m}, 'lorem']], 'span').root().outerHTML, '<p><span>lorem</span></p>');
     asserte(new RK(m => [m, 'lorem'], {}).root().outerHTML, '<div>lorem</div>');

@@ -730,34 +730,44 @@ class AnswerView { // Displayable iterable item
 
 
 class NodeView { 
-    constructor(template, children, node) {
+    constructor(template, children, node, properties) {
+        assert(Array.isArray(template));
         this.template = template;
         this.node = node;
-        this.children = children; }
+        this.children = children;
+        this.properties = properties; }
 
-    static render(sub, app, template) {
-        log('render', this.name, template, sub);
-        let children = [];
-        let node = this.render_node(template, sub, app, children);
+    static normalize_template(tprops, tchildren, sub) {
+        if (tprops instanceof LVar) return this.normalize_template(sub.walk(tprops), tchildren, sub);
+        if (is_string(tprops)) return this.normalize_template({tagName: tprops}, tchildren, sub);
+        tprops.tagName = sub.walk(tprops.tagName ?? 'div');
+        return [tprops, ...tchildren];
+    }
+    static render(sub, app, [tprops, ...tchildren]) {
+        log('render', this.name, [tprops, ...tchildren], sub);
+        assert(Array.isArray([tprops, ...tchildren]));
+        let template = this.normalize_template(tprops, tchildren, sub);
+        let children = [], properties = {};
+        let node = this.render_node(template, sub, app, children, properties);
         log('render', this.name + '^', children);
         return new this(template, children, node);
     }
-    static render_node([tparent, ...tchildren], sub, app, children) {
+    static render_node([tparent, ...tchildren], sub, app, children, properties) {
         log('render', this.name, 'render_node', tparent, sub.walk(tparent), tchildren);
-        let parent = this.render_parent(sub.walk(tparent), sub, app, children);
+        let parent = this.render_parent(sub.walk(tparent), sub, app, properties);
         this.render_children(parent, [...tchildren], sub, app, children);
         return parent;
     }
-    static render_parent(tparent, sub, app, children) {
+    static render_parent(tparent, sub, app, properties) {
         log('render', this.name, 'render_parent', tparent);
-        if (is_string(tparent)) return this.render_parent({tagName: tparent}, sub, app, children);
-        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, children);
+        if (is_string(tparent)) return this.render_parent({tagName: tparent}, sub, app, properties);
+        if (tparent instanceof LVar) return this.render_parent(sub.walk(tparent), sub, properties);
         let parent = document.createElement(tparent.tagName ? sub.walk(tparent.tagName) : 'div');
         for (let k in tparent) {
             log('render', 'attr', parent, k, tparent[k]);
             if (k === 'tagName') continue;
-            else if (k.substr(0,2) === 'on') children.push(EventView.render(sub, parent, k.substr(2), Goal.as_goal(tparent[k]), app));
-            else AttrView.render(k, tparent[k], parent, sub, app, children);
+            else if (k.substr(0,2) === 'on') properties[k] = EventView.render(sub, parent, k.substr(2), Goal.as_goal(tparent[k]), app);
+            else AttrView.render(k, tparent[k], parent, sub, app, properties);
         }
         return parent;
     }
@@ -775,15 +785,22 @@ class NodeView {
             children.push(GoalView.render(sub, app, tchild));
             parent.append(children[children.length-1].root()); }}
     
-    rerender(sub, app, template=this.template) {
-        if (!equals(template, this.template)) {
-            log('rerender', this.constructor.name, 'render', this.template, template);
-            let v = View.render(sub, app, template); //TODO thread app
-            this.node.replaceWith(v.root());
-            return v; }
+    rerender(sub, app, [tprops, ...tchildren]=this.template) {
+        let template = this.constructor.normalize_template(tprops, tchildren, sub);
         log('rerender', this.constructor.name, template, this.template, equals(template, this.template), this.children, subToArray(sub));
-        for (let i in this.children) this.children[i] = this.children[i].rerender(sub, app);
-        return this;
+        if (equals(template, this.template)) {
+            
+            
+            this.template = template; //TODO we'll need to put any children with dynamic parent elements under their own dom node managers or else handle them here
+            for (let k in this.properties) this.properties[i] = this.properties[i].rerender(sub, app);
+            for (let i in this.children) this.children[i] = this.children[i].rerender(sub, app);
+            return this;
+        }
+        
+
+        let v = View.render(sub, app, template); //TODO thread app
+        this.node.replaceWith(v.root());
+        return v;
     }
     root() { return this.node; }
     remove() { if (this.node) this.node.remove(); }
@@ -832,7 +849,7 @@ class AttrView {
         return [tstatic, tdynamic];
     }
     
-    static render_string(tpropname, tpropval, parent, sub, app, children) {
+    static render_string(tpropname, tpropval, parent, sub, app, properties) {
         //if (!(is_text(tpropval) || tpropval instanceof LVar || tpropval instanceof Function || Array.isArray(tpropval) ||
         //Object.values(tpropval).every(v => v instanceof Goal))) return this.render_string();
         let [tstatic, tdynamic] = this.parse_template(tpropval);
@@ -840,21 +857,21 @@ class AttrView {
         if (is_text(tpropval)) parent[tpropname] = tpropval;
         else if (Array.isArray(tpropval) && tpropval.flat(Infinity).every(e => is_text(e))) {
             parent[tpropname] = tpropval.flat(Infinity).join(' '); }
-        else if (tpropval instanceof LVar) children.push(this.render_lvar(sub, parent, tpropname, tpropval));
-        else if (tpropval instanceof Function) children.push(this.render_f(sub, parent, tpropname, tpropval, new LVar()));
+        else if (tpropval instanceof LVar) properties[tpropval] = this.render_lvar(sub, parent, tpropname, tpropval);
+        else if (tpropval instanceof Function) properties[tpropval] = this.render_f(sub, parent, tpropname, tpropval, new LVar());
         else {
             if (Object.values(tpropval).every(e => !e || e === true)) {
                 parent[tpropname] = Object.entries(tpropval).filter(e => e[1]).map(e => e[0]).join(' '); }
             else {
                 for (let k in tpropval) {
-                    this.render_string(k, tpropval[k], parent[tpropname], sub, app, children); }}}}
+                    this.render_string(k, tpropval[k], parent[tpropname], sub, app, null); }}}}
     
-    static render(tpropname, tpropval, parent, sub, app, children) {
+    static render(tpropname, tpropval, parent, sub, app, properties) {
         log('render', this.name, subToArray(sub));
         if (is_text(tpropval) || tpropval instanceof LVar || tpropval instanceof Function || Array.isArray(tpropval) ||
             Object.values(tpropval).every(v => v instanceof Goal)) {
-            this.render_string(tpropname, tpropval, parent, sub, app, children); }
-        else Object.entries(tpropval).forEach(([k,v]) => this.render(k, v, parent[tpropname], sub, app, children)); }
+            this.render_string(tpropname, tpropval, parent, sub, app, properties); }
+        else Object.entries(tpropval).forEach(([k,v]) => this.render(k, v, parent[tpropname], sub, app, properties)); }
 
     static render_lvar(sub, node, attr, val) { return new this(node, attr, succeed, val).rerender(sub); }
     
